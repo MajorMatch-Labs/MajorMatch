@@ -43,6 +43,8 @@ ephemeral_data/
 # Ephemeral uploads
 /tmp/
 *.pdf
+*.docx
+CNTT2025*
 
 # Cloudflare & Credentials
 /root/.cloudflared/
