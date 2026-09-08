@@ -310,7 +310,7 @@ data: {"token": "", "done": true, "tokens_per_second": 48.2}
 
 ### 2.5. Endpoint 5: Tra cứu Khung Chương trình Chuẩn (`GET /api/v1/curriculum/{major_id}`)
 
-* **Mục đích:** Phục vụ dữ liệu tĩnh về cây chương trình đào tạo của từng ngành, được xử lý và trả về từ cache SQLite trên Joy 3.
+* **Mục đích:** Phục vụ dữ liệu tĩnh về cây chương trình đào tạo của từng ngành, được xử lý và trả về từ cache SQLite trên Edge Gateway.
 * **Query Parameters:** `school_code` (string, ví dụ: `"DUT"`, `"HUST"`).
 * **Thời gian phản hồi:** $\le 15\text{ms}$.
 
@@ -324,13 +324,13 @@ data: {"token": "", "done": true, "tokens_per_second": 48.2}
 {
   "status": "healthy",
   "gateway_node": {
-    "device": "Vsmart Joy 3",
-    "os": "Ubuntu 22.04 (Termux)",
+    "device": "Linux Edge Gateway Node",
+    "os": "Ubuntu 22.04 LTS",
     "sqlite_cache_size_kb": 1420
   },
   "private_compute_node": {
-    "device": "Legion Pro i9-13900HX",
-    "gpu_status": "NVIDIA GeForce RTX 4060",
+    "device": "Private HPC Compute Node",
+    "gpu_status": "NVIDIA CUDA GPU",
     "vram_used_mb": 5214,
     "vram_total_mb": 8188,
     "ollama_status": "online",

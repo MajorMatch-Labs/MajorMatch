@@ -40,10 +40,10 @@ Hệ thống MajorMatch phân tách không gian mạng thành 4 vùng độc l�
                                                                                         │ Hoàn toàn không mở cổng Router!
                                                                                         ▼
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ VÙNG 3: EDGE CONTROL PLANE GATEWAY (TRUSTED DMZ ZONE - Thiết bị Vsmart Joy 3)                                        │
+│ VÙNG 3: EDGE CONTROL PLANE GATEWAY (TRUSTED DMZ ZONE - Linux Edge Gateway Node)                                      │
 │                                                                                                                      │
 │  ┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐  │
-│  │ Ubuntu Termux / PRoot Sandbox                                                                                  │  │
+│  │ Ubuntu Linux Gateway Sandbox                                                                                   │  │
 │  │  ├── `cloudflared` Daemon (Chỉ chấp nhận luồng từ Cloudflare ID định trước)                                    │  │
 │  │  ├── Nginx Web Server & Traffic Shaper:                                                                        │  │
 │  │  │   + Xác thực HTTP Header bí mật (`X-MajorMatch-Origin-Secret`)                                              │  │
@@ -56,13 +56,13 @@ Hệ thống MajorMatch phân tách không gian mạng thành 4 vùng độc l�
                                                                                         │
                                                                                         │ Mạng LAN Nội bộ Cách ly
                                                                                         │ Subnet: 192.168.1.0/24
-                                                                                        │ (Chỉ cho phép IP Joy 3 gọi vào)
+                                                                                        │ (Chỉ cho phép IP của Edge Gateway gọi vào)
                                                                                         ▼
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ VÙNG 4: PRIVATE SECURE HPC ZONE (HIGH-SECURITY ISOLATED ZONE - Laptop Legion i9/RTX 4060)                            │
+│ VÙNG 4: PRIVATE SECURE HPC ZONE (HIGH-SECURITY ISOLATED ZONE - Dedicated GPU Node)                                   │
 │                                                                                                                      │
 │  ┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐  │
-│  │ Windows Defender Firewall / Linux UFW: Chỉ mở duy nhất cổng 8000 cho IP tĩnh của Joy 3 (192.168.1.45)           │  │
+│  │ Windows Defender Firewall / Linux UFW: Chỉ mở duy nhất cổng 8000 cho IP tĩnh của Edge Gateway (192.168.1.45)     │  │
 │  │                                                                                                                │  │
 │  │ Docker Isolated Virtual Bridge Network (`majormatch-net`):                                                     │  │
 │  │  ├── FastAPI Container (Chạy dưới tài nguyên hạn chế, non-root user `appuser:1001`)                            │  │
@@ -81,7 +81,7 @@ Hệ thống MajorMatch phân tách không gian mạng thành 4 vùng độc l�
 
 ### 2.1. Phân loại dữ liệu (Data Classification Policy)
 Hệ thống thiết lập 3 cấp độ phân loại dữ liệu nghiêm ngặt:
-1. **Public Data (Dữ liệu công khai):** Khung chương trình đào tạo đại học, mô tả chuyên ngành, danh mục kỹ năng chuẩn, giao diện đồ họa. Được phép lưu trữ cache tại Vercel Edge và SQLite trên Joy 3.
+1. **Public Data (Dữ liệu công khai):** Khung chương trình đào tạo đại học, mô tả chuyên ngành, danh mục kỹ năng chuẩn, giao diện đồ họa. Được phép lưu trữ cache tại Vercel Edge và SQLite trên Edge Gateway.
 2. **Internal Analytical Data (Dữ liệu phân tích nội bộ):** Vector kỹ năng, điểm số Cosine Similarity, ma trận trọng số. Chỉ lưu thông trong phiên làm việc giữa Backend và Client.
 3. **Confidential / Sensitive Data (Dữ liệu nhạy cảm cá nhân):**
    * File PDF bảng điểm học tập, CV cá nhân.
@@ -103,21 +103,21 @@ Ngay sau khi tệp PDF được nạp vào bộ nhớ RAM của Private Node, m�
 
 | Tác nhân đe dọa (STRIDE) | Nguy cơ cụ thể đối với MajorMatch | Mức độ | Biện pháp phòng thủ & Giảm thiểu |
 | :--- | :--- | :---: | :--- |
-| **S - Spoofing (Giả mạo)** | Kẻ tấn công giả mạo là Vercel gửi yêu cầu rác vào Edge Gateway | Trung bình | Cấu hình Header bí mật `X-MajorMatch-Origin-Secret` được kiểm tra nghiêm ngặt tại tầng Nginx trên Joy 3; các request thiếu header bị drop ngay lập tức với mã lỗi `403 Forbidden`. |
-| **T - Tampering (Sửa đổi dữ liệu)** | Bị chặn bắt gói tin và thay đổi điểm số trên đường truyền | Thấp | Bắt buộc mã hóa toàn trình TLS 1.3 từ Client đến Cloudflare, và đường hầm mã hóa mTLS của Cloudflare Tunnel từ Internet về Joy 3. |
+| **S - Spoofing (Giả mạo)** | Kẻ tấn công giả mạo là Vercel gửi yêu cầu rác vào Edge Gateway | Trung bình | Cấu hình Header bí mật `X-MajorMatch-Origin-Secret` được kiểm tra nghiêm ngặt tại tầng Nginx trên Edge Gateway; các request thiếu header bị drop ngay lập tức với mã lỗi `403 Forbidden`. |
+| **T - Tampering (Sửa đổi dữ liệu)** | Bị chặn bắt gói tin và thay đổi điểm số trên đường truyền | Thấp | Bắt buộc mã hóa toàn trình TLS 1.3 từ Client đến Cloudflare, và đường hầm mã hóa mTLS của Cloudflare Tunnel từ Internet về Edge Gateway. |
 | **R - Repudiation (Chối bỏ)** | Người dùng phủ nhận việc đã tải tài liệu hoặc spam hệ thống | Thấp | Nginx ghi log định danh ẩn danh (`hashed_client_ip`, `timestamp`, `endpoint`, `status_code`) vào file log cục bộ phục vụ phân tích kiểm toán. |
 | **I - Information Disclosure (Lộ lọt thông tin)** | Lộ bảng điểm và thông tin cá nhân của sinh viên ra ngoài | **Nghiêm trọng** | Thực thi chính sách RAM-disk Ephemeral (`tmpfs`); toàn bộ file nhị phân PDF bị hủy sau khi parse; loại bỏ hoàn toàn các dịch vụ AI SaaS công cộng. |
-| **D - Denial of Service (Từ chối dịch vụ)** | Kẻ xấu spam hàng nghìn yêu cầu làm cạn kiệt VRAM GPU RTX 4060 | **Nghiêm trọng** | Triển khai Token Bucket Rate Limiting (10 req/phút/IP) và hàng đợi kết nối tối đa 5 slot trên Nginx; FastAPI áp dụng Semaphore giới hạn 1 tác vụ LLM đồng thời. |
+| **D - Denial of Service (Từ chối dịch vụ)** | Kẻ xấu spam hàng nghìn yêu cầu làm cạn kiệt VRAM GPU | **Nghiêm trọng** | Triển khai Token Bucket Rate Limiting (10 req/phút/IP) và hàng đợi kết nối tối đa 5 slot trên Nginx; FastAPI áp dụng Semaphore giới hạn 1 tác vụ LLM đồng thời. |
 | **E - Elevation of Privilege (Leo thang đặc quyền)** | Khai thác lỗ hổng trong thư viện đọc PDF để chiếm quyền kiểm soát máy tính | Cao | Chạy dịch vụ FastAPI trong Docker container với user không có quyền quản trị (`non-root user`), kích hoạt chế độ chỉ đọc `read-only root filesystem` cho container. |
 
 ---
 
 ## 4. CẤU HÌNH KIỂM SOÁT LƯU LƯỢNG & PHÒNG CHỐNG QUÁ TẢI (GATEWAY TRAFFIC SHAPING)
 
-Tệp cấu hình Nginx thực tế triển khai trên Vsmart Joy 3 áp dụng giải thuật Token Bucket và bảo vệ GPU:
+Tệp cấu hình Nginx thực tế triển khai trên Edge Gateway áp dụng giải thuật Token Bucket và bảo vệ GPU:
 
 ```nginx
-# Định nghĩa vùng giới hạn lưu lượng dựa trên địa chỉ IP nhị phân (tiết kiệm RAM trên Joy 3)
+# Định nghĩa vùng giới hạn lưu lượng dựa trên địa chỉ IP nhị phân (tiết kiệm RAM trên Edge Gateway)
 limit_req_zone $binary_remote_addr zone=ai_inference_zone:10m rate=10r/m;
 limit_conn_zone $binary_remote_addr zone=addr_conn_zone:10m;
 
@@ -179,7 +179,7 @@ server {
 
 ### 5.1. Quản trị từ xa an toàn (Secure Administration via Tailscale VPN)
 * Hoàn toàn đóng cổng SSH (Port 22) đối với toàn bộ các giao diện mạng công cộng và Wi-Fi.
-* Quản trị viên chỉ có thể kết nối SSH vào Joy 3 và Laptop Legion thông qua mạng riêng ảo **Tailscale VPN (Mesh WireGuard)** với tính năng xác thực 2 yếu tố (2FA).
+* Quản trị viên chỉ có thể kết nối SSH vào Edge Gateway và máy chủ Private Node thông qua mạng riêng ảo **Tailscale VPN (Mesh WireGuard)** với tính năng xác thực 2 yếu tố (2FA).
 
 ### 5.2. An toàn tệp tin tải lên (File Ingestion Hardening)
 1. **Kiểm tra Magic Bytes:** Đọc 4 byte đầu tiên của tệp tin tải lên, bắt buộc phải là `%PDF` (`0x25 0x50 0x44 0x46`). Từ chối mọi tệp tin có extension `.pdf` nhưng nội dung thực tế là script hoặc file thực thi (`.exe`, `.sh`).

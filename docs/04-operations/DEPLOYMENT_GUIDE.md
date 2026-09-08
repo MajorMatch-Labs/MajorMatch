@@ -14,13 +14,13 @@
 Quy trình đưa hệ thống MajorMatch vào vận hành thực tế được thực hiện tuần tự theo chiều từ trong ra ngoài (Core $\to$ Edge $\to$ PaaS):
 
 ```text
-BƯỚC 1: CẤU HÌNH PRIVATE NODE (Legion i9)
+BƯỚC 1: CẤU HÌNH PRIVATE NODE (GPU Server)
    ├── Cố định IP tĩnh LAN (192.168.1.50) & Chế độ High Performance (Không Sleep)
    ├── Khởi chạy Docker Compose Production Subsystem (FastAPI + ChromaDB)
    └── Kích hoạt Ollama GPU Inference Daemon (CUDA Qwen 2.5 7B)
                             │
                             ▼
-BƯỚC 2: CẤU HÌNH EDGE GATEWAY (Vsmart Joy 3)
+BƯỚC 2: CẤU HÌNH EDGE GATEWAY (Linux Edge Node)
    ├── Cấu hình Nginx Virtual Host & Kích hoạt Rate Limiting chống sập GPU
    ├── Cấu hình Cloudflare Tunnel Ingress (`config.yml`)
    └── Khởi động tiến trình chạy nền liên tục (Background Daemon)
@@ -34,15 +34,14 @@ BƯỚC 3: TRIỂN KHAI PUBLIC PAAS (Vercel)
 
 ---
 
-## 2. BƯỚC 1: TRIỂN KHAI PRIVATE HPC NODE (LAPTOP LEGION)
+## 2. BƯỚC 1: TRIỂN KHAI PRIVATE HPC NODE
 
 ### 2.1. Thiết lập Nguồn Điện và Mạng Cố định
-1. **Cấu hình Nguồn điện Windows 11:**
-   * Mở Control Panel $\to$ Power Options $\to$ Chọn chế độ **High Performance**.
-   * Chuyển đổi thiết lập `Choose what closing the lid does` sang: **Do nothing** (cho cả pin và sạc) để hệ thống hoạt động liên tục khi đóng màn hình máy tính.
-   * Chuyển `Put the computer to sleep` sang: **Never**.
+1. **Cấu hình Nguồn điện (Không Sleep):**
+   * Nếu chạy trên Windows: Mở Control Panel $\to$ Power Options $\to$ Chọn chế độ **High Performance**, chuyển `Put the computer to sleep` sang: **Never**.
+   * Nếu chạy trên Linux: Vô hiệu hóa tính năng suspend/sleep (`systemctl mask sleep.target suspend.target`).
 2. **Cố định địa chỉ IP nội bộ:**
-   * Truy cập Router Wi-Fi gia đình, thiết lập DHCP Reservation cố định MAC Address của card mạng Legion gắn với địa chỉ IP: `192.168.1.50`.
+   * Thiết lập DHCP Reservation hoặc cấu hình IP tĩnh cho máy chủ Private Node gắn với địa chỉ IP: `192.168.1.50`.
 
 ### 2.2. Khởi chạy Dịch vụ Backend & Vector Database
 Sử dụng tệp tin cấu hình sản xuất `docker-compose.prod.yml`:
@@ -95,10 +94,10 @@ docker compose -f docker-compose.prod.yml up -d
 
 ---
 
-## 3. BƯỚC 2: TRIỂN KHAI EDGE GATEWAY TRÊN VSMART JOY 3
+## 3. BƯỚC 2: TRIỂN KHAI EDGE GATEWAY
 
 ### 3.1. Cấu hình Nginx Production Virtual Host
-Tạo tệp cấu hình `/etc/nginx/sites-available/majormatch.conf` bên trong Ubuntu PRoot:
+Tạo tệp cấu hình `/etc/nginx/sites-available/majormatch.conf` bên trong môi trường Ubuntu Linux của Gateway:
 
 ```nginx
 limit_req_zone $binary_remote_addr zone=ai_prod_limit:10m rate=10r/m;
@@ -169,7 +168,7 @@ nginx -t && nginx -s reload
    credentials-file: /root/.cloudflared/<TUNNEL_ID>.json
 
    ingress:
-     # Định tuyến hostname công khai về Nginx nội bộ trên cổng 80 của Joy 3
+     # Định tuyến hostname công khai về Nginx nội bộ trên cổng 80 của Edge Gateway
      - hostname: api.majormatch.vn
        service: http://127.0.0.1:80
      # Quy tắc Catch-all trả về 404 cho các truy vấn sai hostname

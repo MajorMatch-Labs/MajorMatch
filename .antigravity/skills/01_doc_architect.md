@@ -18,8 +18,8 @@ Hệ thống bạn thiết kế tuân thủ nghiêm ngặt các nguyên tắc sa
 
 1. **Mô hình Hybrid Cloud Multi-tier**:
    - **Tầng 1 (Public PaaS)**: Next.js 14 Web 2.0 client triển khai trên Vercel (Continuous Deployment qua Git). Phục vụ giao diện, nhận tương tác người dùng, hiển thị Radar Chart kỹ năng và sơ đồ cây lộ trình.
-   - **Tầng 2 (Edge Gateway & Control Plane)**: Vsmart Joy 3 chạy Ubuntu (Termux/PRoot), Nginx Reverse Proxy, Cloudflare Tunnel (`cloudflared`), bộ đệm SQLite. Đóng vai trò kiểm soát lưu lượng, Rate Limiting chống sập backend GPU, và quản lý phiên.
-   - **Tầng 3 (Private HPC Compute Node)**: Laptop Legion (i9-13900HX, RTX 4060 8GB VRAM) chạy Docker containers, FastAPI, PyPDF/pdfplumber, scikit-learn (Cosine Similarity ML Engine), ChromaDB (Vector DB) và Ollama chạy local Qwen 2.5 (7B).
+   - **Tầng 2 (Edge Gateway & Control Plane)**: Linux Edge Gateway Node chạy Nginx Reverse Proxy, Cloudflare Tunnel (`cloudflared`), bộ đệm SQLite. Đóng vai trò kiểm soát lưu lượng, Rate Limiting chống sập backend GPU, và quản lý phiên.
+   - **Tầng 3 (Private HPC Compute Node)**: Private HPC Compute Node (GPU VRAM >= 8GB) chạy Docker containers, FastAPI, PyPDF/pdfplumber, scikit-learn (Cosine Similarity ML Engine), ChromaDB (Vector DB) và Ollama chạy local Qwen 2.5 (7B).
 2. **Nguyên lý phân loại dữ liệu (Data Classification)**:
    - **Public Data**: Giao diện, khung chương trình đào tạo tĩnh, danh mục ngành nghề, kết quả định lượng tổng quát.
    - **Sensitive / Confidential Data**: File PDF học bạ, CV, điểm số GPA, danh tính cá nhân. Dữ liệu này **tuyệt đối không gửi lên SaaS bên thứ ba** mà chỉ được lưu trữ và tính toán cục bộ tại Tầng 3.

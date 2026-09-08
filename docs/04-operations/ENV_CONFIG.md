@@ -22,13 +22,13 @@
   └── Phạm vi: Trình duyệt Client & Next.js Edge Runtime
                             │
                             ▼
- [ TẦNG 2: EDGE GATEWAY (Joy 3) ]
+ [ TẦNG 2: EDGE GATEWAY (Linux Edge Node) ]
   ├── /root/.cloudflared/config.yml & /etc/nginx/sites-available/majormatch.conf
   ├── Biến: TUNNEL_ID, CREDENTIALS_FILE, ORIGIN_SECRET, BACKEND_LAN_IP, CACHE_DB_PATH
   └── Phạm vi: Nginx Reverse Proxy & Cloudflare Tunnel Daemon
                             │
                             ▼
- [ TẦNG 3: PRIVATE HPC COMPUTE NODE (Legion i9) ]
+ [ TẦNG 3: PRIVATE HPC COMPUTE NODE (GPU Server) ]
   ├── backend/.env.production
   ├── Biến: OLLAMA_BASE_URL, CHROMADB_HOST, EMBEDDING_MODEL, EPHEMERAL_STORAGE_PATH
   └── Phạm vi: FastAPI Container & Ollama AI Subsystem
@@ -69,7 +69,7 @@ NEXT_PUBLIC_ENABLE_STORE_LOGS=false
 
 ---
 
-## 3. CHI TIẾT CẤU HÌNH TẦNG 2: EDGE CONTROL PLANE (JOY 3)
+## 3. CHI TIẾT CẤU HÌNH TẦNG 2: EDGE CONTROL PLANE
 
 ### 3.1. Cấu hình Cloudflare Tunnel (`/root/.cloudflared/config.yml`)
 ```yaml
@@ -131,7 +131,7 @@ EMBEDDING_MODEL_NAME=BAAI/bge-m3
 # Đường dẫn phân vùng RAM-disk lưu trữ tệp PDF tạm thời
 EPHEMERAL_STORAGE_PATH=/tmp/majormatch_ephemeral
 
-# Số lượng tác vụ suy luận LLM tối đa xử lý đồng thời trên GPU RTX 4060
+# Số lượng tác vụ suy luận LLM tối đa xử lý đồng thời trên GPU máy chủ (Compute Node)
 # ĐẶT BẰNG 1 để chống tràn VRAM (Out Of Memory)
 MAX_CONCURRENT_LLM_TASKS=1
 

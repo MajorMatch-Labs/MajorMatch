@@ -11,20 +11,19 @@
 
 ## 1. YÊU CẦU TIỀN ĐỀ HỆ THỐNG (PREREQUISITES)
 
-### 1.1. Thiết bị Tầng 3: Private HPC Node (Laptop Legion Pro)
-* **Hệ điều hành:** Windows 11 64-bit (Build 22621 trở lên) đã kích hoạt WSL 2 (Windows Subsystem for Linux).
-* **Phần cứng:** Intel Core i9-13900HX, NVIDIA GeForce RTX 4060 (8GB VRAM), RAM 16GB.
+### 1.1. Thiết bị Tầng 3: Private HPC Node (Máy chủ GPU chuyên dụng)
+* **Hệ điều hành:** Linux (Ubuntu 22.04 LTS) hoặc Windows 11 64-bit đã kích hoạt WSL 2.
+* **Phần cứng:** CPU đa nhân, NVIDIA CUDA GPU (Tối thiểu 6GB VRAM, khuyến nghị 8GB+ VRAM), RAM 16GB+.
 * **Công cụ cài đặt bắt buộc:**
-  * NVIDIA GPU Driver: Phiên bản Game Ready / Studio Driver $\ge 550.x$.
-  * Docker Desktop for Windows (kích hoạt WSL 2 backend và tính năng GPU Acceleration).
-  * Ollama for Windows (hoặc Ollama chạy trong Linux WSL2).
+  * NVIDIA GPU Driver: Phiên bản Game Ready / Studio / Data Center Driver $\ge 550.x$.
+  * Docker Engine / Docker Desktop (kích hoạt GPU Acceleration qua NVIDIA Container Toolkit).
+  * Ollama.
   * Python 3.11.x 64-bit & `pip` / `virtualenv`.
-  * Git for Windows.
+  * Git.
 
-### 1.2. Thiết bị Tầng 2: Edge Gateway (Vsmart Joy 3)
-* **Hệ điều hành gốc:** Android 10 (VOS 3.0), đã mở chế độ Developer Options & USB Debugging.
-* **Ứng dụng nền:** Termux (bản build từ F-Droid, không dùng bản Google Play).
-* **Không gian lưu trữ trống:** Tối thiểu 5GB bộ nhớ trong.
+### 1.2. Thiết bị Tầng 2: Edge Gateway Node (Thiết bị biên Linux)
+* **Hệ điều hành:** Ubuntu 22.04 LTS (triển khai trên ARM64 SBC như Raspberry Pi, thiết bị Linux nhúng hoặc máy chủ gateway chuyên dụng).
+* **Yêu cầu tối thiểu:** RAM tối thiểu 2GB, bộ nhớ trong trống tối thiểu 10GB.
 
 ### 1.3. Thiết bị Tầng 1: Môi trường Phát triển Frontend
 * **Node.js:** Phiên bản LTS 20.x hoặc 18.x.
@@ -42,7 +41,7 @@
    ```
 2. Khởi động dịch vụ Ollama và tải mô hình Qwen 2.5 7B Instruct lượng tử hóa:
    ```powershell
-   # Tải bản Q4_K_M tối ưu cho 8GB VRAM RTX 4060 (~5.2GB dung lượng tải)
+   # Tải bản Q4_K_M tối ưu cho môi trường GPU VRAM >= 8GB (~5.2GB dung lượng tải)
    ollama run qwen2.5:7b-instruct-q4_k_m
    ```
 3. Kiểm tra kiểm thử API Ollama cục bộ:
@@ -119,10 +118,10 @@ docker compose ps
 
 ---
 
-## 3. THIẾT LẬP CHI TIẾT TẦNG 2: EDGE GATEWAY (VSMART JOY 3)
+## 3. THIẾT LẬP CHI TIẾT TẦNG 2: EDGE GATEWAY
 
-### 3.1. Thiết lập Môi trường Ubuntu Linux trong Termux
-Mở ứng dụng Termux trên Vsmart Joy 3 và thực thi các lệnh sau:
+### 3.1. Thiết lập Môi trường Ubuntu Linux
+Trên thiết bị Edge Gateway (Ubuntu Linux / Termux PRoot), thực thi các lệnh sau:
 ```bash
 # 1. Cập nhật gói phần mềm của Termux
 pkg update -y && pkg upgrade -y
@@ -204,5 +203,5 @@ Thực hiện kiểm tra từng nấc để xác nhận toàn bộ hệ thống 
 | **1** | `curl http://localhost:11434/api/tags` | Trả về JSON danh sách model có chứa `qwen2.5:7b-instruct-q4_k_m` |
 | **2** | `curl http://localhost:8001/api/v1/heartbeat` | Trả về `{"nanosecond heartbeat": ...}` từ ChromaDB |
 | **3** | `curl http://localhost:8000/api/v1/health` | Trả về HTTP `200` với trạng thái `status: healthy` từ FastAPI |
-| **4** | `curl -I http://192.168.1.45/` (IP của Joy 3) | Nginx trả về header `Server: nginx` |
+| **4** | `curl -I http://192.168.1.45/` (IP của Edge Gateway) | Nginx trả về header `Server: nginx` |
 | **5** | Mở trình duyệt truy cập `http://localhost:3000` | Trang chủ MajorMatch hiển thị mượt mà không có lỗi Console |

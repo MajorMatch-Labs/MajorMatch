@@ -24,7 +24,7 @@ Chiến lược kiểm thử của MajorMatch tuân thủ mô hình Kim tự th�
                       /-------\      - Đo kiểm tích hợp Client -> Cloudflare -> Gateway -> GPU
                      /         \
                     / STRESS &  \    [ LEVEL 3: STRESS & BACKPRESSURE (k6 / wrk) ]
-                   / BACKPRESSURE\   - Kiểm thử bão request chống sập VRAM GPU RTX 4060
+                   / BACKPRESSURE\   - Kiểm thử bão request chống sập VRAM GPU
                   /---------------\  - Đo kiểm ngưỡng kích hoạt Rate Limiting (10 req/m, burst 5)
                  /                 \
                 /    INTEGRATION    \ [ LEVEL 2: INTEGRATION TESTING (pytest-asyncio) ]
@@ -106,7 +106,7 @@ def test_cosine_similarity_mathematical_bounds():
 * **Kịch bản:** Truy vấn kỹ năng thiếu `["Deep Learning", "Neural Networks"]`, ChromaDB bắt buộc phải trả về môn `CS402 - Học sâu ứng dụng` trong Top-3 kết quả gần nhất.
 
 ### 3.2. Kiểm thử Định dạng JSON Schema của Ollama Qwen 2.5 (`test_llm_json.py`)
-* **Mục tiêu:** Mô hình Qwen 2.5 chạy cục bộ trên GPU RTX 4060 trả về chuỗi JSON tuân thủ $100\%$ schema định trước, không sinh text rác bên ngoài dấu ngoặc nhọn `{}`.
+* **Mục tiêu:** Mô hình Qwen 2.5 chạy cục bộ trên GPU máy chủ chuyên dụng (Dedicated GPU Node) trả về chuỗi JSON tuân thủ $100\%$ schema định trước, không sinh text rác bên ngoài dấu ngoặc nhọn `{}`.
 * **Thời gian suy luận tối đa:** Không vượt quá **15 giây** cho toàn bộ cấu trúc Milestone.
 
 ---
@@ -114,7 +114,7 @@ def test_cosine_similarity_mathematical_bounds():
 ## 4. LEVEL 3: KIỂM THỬ CHỊU TẢI & CHỐNG SẬP GPU (STRESS & BACKPRESSURE TESTING)
 
 ### 4.1. Kịch bản Bão Request (DDoS / Flood Simulation với k6)
-Sử dụng công cụ `k6` để mô phỏng 50 người dùng gửi yêu cầu tính toán đồng thời vào Edge Gateway trên Joy 3:
+Sử dụng công cụ `k6` để mô phỏng 50 người dùng gửi yêu cầu tính toán đồng thời vào Edge Gateway:
 
 ```javascript
 // load_test.js
@@ -155,9 +155,9 @@ export default function () {
 ```
 
 ### 4.2. Tiêu chí Đạt Kiểm thử Chịu tải:
-1. **Zero GPU Crashes:** Mức tiêu thụ VRAM của GPU RTX 4060 duy trì ổn định $\le 5.8\text{GB}$, không bao giờ phát sinh lỗi CUDA Out Of Memory.
-2. **Nginx Resilience:** Tầng Nginx trên Joy 3 kích hoạt chính xác mã lỗi `429 Too Many Requests` khi lưu lượng vượt quá 10 req/phút/IP.
-3. **RAM Stability:** Dung lượng RAM của Joy 3 không vượt quá 1.2GB/3GB trong toàn bộ đợt thử nghiệm.
+1. **Zero GPU Crashes:** Mức tiêu thụ VRAM của GPU duy trì ổn định trong ngưỡng an toàn, không bao giờ phát sinh lỗi CUDA Out Of Memory.
+2. **Nginx Resilience:** Tầng Nginx trên Edge Gateway kích hoạt chính xác mã lỗi `429 Too Many Requests` khi lưu lượng vượt quá 10 req/phút/IP.
+3. **RAM Stability:** Dung lượng RAM của Edge Gateway duy trì trong ngưỡng an toàn (< 70% bộ nhớ) trong toàn bộ đợt thử nghiệm.
 
 ---
 
@@ -211,6 +211,6 @@ test('Toàn bộ hành trình người dùng: Tải PDF -> Xem Radar -> Tương 
 | **QA-01** | Độ phủ mã nguồn (Unit Test Coverage) | Đạt $\ge 85\%$ toàn bộ module bóc tách và ML | Bắt buộc |
 | **QA-02** | Khử thông tin nhạy cảm PII | $100\%$ không sót Họ tên, CCCD, SĐT trong log/payload | Bắt buộc |
 | **QA-03** | Thời gian phản hồi bóc tách PDF | Tệp $\le 5\text{MB}$ xử lý trong thời gian $< 1.2$ giây | Bắt buộc |
-| **QA-04** | Tốc độ sinh token LLM | Qwen 2.5 7B đạt $\ge 40\text{ tokens/giây}$ trên RTX 4060 | Bắt buộc |
+| **QA-04** | Tốc độ sinh token LLM | Qwen 2.5 7B đạt $\ge 40\text{ tokens/giây}$ trên GPU chuyên dụng | Bắt buộc |
 | **QA-05** | Tương tác động Web 2.0 | Tích chọn checklist cập nhật giao diện trong $< 16\text{ms}$ | Bắt buộc |
 | **QA-06** | Khả năng phòng thủ DoS | $100\%$ request vượt ngưỡng bị chặn bằng HTTP 429 | Bắt buộc |

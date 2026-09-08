@@ -18,7 +18,7 @@
 1. **Định lượng hóa năng lực:** Chuyển đổi dữ liệu học tập phi cấu trúc (bảng điểm PDF, CV cá nhân) thành các chỉ số kỹ năng cụ thể trên không gian vector, tính toán độ tương đồng toán học (Cosine Similarity).
 2. **Cá nhân hóa lộ trình:** Tự động sinh lộ trình học tập chi tiết theo từng kỳ học (Milestone Tree), tích hợp tính năng Web 2.0 cho phép cập nhật trạng thái động khi hoàn thành môn học.
 3. **Bảo mật dữ liệu học tập tuyệt đối:** Bảo đảm toàn vẹn dữ liệu nhạy cảm (Confidential Data) như bảng điểm, điểm số GPA, danh tính sinh viên bằng việc cô lập 100% quá trình trích xuất và tính toán AI trên máy chủ tính toán nội bộ (Private HPC Node), không gửi qua bất kỳ dịch vụ SaaS AI công cộng nào.
-4. **Tối ưu hóa chi phí vận hành:** Tận dụng hạ tầng thiết bị biên (Edge Device) và phần cứng sẵn có (GPU RTX 4060 cục bộ) kết hợp CDN/Edge Hosting miễn phí (Vercel) để loại bỏ hoàn toàn chi phí thuê server GPU đắt đỏ trên Public Cloud.
+4. **Tối ưu hóa chi phí vận hành:** Tận dụng hạ tầng thiết bị biên (Edge Device) và phần cứng tính toán GPU nội bộ (tối thiểu 6GB VRAM, khuyến nghị 8GB+ VRAM) kết hợp CDN/Edge Hosting miễn phí (Vercel) để loại bỏ hoàn toàn chi phí thuê server GPU đắt đỏ trên Public Cloud.
 
 ---
 
@@ -125,7 +125,7 @@ journey
 ### 4.6. Phân hệ FR-6: Cổng Điều phối Biên & An toàn Hệ thống (Edge Gateway Control)
 * **FR-6.1:** Tiếp nhận toàn bộ lưu lượng HTTPS từ Public PaaS qua đường hầm mã hóa Cloudflare Tunnel.
 * **FR-6.2:** Áp dụng thuật toán giới hạn tần suất Token Bucket Rate Limiting: Giới hạn tối đa 10 requests/phút cho mỗi IP đối với các endpoint nặng về suy luận AI/ML.
-* **FR-6.3:** Bộ đệm phản hồi (Response Cache) với SQLite trên Joy 3: Lưu trữ các kết quả phân tích chuẩn đối với các hồ sơ mẫu hoặc dữ liệu khung chương trình tĩnh, giảm tải trực tiếp cho máy tính GPU.
+* **FR-6.3:** Bộ đệm phản hồi (Response Cache) với SQLite trên Edge Gateway: Lưu trữ các kết quả phân tích chuẩn đối với các hồ sơ mẫu hoặc dữ liệu khung chương trình tĩnh, giảm tải trực tiếp cho máy tính GPU.
 
 ---
 
@@ -134,7 +134,7 @@ journey
 ### 5.1. Hiệu năng & Độ trễ (Performance & Latency)
 * **NFR-1.1 (PDF Ingestion):** Thời gian bóc tách và phân tích dữ liệu bảng điểm PDF dung lượng $\le 5\text{MB}$ không vượt quá **1.2 giây**.
 * **NFR-1.2 (ML Matching):** Thời gian tính toán ma trận Cosine Similarity và xuất tọa độ Radar Chart không vượt quá **500 miligiây**.
-* **NFR-1.3 (LLM Inference):** Tốc độ sinh phản hồi của mô hình Qwen 2.5 7B trên GPU RTX 4060 đạt tối thiểu **40 - 55 tokens/giây**. Thời gian nhận token đầu tiên (Time-to-First-Token - TTFT) dưới **800 miligiây**.
+* **NFR-1.3 (LLM Inference):** Tốc độ sinh phản hồi của mô hình Qwen 2.5 7B trên GPU chuyên dụng đạt tối thiểu **40 - 55 tokens/giây**. Thời gian nhận token đầu tiên (Time-to-First-Token - TTFT) dưới **800 miligiây**.
 * **NFR-1.4 (Frontend Responsiveness):** Điểm hiệu năng Lighthouse trên nền tảng Vercel đạt $\ge 90$ điểm; Time to Interactive (TTI) dưới **1.5 giây**.
 
 ### 5.2. An toàn & Bảo mật Dữ liệu (Security & Privacy)
@@ -144,7 +144,7 @@ journey
 * **NFR-2.4 (No Third-Party AI Data Leakage):** Tuyệt đối không tích hợp API key của các bên thứ ba (OpenAI, Anthropic) cho tác vụ xử lý thông tin cá nhân của người dùng.
 
 ### 5.3. Khả năng Chịu tải & Phục hồi (Availability & Resilience)
-* **NFR-3.1 (GPU Backpressure Protection):** Tầng Edge Gateway (Nginx trên Joy 3) hoạt động như một bộ đệm hàng đợi (Queue buffer). Khi Private GPU Node đang xử lý 100% công suất, Gateway trả về mã HTTP `429 Too Many Requests` hoặc chuyển sang chế độ hàng đợi xếp lượt văn minh, tránh hiện tượng Out Of Memory (OOM) trên GPU.
+* **NFR-3.1 (GPU Backpressure Protection):** Tầng Edge Gateway (Nginx) hoạt động như một bộ đệm hàng đợi (Queue buffer). Khi Private GPU Node đang xử lý 100% công suất, Gateway trả về mã HTTP `429 Too Many Requests` hoặc chuyển sang chế độ hàng đợi xếp lượt văn minh, tránh hiện tượng Out Of Memory (OOM) trên GPU.
 * **NFR-3.2 (Offline Resilience):** Nếu mất kết nối Internet công cộng, các thành phần tại Tầng 2 và Tầng 3 vẫn có thể hoạt động cục bộ qua mạng LAN nội bộ (Local Offline Mode).
 
 ### 5.4. Tính Tương thích & Khả năng Dùng được (Compatibility & Usability)
@@ -155,7 +155,7 @@ journey
 
 ## 6. MA TRẬN PHÂN CHIA TRÁCH NHIỆM PHÂN TẦNG HỆ THỐNG
 
-| Chức năng nghiệp vụ | Tầng 1: Public PaaS (Vercel) | Tầng 2: Edge Gateway (Joy 3) | Tầng 3: Private HPC (Legion) |
+| Chức năng nghiệp vụ | Tầng 1: Public PaaS (Vercel) | Tầng 2: Edge Gateway | Tầng 3: Private HPC Node |
 | :--- | :---: | :---: | :---: |
 | **Giao diện người dùng & Form tải file** | Chịu trách nhiệm chính | Không | Không |
 | **Quản lý Dynamic State (Checklist, Slider)** | Chịu trách nhiệm chính | Không | Không |
@@ -185,6 +185,6 @@ journey
 
 * **Giai đoạn 1 (Hiện tại):** Thiết kế hoàn chỉnh bộ tài liệu kiến trúc, đặc tả API, lược đồ CSDL và bộ quy tắc kiểm thử.
 * **Giai đoạn 2:** Xây dựng Private Node Core: Viết parser PDF, thuật toán ML Cosine Similarity, nạp ChromaDB và cấu hình Ollama.
-* **Giai đoạn 3:** Thiết lập Edge Gateway trên Joy 3: Cài đặt Ubuntu Termux, Nginx, SQLite cache và cấu hình Cloudflare Tunnel.
+* **Giai đoạn 3:** Thiết lập Edge Gateway Node: Cài đặt môi trường Linux, Nginx, SQLite cache và cấu hình Cloudflare Tunnel.
 * **Giai đoạn 4:** Phát triển Frontend Web 2.0 trên Next.js 14, tích hợp Recharts, Zustand state và triển khai Vercel.
 * **Giai đoạn 5:** Kiểm thử tích hợp toàn diện (E2E Integration Testing), đo kiểm hiệu năng chịu tải và bàn giao hệ thống.

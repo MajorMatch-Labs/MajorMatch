@@ -183,11 +183,11 @@ export const useWorkspaceStore = create<WorkspaceStore>((set) => ({
 ## 5. QUY TẮC QUẢN TRỊ PHIÊN BẢN GIT VÀ TIÊU CHUẨN COMMIT (GIT CONVENTIONS)
 
 ### 5.1. Định dạng Tiêu đề Commit (Conventional Commits)
-Mọi thông điệp commit phải tuân thủ chuẩn cấu trúc sau:
+Từ thời điểm này trở đi, **toàn bộ thông điệp Git commit bắt buộc phải viết bằng tiếng Anh (English)** tuân thủ chuẩn Conventional Commits:
 ```text
-<type>(<scope>): <mô tả ngắn gọn bằng tiếng Anh hoặc tiếng Việt kỹ thuật>
+<type>(<scope>): <short description in English, imperative mood>
 
-[body: chi tiết lý do và sự thay đổi (nếu có)]
+[optional body in English: detailed motivation and breaking changes]
 ```
 
 * **Các loại `type` hợp lệ:**
@@ -200,11 +200,12 @@ Mọi thông điệp commit phải tuân thủ chuẩn cấu trúc sau:
   * `test`: Bổ sung bộ kiểm thử tự động hoặc sửa đổi file test.
   * `chore`: Cập nhật cấu hình build, package.json, Dockerfile, v.v.
 
-* **Ví dụ mẫu:**
+* **Ví dụ chuẩn tiếng Anh:**
   ```text
-  feat(ml): tích hợp thuật toán Cosine Similarity đo khoảng cách kỹ năng
-  fix(parser): sửa lỗi regex không nhận diện điểm số hệ chữ có dấu cộng
-  perf(gateway): kích hoạt bộ đệm WAL mode cho SQLite trên Joy 3
+  feat(ml): integrate cosine similarity engine for skill gap scoring
+  fix(parser): resolve regex matching issue for letter grades with plus sign
+  perf(gateway): enable WAL mode for sqlite connection pool
+  docs(arch): update high-level architecture diagram and hardware specs
   ```
 
 ### 5.2. Chiến lược Phân nhánh (Git Branching Strategy)

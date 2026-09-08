@@ -33,16 +33,16 @@
                              │ Cloudflare Tunnel (Encrypted Outbound WireGuard)
                              ▼
 ┌─────────────────────────────────────────────────────────┐
-│ TẦNG 2: EDGE CONTROL PLANE & GATEWAY (Vsmart Joy 3)     │
-│ Ubuntu 22.04 PRoot, Nginx Rate Limiting (10 req/m),     │
+│ TẦNG 2: EDGE CONTROL PLANE & GATEWAY (Linux Edge Node)  │
+│ Ubuntu 22.04, Nginx Rate Limiting (10 req/m),           │
 │ SQLite Cache DB (WAL Mode), GPU Backpressure Protection │
 └────────────────────────────┬────────────────────────────┘
                              │ Mạng LAN Nội bộ (Subnet 192.168.1.0/24)
                              ▼
 ┌─────────────────────────────────────────────────────────┐
-│ TẦNG 3: PRIVATE HPC COMPUTE NODE (Legion i9 / RTX 4060) │
+│ TẦNG 3: PRIVATE HPC COMPUTE NODE (Dedicated GPU Server) │
 │ Docker, FastAPI, Scikit-learn, ChromaDB, Ollama Core    │
-│ Mô hình: Qwen 2.5 7B Instruct (CUDA 12.4, ~5.2GB VRAM)  │
+│ Mô hình: Qwen 2.5 7B Instruct (CUDA, VRAM >= 6GB)       │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -64,7 +64,7 @@ Toàn bộ hồ sơ kiến trúc và đặc tả hệ thống đã được biê
    - [DATABASE_SCHEMA.md](docs/03-specifications/DATABASE_SCHEMA.md): Lược đồ Polyglot Persistence (SQLite DDL trên Edge, ChromaDB HNSW Collections, Zustand Store TypeScript).
 4. **Vận hành & Triển khai (04-operations):**
    - [SETUP_AND_INSTALL.md](docs/04-operations/SETUP_AND_INSTALL.md): Hướng dẫn cài đặt môi trường phát triển cục bộ và `docker-compose.yml`.
-   - [DEPLOYMENT_GUIDE.md](docs/04-operations/DEPLOYMENT_GUIDE.md): Quy trình triển khai sản xuất trên Vercel, Cloudflare Tunnel và Legion Node.
+   - [DEPLOYMENT_GUIDE.md](docs/04-operations/DEPLOYMENT_GUIDE.md): Quy trình triển khai sản xuất trên Vercel, Cloudflare Tunnel và Private Compute Node.
    - [ENV_CONFIG.md](docs/04-operations/ENV_CONFIG.md): Bảng ma trận biến môi trường và chính sách quản trị khóa bí mật.
 5. **Kiểm thử & Quy chuẩn (05-testing-and-rules):**
    - [TESTING_PLAN.md](docs/05-testing-and-rules/TESTING_PLAN.md): Chiến lược kim tự tháp kiểm thử 4 cấp độ (Unit, Integration, Stress k6, E2E Playwright).
@@ -77,11 +77,11 @@ Toàn bộ hồ sơ kiến trúc và đặc tả hệ thống đã được biê
 | Phân tầng | Công nghệ sử dụng |
 | :--- | :--- |
 | **Frontend PaaS** | Next.js 14, React 18, TypeScript, Tailwind CSS, Recharts, Zustand |
-| **Edge Gateway** | Ubuntu 22.04 LTS (Termux), Nginx Reverse Proxy, Cloudflare Tunnel, SQLite WAL |
+| **Edge Gateway** | Ubuntu 22.04 LTS (Linux/SBC), Nginx Reverse Proxy, Cloudflare Tunnel, SQLite WAL |
 | **Backend & AI Core** | Python 3.11, FastAPI, Uvicorn, Docker, Docker Compose |
 | **Machine Learning** | Scikit-learn, NumPy (Cosine Similarity, Vector Space Modeling) |
 | **Vector DB & RAG** | ChromaDB (HNSW Indexing, BAAI/bge-m3 Embedding) |
-| **LLM Inference** | Ollama Core, Qwen 2.5 7B Instruct (CUDA Acceleration trên NVIDIA RTX 4060) |
+| **LLM Inference** | Ollama Core, Qwen 2.5 7B Instruct (CUDA Acceleration trên NVIDIA GPU) |
 
 ---
 

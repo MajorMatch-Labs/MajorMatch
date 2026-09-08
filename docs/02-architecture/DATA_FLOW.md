@@ -25,7 +25,7 @@ Hệ thống MajorMatch vận hành dựa trên 5 luồng dữ liệu cốt lõi
 ### 2.1. Luồng 1: Tiếp nhận Bảng điểm PDF, Khử PII và Bóc tách Cấu trúc (PDF Ingestion Flow)
 
 ```text
-CLIENT (Browser)            GATEWAY (Joy 3)           FASTAPI (Private Node)       RAM-DISK EPHEMERAL
+CLIENT (Browser)            GATEWAY (Edge Node)       FASTAPI (Private Node)       RAM-DISK EPHEMERAL
       │                           │                            │                            │
       │ 1. POST PDF File          │                            │                            │
       │ (Multipart/form-data)     │                            │                            │
@@ -60,7 +60,7 @@ CLIENT (Browser)            GATEWAY (Joy 3)           FASTAPI (Private Node)    
 ### 2.2. Luồng 2: Định lượng Năng lực & Khoảng cách Kỹ năng (Skill Gap Quantification Flow)
 
 ```text
-CLIENT (Zustand Store)       EDGE GATEWAY (Nginx)        ML ENGINE (Scikit-learn)     SQLITE CACHE (Joy 3)
+CLIENT (Zustand Store)       EDGE GATEWAY (Nginx)        ML ENGINE (Scikit-learn)     SQLITE CACHE (Edge)
       │                               │                           │                           │
       │ 1. POST Holland Scores (RIASEC)                           │                           │
       │    + Target Career Tags       │                           │                           │
@@ -184,7 +184,7 @@ CLIENT (EventSource / Fetch)     GATEWAY (Nginx)            FASTAPI BACKEND     
 ```
 
 #### Cơ chế kỹ thuật:
-* **Nginx Configuration:** Thiết lập `proxy_buffering off;` và `proxy_cache off;` trên Nginx tại Joy 3, cho phép các gói tin SSE truyền thẳng qua Gateway mà không bị gom cụm làm mất hiệu ứng gõ chữ thời gian thực.
+* **Nginx Configuration:** Thiết lập `proxy_buffering off;` và `proxy_cache off;` trên Nginx tại Edge Gateway, cho phép các gói tin SSE truyền thẳng qua Gateway mà không bị gom cụm làm mất hiệu ứng gõ chữ thời gian thực.
 * **Tối ưu trải nghiệm:** Thời gian nhận token đầu tiên (TTFT) đạt mức $\approx 650 - 750\text{ms}$.
 
 ---
@@ -194,7 +194,7 @@ CLIENT (EventSource / Fetch)     GATEWAY (Nginx)            FASTAPI BACKEND     
 | Trạng thái Dữ liệu | Loại Dữ liệu | Vị trí Lưu trữ | Cơ chế Bảo mật | Thời gian Tồn tại (TTL) |
 | :--- | :--- | :--- | :--- | :--- |
 | **Data in Transit** | File PDF, Tọa độ Radar, Chat Stream | Kênh mạng (Internet / LAN) | TLS 1.3, Cloudflare mTLS | Tức thời theo thời gian truyền |
-| **Data in Memory** | Buffer giải nén PDF, Token Stream | RAM Máy tính Legion / Joy 3 | Phân vùng RAM ảo cô lập | Tự giải phóng khi hàm kết thúc |
+| **Data in Memory** | Buffer giải nén PDF, Token Stream | RAM Máy tính Private Node / Gateway | Phân vùng RAM ảo cô lập | Tự giải phóng khi hàm kết thúc |
 | **Data at Rest (Confidential)** | Danh sách môn học & điểm sau lọc PII | RAM-disk `/tmp/majormatch_ephemeral` | Không ghi đĩa cứng vật lý | Xóa ngay lập tức sau bóc tách |
-| **Data at Rest (Public/Cache)** | Khung chương trình đào tạo chuẩn | File `cache.db` (SQLite) trên Joy 3 | Chỉ đọc, phân quyền 0644 | Lưu trữ vĩnh viễn / Cập nhật định kỳ |
+| **Data at Rest (Public/Cache)** | Khung chương trình đào tạo chuẩn | File `cache.db` (SQLite) trên Edge Gateway | Chỉ đọc, phân quyền 0644 | Lưu trữ vĩnh viễn / Cập nhật định kỳ |
 | **Vector Embeddings** | Vector môn học & Tiêu chuẩn ngành | ChromaDB Vector Store | Internal Docker Volume | Lưu trữ cố định cho RAG Engine |

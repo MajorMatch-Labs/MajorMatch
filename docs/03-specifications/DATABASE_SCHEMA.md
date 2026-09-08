@@ -24,7 +24,7 @@ Hệ thống MajorMatch không sử dụng một cơ sở dữ liệu quan hệ 
   - Cơ chế: Optimistic State Update (< 16ms)
                             │
                             ▼
- [ TẦNG 2: EDGE GATEWAY (Joy 3 - SQLite Database) ]
+ [ TẦNG 2: EDGE GATEWAY (Linux Edge - SQLite Database) ]
   - Lưu trữ: Danh mục môn học tĩnh, khung chương trình đào tạo mẫu, bộ đệm kết quả ML tĩnh
   - Vị trí: Tệp tin cục bộ `/var/data/majormatch/cache.db`
   - Cơ chế: Read-Heavy SQLite WAL Mode (< 15ms latency)
@@ -39,9 +39,9 @@ Hệ thống MajorMatch không sử dụng một cơ sở dữ liệu quan hệ 
 
 ---
 
-## 2. LƯỢC ĐỒ CƠ SỞ DỮ LIỆU SQLITE TẠI EDGE GATEWAY (JOY 3)
+## 2. LƯỢC ĐỒ CƠ SỞ DỮ LIỆU SQLITE TẠI EDGE GATEWAY
 
-Cơ sở dữ liệu SQLite (`cache.db`) đặt tại Vsmart Joy 3 sử dụng chế độ **Write-Ahead Logging (WAL)** để tối ưu hóa khả năng đọc đồng thời từ Nginx.
+Cơ sở dữ liệu SQLite (`cache.db`) đặt tại Edge Gateway sử dụng chế độ **Write-Ahead Logging (WAL)** để tối ưu hóa khả năng đọc đồng thời từ Nginx.
 
 ```sql
 -- Kích hoạt chế độ WAL và tối ưu bộ nhớ đệm
@@ -243,4 +243,4 @@ export interface WorkspaceState {
 
 Nhằm đảm bảo tuân thủ tuyệt đối nguyên tắc **Zero-Knowledge Data Privacy**:
 1. **Dọn dẹp tệp tin vật lý:** Sau khi hàm trích xuất `pdfplumber` trả về dữ liệu, file tạm tại `/tmp/majormatch_ephemeral/<request_id>.pdf` lập tức bị xóa thông qua lệnh hệ thống `os.unlink()` bên trong khối lệnh `finally` của Python.
-2. **Dọn dẹp rác bộ nhớ (Garbage Collection):** Gọi tường minh `gc.collect()` trong backend FastAPI sau khi xử lý xong các file PDF có dung lượng lớn để giải phóng RAM ngay lập tức, ngăn ngừa hiện tượng rò rỉ bộ nhớ (Memory Leak) trên môi trường 16GB RAM của Laptop Legion.
+2. **Dọn dẹp rác bộ nhớ (Garbage Collection):** Gọi tường minh `gc.collect()` trong backend FastAPI sau khi xử lý xong các file PDF có dung lượng lớn để giải phóng RAM ngay lập tức, ngăn ngừa hiện tượng rò rỉ bộ nhớ (Memory Leak) trên máy chủ tính toán Private Node.
