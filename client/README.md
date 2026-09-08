@@ -50,3 +50,24 @@ Mở trình duyệt tại địa chỉ: [http://localhost:3000](http://localhost
 npm run build
 npm start
 ```
+
+---
+
+## 3. Kiến trúc 3 Feature Modules & Phân công Nhóm
+
+Client được thiết kế theo kiến trúc Module hóa độc lập tại thư mục `src/modules/`:
+
+| Module | Thư mục | Thành viên phụ trách | Trách nhiệm chính |
+| :--- | :--- | :--- | :--- |
+| **Ingestion** | `src/modules/ingestion` | **Văn Hoàng** | Tiếp nhận CV/học bạ (`FileDropzone`), trắc nghiệm RIASEC (`RiasecSurvey`), validation dữ liệu đầu vào. |
+| **Analytics** | `src/modules/analytics` | **Ánh Vy** | Trực quan hóa dữ liệu (`RadarComparison`), thẻ gợi ý ngành (`MajorCard`), phân rã kỹ năng (`SkillBreakdown`). |
+| **Advisor** | `src/modules/advisor` | **Long Nhật (Lead)** | Cây lộ trình học tập (`MilestoneTree`), tương tác task checklist, Streaming Chatbot SSE (`StreamingChatBox`). |
+
+---
+
+## 4. Lộ trình 9 Tuần theo Đề cương CNTT2025 (Chuyên đề 4 - CS2028)
+
+Dự án tuân thủ tiến độ 9 chương của học phần theo ma trận phân công hàng tuần, bảo đảm cả 3 thành viên đều có đóng góp liên tục:
+
+Chi tiết xem tại: 📄 **[Lộ trình 9 Tuần Chi tiết (WEEKLY_SYLLABUS_ROADMAP.md)](./docs/WEEKLY_SYLLABUS_ROADMAP.md)**
+
