@@ -11,7 +11,7 @@ Folder names describe modules; branch owner naming retains the existing Git conv
 
 Each module supplies README/source link, design-spec.md (story/AC/state/viewport mapping and conditional decisions), editable source under prototype/ or an actual Figma link, screenshots/, review.md and its Week 4 evidence update. Do not fabricate an empty screenshot or Figma export to satisfy a directory list.
 
-Run repo-native prototypes with `python -m http.server 4173 --bind 127.0.0.1 --directory client` from the monorepo; standalone client uses `--directory .`. Open /design/<module>/prototype/. This serves local design assets, not an API backend.
+Run repo-native prototypes with `node client/design/shared/serve.cjs` from the monorepo; standalone client uses `node design/shared/serve.cjs`. Open http://127.0.0.1:4173/design/<module>/prototype/. This read-only, local server supplies explicit JavaScript module MIME types (Windows Python can serve .mjs as text/plain); it is not an API backend.
 
 ## Delivery
 Use separate commits for design source, specification and verification evidence when useful. Author is the member in .agents/rules/git-push-sync-rules.md. Review contributions add the affected member as Co-authored-by.
