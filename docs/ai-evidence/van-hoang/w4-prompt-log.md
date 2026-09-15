@@ -77,3 +77,17 @@ The PRD deliberately does not provide a mockup. It exposes current contradiction
 ## 7. Human decisions still required
 
 The ingestion PRD lists unresolved path selection, document type, parsed-field correction, privacy copy, multi-tag semantics, neutral-answer confirmation, survey disclaimer/version, refresh persistence, and product-success metric. No AI agent should silently decide these items.
+
+## 8. Cross-module quality review — Văn Hoàng
+
+User direction: synchronize the quality of all three UI PRDs, make direct improvements where useful, and credit the module author as well as the reviewer when changing their PRD. This supersedes the earlier deferral of cross-module review, but is not approval of scoring, privacy or design policies.
+
+Baseline: `9b260e2`; the `client/` tree matched standalone client main (`c92029d896e51e8cc0ff0c3e63a126f9f245a2f7`). Branch: `feat/vanhoang-w4-ui-prd-review`.
+
+Review inputs: all three merged UI PRDs, shared base/README, client coding and Git rules, current store/API adapter, upload handoff and backend schemas. Findings and rationale: `tasks/ui-prd-review.md`. Important weaknesses: mandatory AC contradicted open decisions, incompatible provenance terms, missing cross-module context tests, and an auto-mock coding instruction opposite to the Week 4 direction.
+
+Contribution plan: shared review/rule alignment; Hoàng's ingestion corrections; Vy's analytics integration criteria; Nhật's advisor decision/stream criteria. Each owner's changes are isolated into a focused commit. Hoàng is the primary Author; commits editing Vy/Nhật PRDs include the corresponding `Co-authored-by` identity from repository rules. These trailers credit collaboration at the user's request; they do not claim the owners have approved the review.
+
+Verification for this review: static evidence inspection performed. Link/ID/whitespace checks are recorded after execution below. No browser, automated product test, build, design or usability result is claimed for these documentation changes. Open policy decisions remain open; prior log entries describe their original sessions.
+
+Executed documentation checks: 10 local Markdown links and referenced anchors resolved; the shared report has the rulebook's 20 numbered sections; the module PRDs retain their six story IDs and now contain 13 Ingestion, 11 Analytics and 15 Advisor functional IDs. `git diff --check` passed. Diffs were read for decision contradictions and ownership boundaries. Browser/build/product checks were not run because no implementation changed; XUI scenarios remain PLANNED / UNTESTED.

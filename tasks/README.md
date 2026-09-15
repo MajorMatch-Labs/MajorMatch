@@ -41,6 +41,8 @@ Use these labels consistently:
 
 ## Definition of ready for design
 
+Cross-module quality review: [ui-prd-review.md](ui-prd-review.md). Use its XUI-AC-01–06 integration scenarios, provenance vocabulary and XD decision register alongside each owner's PRD. These scenarios are planned, not executed tests. A merge is not design approval; record the approving owner/Tech Lead, date, decision evidence and affected requirement IDs before changing status to `Approved for design`.
+
 A PRD is ready to drive UI design only when:
 
 - The problem, user decision, primary action, and non-goals are explicit.
