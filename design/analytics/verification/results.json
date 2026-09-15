@@ -1,0 +1,26 @@
+{
+  "date": "2026-09-15T16:06:01.362Z",
+  "sourceCommit": "4c9d963122a86489e00bc3108c2f9e9bea843aee",
+  "browser": "153.0.4234.32",
+  "checks": [
+    "success reflow 375",
+    "success reflow 768",
+    "success reflow 1280",
+    "success reflow 1487",
+    "keyboard major selection, axis Escape and return focus",
+    "cancel ignores late completion",
+    "selected-major handoff",
+    "stale snapshot rejects completion",
+    "13 scenarios reflow 375",
+    "13 scenarios reflow 1280",
+    "reduced motion, 200% equivalent CSS viewport and forced colors table"
+  ],
+  "errors": [],
+  "requests": 35,
+  "limitations": [
+    "No live API",
+    "No screen-reader user test",
+    "640 CSS px is 200% reflow equivalent, not browser zoom setting",
+    "Full cross-module XUI journey not integrated"
+  ]
+}

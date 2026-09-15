@@ -142,3 +142,19 @@ User prompt thật: “oke tôi đã cấp quyền chủ sở hữu cho anhvy090
 - Đây là PR để review tài liệu. Chưa merge, chưa có approval PRD, chưa tạo nhánh hoặc tài sản design Task 2. Các hạn chế runtime QA và quyết định D01–D08 vẫn giữ nguyên.
 
 Các mục ghi blocker trước đây là lịch sử của lần thử đầu, không còn là trạng thái push/PR hiện tại.
+
+## Week 4 Task 2: Analytics design, 2026-09-15
+
+User requested latest main, the same Product Design/Taste workflow for Vy, commits authored only by Vy, and a preview for review. Latest monorepo main `3147856` was fast-forwarded; its client tree matched `client-remote/main` at `74fbd27`. Created `feat/anhvy-w4-analytics-ui-design`.
+
+Three independent built-in Image Gen concepts were displayed. User answered `1`, selecting the first displayed image (saved under `design/analytics/references/selected-option-1.png`). All three prompts used the actual rendered Ingestion screen as visual grounding. Shared prompt: Vietnamese university specialization comparison; Segoe UI, existing dark/indigo tokens; three synthetic choices; six-axis radar plus table; source uncertainty; no invented scoring/policy. First direction used a context rail with selected-major chart and skills. Generated extra tabs/files/icons were not authoritative requirements and were removed from the implementation.
+
+Product Design image-to-code and design QA guided the selected visual and source/render comparison. Microsoft Frontend Design Review guided interaction, craft and truthful-state review. Taste excludes dashboards, so it did not impose landing-page patterns. Repo rules take precedence over template bootstrapping and preserve the existing isolated HTML/CSS/JS preview setup.
+
+User explicitly authorized Playwright Edge headless for automated local checks; in-app browser remains the review surface. Source commits: `3739ae4` initial prototype and `4c9d963` density/axis-disclosure refinement. Each uses Author Nguyen Thi Anh Vy <anhvydn2005@gmail.com>, without Hoàng co-author as requested. No history rewritten.
+
+Actual verification: five Node model tests pass; eleven Edge browser groups pass; 34 state screenshots plus full/focused visual comparisons; no page errors or external requests. Contrast calculation and full metadata in `design/analytics/verification/`. Source commit in results identifies the source before evidence commit. Shared foundation checker passed 105 local Markdown links before this log addition.
+
+Not verified: live API, full XUI cross-module journey, screen-reader user testing, real browser zoom setting or performance targets. 640 CSS px is a reflow equivalent only. No Figma artifact or production integration claimed. D02–D08 remain open; this request authorizes a review prototype, not policy approval. Handoff stops at selected-major synthetic JSON rather than opening an unrelated Advisor fixture.
+
+Deliverables: `design-spec.md`, editable `prototype/`, selected reference, rendered `screenshots/`, `review.md`, `design-qa.md`, repeatable `verification/`. Only Analytics-owned paths changed. Design PRs must stay open for human review.
