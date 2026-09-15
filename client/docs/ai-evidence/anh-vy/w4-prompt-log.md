@@ -129,3 +129,16 @@ Task 2 starts only after PRD approval on feat/anhvy-w4-analytics-ui-design, in a
 ```
 
 Sau khi tài khoản có quyền, split lại HEAD để gồm phần cập nhật log này, push client trước rồi monorepo và tạo PR với base main. Không dùng lại subtree hash cũ nếu muốn gửi toàn bộ log mới nhất. Ghi URL PR thực sau khi GitHub xác nhận tạo thành công.
+
+### Tiếp tục sau khi Vy cấp quyền — đã mở PR
+
+User prompt thật: “oke tôi đã cấp quyền chủ sở hữu cho anhvy0904 rồi”. Agent không thay đổi quyền repository; chỉ thử lại thao tác đã được yêu cầu.
+
+- Working tree sạch, nhánh vẫn là `feat/anhvy-w4-analytics-ui-prd`, HEAD trước đồng bộ là `046d9d5`.
+- Split lại client thành `829b90b450d6135ddd605dbacd6e0fcc08b4c5bd`; push client trước, sau đó `git push -u origin feat/anhvy-w4-analytics-ui-prd`: cả hai thành công. Lỗi 403 trước đó đã được giải quyết.
+- CLI chưa lưu phiên đăng nhập riêng; agent dùng credential Git hiện có trong bộ nhớ của tiến trình để gọi GitHub CLI, không in hoặc lưu token. `gh api user --jq .login` xác nhận `anhvy0904`.
+- Kiểm tra không có PR đang mở cho nhánh trên cả hai repo trước khi tạo, tránh trùng PR.
+- Đã tạo [Client PR #8](https://github.com/MajorMatch-Labs/majormatch-client/pull/8) và [Monorepo PR #3](https://github.com/MajorMatch-Labs/MajorMatch/pull/3), cùng head `feat/anhvy-w4-analytics-ui-prd`, base `main`, dùng nội dung đã chuẩn bị phía trên.
+- Đây là PR để review tài liệu. Chưa merge, chưa có approval PRD, chưa tạo nhánh hoặc tài sản design Task 2. Các hạn chế runtime QA và quyết định D01–D08 vẫn giữ nguyên.
+
+Các mục ghi blocker trước đây là lịch sử của lần thử đầu, không còn là trạng thái push/PR hiện tại.
