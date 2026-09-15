@@ -93,3 +93,39 @@ Không có test report, usability test hoặc design review đã hoàn tất tro
 ## 6. Git / PR handoff
 
 Chỉ stage hai file Markdown của Vy; author theo rules là `Nguyen Thi Anh Vy <anhvydn2005@gmail.com>`. Đồng bộ client subtree trước rồi monorepo trên cùng tên nhánh theo `tasks/README.md` Week 4; không push feature vào main. Kết quả kiểm tra tài liệu và commit/push được ghi bổ sung khi thao tác hoàn tất. PR cần xác thực GitHub; chưa có số PR tại thời điểm viết mục này.
+
+### Kết quả thực hiện
+
+- Commit PRD: `5a88b73` — `docs(analytics): define week 4 analytics UI PRD and audit evidence`, author đúng Ánh Vy. Chỉ hai file Markdown được commit.
+- `git subtree split --prefix=client` cho commit trên thành công, tạo `af319628ee20073c9afc9a8f92769871eef998f9`.
+- Push subtree tới nhánh `feat/anhvy-w4-analytics-ui-prd` ở `MajorMatch-Labs/majormatch-client` thất bại: GitHub trả `403`, `Permission ... denied to anhvy0904`. Không force push, không đổi quyền repo hoặc tài khoản.
+- Push monorepo chưa chạy vì chuỗi đồng bộ yêu cầu client thành công trước. Chưa tạo PR trên cả hai repo; không có PR URL đã được tạo để ghi nhận.
+- Agent yêu cầu đăng nhập CLI vì cả CLI và in-app browser không có session. Vy trả lời thật: “trình duyệt thì trên chrome”. Agent thử kết nối Chrome bằng browser tool, kết quả `Browser is not available: chrome`; không thao tác được phiên Chrome hiện có.
+- Blocker bên ngoài: cần tài khoản có quyền push hai repository và phiên GitHub CLI/browser kết nối được để tạo PR. Hai tài liệu vẫn đầy đủ trong nhánh local; chưa có design.
+
+### Nội dung PR đã chuẩn bị (chưa đăng)
+
+Title: `docs(analytics): define week 4 analytics UI PRD and audit evidence`
+
+```markdown
+## Summary
+
+Define the Week 4 Analytics UI PRD for university students comparing majors, inspecting skill gaps, and continuing to suggested coursework. Add the PRD and the actual prompt/evidence log only.
+
+Audit MajorCard, RadarComparison, SkillBreakdown, and /result against the repository specifications, store, services, fixtures, and backend contracts. Specify loading/empty/error/retry states, 375px behavior, keyboard/screen-reader access, a chart data table, and data provenance.
+
+## Review required
+
+The PRD remains Draft. Vy confirmed the target user, primary action, and keeping unverified scoring/benchmark decisions as design blockers. Resolve D01–D08 with Vy and the Tech Lead before approving design, including per-major data, ranking, benchmark axes, skill evidence, simulation, handoff, metrics, and timeout/performance policy.
+
+Task 2 starts only after PRD approval on feat/anhvy-w4-analytics-ui-design, in a separate commit and PR.
+
+## Validation
+
+- Static source and specification audit completed.
+- All 18 template sections, required evidence/provenance labels, and 10 functional requirement IDs checked.
+- git diff --cached --check passed for the PRD commit.
+- No application code or design artifacts changed. Runtime tests, build/lint/typecheck, browser/mobile QA, and usability tests were not run for this documentation-only change.
+```
+
+Sau khi tài khoản có quyền, split lại HEAD để gồm phần cập nhật log này, push client trước rồi monorepo và tạo PR với base main. Không dùng lại subtree hash cũ nếu muốn gửi toàn bộ log mới nhất. Ghi URL PR thực sau khi GitHub xác nhận tạo thành công.
