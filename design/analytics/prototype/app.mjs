@@ -34,6 +34,8 @@ function render(focusId){
   document.querySelector('#handoff').onclick=()=>{const token=begin(state);if(!token)return;render('cancel');announce('Đang chuẩn bị bàn giao mẫu.');setTimeout(()=>{if(finish(state,token)){render('handoff');announce(`Đã chuẩn bị bàn giao mẫu cho ${selected(state).name}.`);}},1200);};
   document.querySelector('#cancel')?.addEventListener('click',()=>{state.request++;state.pending=false;render('handoff');announce('Đã hủy chờ. Dữ liệu và ngành đã chọn được giữ.');});
   document.querySelector('#reanalyze')?.addEventListener('click',()=>{scenario(state,'success');render('major-ai');announce('Đã mở snapshot minh họa mới.');});
+  const controls=document.querySelector('.axis-controls');
+  if(controls){const disclosure=document.createElement('details');disclosure.className='axis-disclosure';const summary=document.createElement('summary');summary.textContent='Đọc chi tiết từng trục';controls.before(disclosure);disclosure.append(summary,controls);}
   draw(m); if(focusId)document.getElementById(focusId)?.focus();
 }
 function draw(m){
