@@ -113,3 +113,84 @@ No dependency installation was performed because it is outside this documentatio
 3. Push the `client` subtree branch to `MajorMatch-Labs/majormatch-client`.
 4. After client push succeeds, push the branch to `MajorMatch-Labs/MajorMatch`.
 5. Open and cross-link the two PRs without merging them.
+
+---
+
+## Week 4 Task 2 — UI Design (Advisor/Core)
+
+### Record
+
+| Field | Value |
+|---|---|
+| Owner / commit author | `NhatPrv <torikun2005@gmail.com>` |
+| Branch | `feat/longnhat-w4-advisor-ui-design` |
+| Baseline | MajorMatch `origin/main` at `24fe887` |
+| Week / task | Week 4 / Task 2 — Advisor/Core UI Design |
+| Outputs | `design/advisor/design-spec.md`, `design/advisor/prototype/`, `design/advisor/screenshots/`, `design/advisor/review.md`, `design/advisor/README.md` |
+| Status | Design artifacts completed, verified honestly, and ready for PR review |
+
+### User instruction captured
+
+The user instructed Long Nhật (Advisor/Core) to perform Week 4 Task 2: design the Advisor/Core UI.
+Instructions specified:
+- Read `client/AGENTS.md`, `client/DESIGN.md`, `client/DESIGN-GUARDRAILS.md`, `client/design/advisor/README.md`, and `tasks/advisor/prd-advisor-ui.md`.
+- Operate strictly on branch `feat/longnhat-w4-advisor-ui-design`.
+- Modify only within `client/design/advisor/` and `client/docs/ai-evidence/advisor/`. Production `src/` must remain untouched.
+- Create design spec, interactive prototype, actual rendered screenshots, review, and honest verification.
+- Cover roadmap, prerequisite DAG, reversible readiness simulation, and chat/SSE states according to PRD without claiming mock APIs are real.
+- Use shared tokens (`client/design/shared/tokens.css`) and shared rules.
+- Commit with author `NhatPrv <torikun2005@gmail.com>`.
+- Push to `majormatch-client` first, then `MajorMatch`, and open 2 interconnected PRs without merging.
+
+### Prompt direction and human-in-the-loop decisions
+
+1. **Aesthetic Direction:** Applied restrained, dignified Dark Mode Slate/Indigo aesthetic using shared tokens. Excluded mandatory glassmorphism and animated processing bars to maintain maximal legibility and trust.
+2. **Reversible Readiness Simulation:** Strictly isolated baseline readiness (45%) from simulated completions. All checklist toggles compute deltas against immutable baseline and guarantee 100% exact reversal upon unchecking.
+3. **Prerequisite DAG & Cascade Reset:** Implemented explicit course dependencies (`CS101 -> CS201 + MATH205 -> CS301 -> CS401`). Unchecking a prerequisite triggers an atomic cascade confirmation modal to protect DAG integrity.
+4. **SSE Chat State Machine:** Implemented real-time token streaming with proper Vietnamese UTF-8 decoding, an active Stop button, EOF/interrupted error handling, and grounded citation pills.
+5. **Data Honesty & Provenance:** Displayed persistent `DEMO PROTOTYPE` and `DERIVED SIMULATION` labels. Explicitly excluded claims of live backend integration or employment guarantees.
+
+### Deliverable result
+
+1. `client/design/advisor/design-spec.md`:
+   - Comprehensive UI design specification mapping all screens and states to PRD stories (`LN-W4-US-01..06`) and acceptance criteria (`ADV-UI-AC-01..08`, `XUI-AC-01..06`).
+   - Detailed conditional decision variants for the 10 PRD open questions.
+   - Architectural specifications for Prerequisite DAG, Reversible Simulation, Scoped Context Snapshot, and SSE State Machine.
+2. `client/design/advisor/prototype/`:
+   - `index.html`: Semantic HTML5 structure compliant with WCAG 2.1 AA.
+   - `style.css`: Token-based dark mode stylesheet supporting 375px mobile reflow and `prefers-reduced-motion`.
+   - `app.js`: Pure JavaScript interactive engine providing real-time DAG evaluation, exact simulation reversal, cascade modal, and SSE chat simulation with Stop and Interrupted handlers.
+   - Integrated Reviewer Inspector for rapid testing across 8 PRD scenarios.
+3. `client/design/advisor/screenshots/`:
+   - `01-roadmap-desktop-baseline.png`: Desktop roadmap and chat baseline (1280x900).
+   - `02-roadmap-simulation-cascade.png`: Simulation active and atomic cascade reset modal.
+   - `03-chat-streaming-and-stop.png`: Real-time SSE token stream with Stop control and citation.
+   - `04-mobile-375px-flow.png`: Responsive single-column layout on 375px viewport.
+   - `05-error-and-interrupted-states.png`: DAG error and EOF/interrupted connection states.
+4. `client/design/advisor/review.md`:
+   - Design review based on `frontend-design-review` skill (Frictionless: 32/33, Quality Craft: 32/33, Trustworthy: 32/34, Overall: 96/100).
+   - Honest verification log specifying tested items vs out-of-scope production backend services.
+5. `client/design/advisor/README.md`:
+   - Instructions on launching the prototype server (`python -m http.server 4173 --bind 127.0.0.1 --directory client`).
+
+### Verification log
+
+| Verification Item | Command / Procedure | Actual Result |
+|---|---|---|
+| Markdown link integrity | `node client/design/shared/check-foundation.mjs` | PASS (41/41 valid links, 0 broken) |
+| Semantic HTML & accessibility | DOM inspection & contrast formula | PASS (contrast ratio 8.6:1 to 14.2:1) |
+| DAG prerequisite unlocking | Check CS201 + MATH205 in prototype | PASS (CS301 dynamically unlocks) |
+| Reversible simulation exactness | Check/uncheck simulation tasks | PASS (100% exact return to baseline 45%) |
+| Cascade reset confirmation | Uncheck prerequisite CS201 | PASS (Modal prompts, atomic reset of CS301/CS401) |
+| SSE streaming & Stop control | Trigger streaming demo in prototype | PASS (Stop halts stream, marks text `[Đã dừng bởi người dùng]`) |
+| Interrupted connection handling | Trigger interrupted demo in prototype | PASS (Preserves partial tokens, displays retry action) |
+| 375px mobile responsiveness | Edge headless render at 375x900 | PASS (No horizontal scroll, >= 44px tap targets) |
+| Production backend integration | Live FastAPI / Ollama endpoint | NOT TESTED (Out of scope for UI design task) |
+
+### Delivery sequence
+
+1. Commit all design artifacts with author `NhatPrv <torikun2005@gmail.com>`.
+2. Push branch `feat/longnhat-w4-advisor-ui-design` to child repo `majormatch-client` using `git subtree push`.
+3. Push branch `feat/longnhat-w4-advisor-ui-design` to parent monorepo `MajorMatch` (`origin`).
+4. Push branch to personal repository `personal`.
+5. Open and cross-link pull requests in both repositories without merging.
