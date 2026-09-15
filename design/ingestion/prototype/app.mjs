@@ -1,4 +1,5 @@
 import {questions,tags,validateFile,toggleTag,scores,complete,payload} from './model.mjs';
+import {icon} from './icons.mjs';
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const state = {stage:0,page:0,path:null,answers:{},tags:[],file:null,filePhase:'empty',fileError:null,fileVersion:0,analysisVersion:0,analysis:'idle',output:null,scenario:'default',rateUntil:0};
@@ -14,14 +15,15 @@ function canNext(){
  return state.stage===3&&complete(state.answers)&&state.tags.length>0&&state.analysis!=='pending'&&Date.now()>=state.rateUntil;
 }
 function controls(){
- $('#stage-label').textContent=state.stage===4?'Bàn giao sang Analytics':stages[state.stage];
+ $('#stage-label').textContent=state.stage===4?'Hoàn tất bản minh họa':stages[state.stage];
  $('#stage-count').textContent=state.stage===4?'Hoàn tất bản xem thử':(state.stage+1)+' / 4';
  document.querySelectorAll('.steps li').forEach((li,i)=>i===Math.min(state.stage,3)?li.setAttribute('aria-current','step'):li.removeAttribute('aria-current'));
- $('#back').hidden=state.stage===0;$('#next').hidden=state.stage===4;
+ document.querySelectorAll('.steps li').forEach((li,i)=>li.classList.toggle('complete',i<state.stage));
+ $('#back').hidden=state.stage===0||state.stage===4;$('#next').hidden=state.stage===4;
  $('#next').disabled=!canNext();
  $('#next').textContent=state.stage===3?(state.analysis==='pending'?'Đang mô phỏng…':'Xem bàn giao mẫu'):'Tiếp tục';
  const hints=['Chọn cách bắt đầu để tiếp tục.','Trả lời đủ 5 câu trên trang này.','Chọn từ 1 đến 5 hướng bạn quan tâm.','Kiểm tra dữ liệu trước khi xem bàn giao.'];
- $('#next-hint').textContent=state.stage===4?'':canNext()?'Bạn có thể quay lại để chỉnh sửa.':hints[Math.min(state.stage,3)];
+ $('#next-hint').textContent=state.stage===4?'':canNext()?'Bạn có thể chỉnh sửa trước khi tiếp tục.':hints[Math.min(state.stage,3)];
 }
 function fileFeedback(){
  const messages={
@@ -46,35 +48,36 @@ function fileFeedback(){
  return '<div class="feedback '+entry[2]+'" '+(entry[2]==='error'?'role="alert"':'role="status"')+'><strong>'+entry[0]+'</strong><p>'+entry[1]+'</p>'+(state.file?'<p>Tệp: '+esc(state.file.name)+'</p>':'')+'<div class="file-actions">'+(['processing','validating'].includes(state.filePhase)?'<button class="text-button" id="cancel-file">Hủy xử lý</button>':'')+(['error','timeout','rate','schema','partial','cancelled'].includes(state.filePhase)?'<button class="text-button" id="retry-file" '+(Date.now()<state.rateUntil?'disabled':'')+'>Thử lại mẫu</button>':'')+(state.file?'<button class="text-button" id="remove-file">Bỏ tệp</button>':'')+'</div></div>';
 }
 function evidence(){
- return '<h2 id="stage-title" tabindex="-1">Bạn muốn bắt đầu từ đâu?</h2><p class="intro">Dùng bảng điểm hoặc CV nếu bạn có. Bạn cũng có thể chỉ chia sẻ sở thích của mình.</p>'+
+ return '<h1 id="stage-title" tabindex="-1">Bạn muốn bắt đầu từ đâu?</h1><p class="intro">Chọn thông tin bạn có. Bổ sung sau khi cần.</p>'+
  '<fieldset class="choice-group"><legend>Thông tin bạn có thể cung cấp</legend>'+
- '<label class="path-choice"><input type="radio" name="path" value="record" '+(state.path==='record'?'checked':'')+'><span><strong>Tôi có bảng điểm hoặc CV</strong><small>Chọn một tệp PDF và kiểm tra trước khi tiếp tục.</small></span></label>'+
- '<label class="path-choice"><input type="radio" name="path" value="survey" '+(state.path==='survey'?'checked':'')+'><span><strong>Tôi muốn bắt đầu từ sở thích</strong><small>Không cần bảng điểm. Không tự bổ sung điểm hay kỹ năng.</small></span></label></fieldset>'+
+ '<label class="path-choice"><input type="radio" name="path" value="record" '+(state.path==='record'?'checked':'')+'>'+icon('file')+'<span><strong>Tôi có bảng điểm hoặc CV</strong><small>Một tệp PDF, tối đa 10 MiB.</small></span></label>'+
+ '<label class="path-choice"><input type="radio" name="path" value="survey" '+(state.path==='survey'?'checked':'')+'>'+icon('compass')+'<span><strong>Tôi muốn bắt đầu từ sở thích</strong><small>Không cần hồ sơ học tập để bắt đầu.</small></span></label></fieldset>'+
  (state.path==='record'?'<div class="dropzone" id="dropzone"><strong>Chọn hoặc kéo PDF vào đây</strong><label class="muted" for="file">Một tệp PDF, tối đa 10 MiB</label><input class="file-control" id="file" type="file" accept=".pdf,application/pdf" aria-describedby="file-hint file-state"><p id="file-hint">Chỉ kiểm tra trên thiết bị. Nội dung tệp không được gửi đi.</p><button class="text-button" id="sample-file">Dùng tệp minh họa</button></div><div id="file-state">'+fileFeedback()+'</div>':'')+
  (state.path==='survey'?'<div class="no-evidence"><strong>Chỉ dùng câu trả lời của bạn</strong><br>Phần học tập sẽ được ghi là chưa có dữ liệu. Bạn có thể bổ sung hồ sơ sau.</div>':'');
 }
 function survey(){
  const labels=['Rất ít phù hợp','Ít phù hợp','Trung lập','Phù hợp','Rất phù hợp'];
- return '<h2 id="stage-title" tabindex="-1">Điều gì khiến bạn hứng thú?</h2><p class="intro">Chọn mức phù hợp với bạn, không phải mức giỏi của bạn. Mỗi câu có một câu trả lời riêng.</p>'+
- '<p class="muted">Câu '+(state.page*5+1)+'–'+(state.page*5+5)+' / 10 · Khảo sát khám phá, không phải chẩn đoán tâm lý.</p>'+
+ return '<h1 id="stage-title" tabindex="-1">Điều gì khiến bạn hứng thú?</h1><p class="intro">Chọn mức độ bạn hứng thú với từng hoạt động. Không cần phải giỏi để thấy thích.</p>'+
+ '<p class="muted">Câu '+(state.page*5+1)+'-'+(state.page*5+5)+' / 10 · Khảo sát khám phá, không phải chẩn đoán tâm lý.</p>'+
  questions.slice(state.page*5,state.page*5+5).map(q=>'<fieldset class="question"><legend><span>'+q.id+'.</span>'+esc(q.text)+'</legend><div class="scale">'+[1,2,3,4,5].map(n=>'<label><input type="radio" name="q'+q.id+'" value="'+n+'" '+(state.answers[q.id]===n?'checked':'')+' aria-label="'+n+' - '+labels[n-1]+'"><span aria-hidden="true">'+n+'</span></label>').join('')+'</div><div class="scale-ends" aria-hidden="true"><span>Rất ít phù hợp</span><span>Rất phù hợp</span></div></fieldset>').join('');
 }
 function interests(){
- return '<h2 id="stage-title" tabindex="-1">Bạn muốn tìm hiểu hướng nào?</h2><p class="intro">Chọn từ 1 đến 5 hướng. Đây là sở thích để khám phá, không phải đăng ký chuyên ngành.</p><p class="muted" id="tag-count">'+state.tags.length+'/5 hướng đã chọn</p><div class="tag-list">'+tags.map(t=>'<label class="tag"><input type="checkbox" value="'+t.id+'" '+(state.tags.includes(t.id)?'checked':'')+'><span>'+esc(t.label)+'<small>'+esc(t.category)+'</small></span></label>').join('')+'</div><p class="muted" id="tag-error" role="alert"></p>';
+ return '<h1 id="stage-title" tabindex="-1">Bạn muốn tìm hiểu hướng nào?</h1><p class="intro">Chọn từ 1 đến 5 hướng. Đây là sở thích để khám phá, không phải đăng ký chuyên ngành.</p><p class="muted" id="tag-count">'+state.tags.length+'/5 hướng đã chọn</p><div class="tag-list">'+tags.map(t=>'<label class="tag"><input type="checkbox" value="'+t.id+'" '+(state.tags.includes(t.id)?'checked':'')+'><span>'+esc(t.label)+'<small>'+esc(t.category)+'</small></span></label>').join('')+'</div><p class="muted" id="tag-error" role="alert"></p>';
 }
 function review(){
  const derived=scores(state.answers);
  const rows='<div><dt>Minh chứng</dt><dd>'+(state.path==='survey'?'Chỉ sở thích; chưa có hồ sơ học tập':esc(state.file?.name||'Tệp minh họa')+'<br><small>Không bóc tách hồ sơ thật trong prototype</small>')+'</dd></div>'+
  '<div><dt>Khảo sát</dt><dd>'+count()+'/10 câu đã trả lời</dd></div><div><dt>Hướng quan tâm</dt><dd><ul>'+tags.filter(t=>state.tags.includes(t.id)).map(t=>'<li>'+esc(t.label)+'</li>').join('')+'</ul></dd></div>';
- return '<h2 id="stage-title" tabindex="-1">Kiểm tra lại trước khi tiếp tục</h2><p class="intro">Bạn có thể quay lại chỉnh sửa. Bản xem thử chỉ chuẩn bị dữ liệu bàn giao, không phân tích chuyên ngành thật.</p><span class="source">DEMO · Dữ liệu xem thử</span><dl class="summary">'+rows+'</dl>'+
- '<details><summary>Xem sáu nhóm sở thích đã tính</summary><p>'+Object.entries(derived).map(([g,n])=>g+': '+(n===null?'Chưa đủ':Number(n.toFixed(2)))).join(' · ')+'</p><p>DERIVED: trung bình các câu cùng nhóm; không phải điểm năng lực.</p></details>'+
+ return '<h1 id="stage-title" tabindex="-1">Kiểm tra lại trước khi tiếp tục</h1><p class="intro">Xem lại hồ sơ, câu trả lời và những hướng bạn muốn tìm hiểu.</p><span class="source">Bản minh họa, chưa phân tích thực tế</span><dl class="summary">'+rows+'</dl>'+
+ '<details><summary>Xem sáu nhóm sở thích đã tính</summary><p>'+Object.entries(derived).map(([g,n])=>g+': '+(n===null?'Chưa đủ':Number(n.toFixed(2)))).join(' · ')+'</p><p>Trung bình các câu trả lời cùng nhóm, không phải điểm năng lực.</p></details>'+
  (state.analysis==='error'?'<div class="feedback error" role="alert"><strong>Chưa thể tiếp tục phân tích</strong><p>Lỗi dịch vụ minh họa. Câu trả lời vẫn được giữ. Thử lại hoặc chủ động mở bàn giao demo.</p><button id="explicit-demo" class="secondary">Mở bàn giao demo</button></div>':'')+
  (state.analysis==='pending'?'<div class="feedback" role="status"><strong>Đang chuẩn bị bàn giao mẫu…</strong><p>Không gửi dữ liệu lên máy chủ.</p><button class="text-button" id="cancel-analysis">Hủy</button></div>':'');
 }
 function handoff(){
- return '<span class="source">DEMO · Chưa kết nối Analytics</span><h2 id="stage-title" tabindex="-1">Thông tin đã sẵn sàng để bàn giao.</h2><p class="intro">Bạn đã hoàn thành phần hồ sơ và sở thích trong bản thiết kế. Kết quả gợi ý ngành thuộc module Analytics.</p><div class="feedback success"><strong>Giữ đúng thông tin bạn đã chọn</strong><p>'+state.tags.length+' hướng quan tâm, 10 câu trả lời độc lập. Không thêm GPA, môn học hay kỹ năng mẫu.</p></div><details><summary>Xem dữ liệu bàn giao mẫu</summary><pre>'+esc(JSON.stringify(state.output,null,2))+'</pre></details><p class="muted">Với hồ sơ chỉ có sở thích, lộ trình cần thêm ngữ cảnh học tập theo quyết định XD-01. Bản thiết kế không tự chọn học kỳ.</p><button class="secondary" id="edit-input">Chỉnh sửa thông tin</button>';
+ return '<span class="source">Bản minh họa, chưa có kết quả phân tích</span><h1 id="stage-title" tabindex="-1">Bạn đã hoàn thành phần thông tin.</h1><p class="intro">Bước tiếp theo là so sánh các hướng học tập. Chức năng này chưa kết nối trong bản minh họa.</p><div class="feedback success"><strong>Thông tin của bạn</strong><p>'+state.tags.length+' hướng quan tâm và 10 câu trả lời. Bạn có thể quay lại chỉnh sửa.</p></div><details><summary>Chi tiết kỹ thuật của bản minh họa</summary><pre>'+esc(JSON.stringify(state.output,null,2))+'</pre></details><p class="muted">Để lập lộ trình học tập, bạn sẽ cần bổ sung thông tin về môn học và học kỳ.</p><button class="secondary" id="edit-input">Chỉnh sửa thông tin</button>';
 }
 function render(focus=false){
+ $('#workspace').dataset.stage=String(state.stage);
  $('#stage').innerHTML=[evidence,survey,interests,review,handoff][state.stage]();
  controls();bind();
  if(focus)$('#stage-title').focus();
