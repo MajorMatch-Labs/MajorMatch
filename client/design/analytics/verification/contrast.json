@@ -1,0 +1,50 @@
+[
+  {
+    "name": "body",
+    "fg": "f8fafc",
+    "bg": "111827",
+    "ratio": 16.96
+  },
+  {
+    "name": "muted",
+    "fg": "b8c3d4",
+    "bg": "111827",
+    "ratio": 9.96
+  },
+  {
+    "name": "brand",
+    "fg": "a5b4fc",
+    "bg": "111827",
+    "ratio": 8.9
+  },
+  {
+    "name": "button",
+    "fg": "ffffff",
+    "bg": "4338ca",
+    "ratio": 7.9
+  },
+  {
+    "name": "success",
+    "fg": "6ee7b7",
+    "bg": "111827",
+    "ratio": 11.64
+  },
+  {
+    "name": "warning",
+    "fg": "fcd34d",
+    "bg": "111827",
+    "ratio": 12.3
+  },
+  {
+    "name": "error",
+    "fg": "fda4af",
+    "bg": "111827",
+    "ratio": 9.38
+  },
+  {
+    "name": "focus",
+    "fg": "c7d2fe",
+    "bg": "111827",
+    "ratio": 11.89
+  }
+]
