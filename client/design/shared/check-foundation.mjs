@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..', '..');
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const modules = ['ingestion', 'analytics', 'advisor'];
 const walk = p => fs.readdirSync(p, { withFileTypes: true }).flatMap(e => e.isDirectory() ? walk(path.join(p, e.name)) : [path.join(p, e.name)]);
 let links = 0;
