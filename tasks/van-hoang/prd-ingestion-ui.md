@@ -6,9 +6,11 @@
 |---|---|
 | Owner | Văn Hoàng (`ingestion`) |
 | Week / task | Week 4 / Task 1 — UI PRD |
-| Status | Draft — ready for human review, not approved for design |
+| Status | In review — cross-module quality revision; not approved for design |
 | Implementation baseline | Monorepo commit `03957c0` |
 | Design task | Week 4 / Task 2 — blocked until the PRD and listed human decisions are approved |
+
+Quality review baseline: `9b260e2`. Shared findings, provenance terminology, decision owners and integration scenarios: [UI PRD review](../ui-prd-review.md). This revision preserves the original implementation audit; it does not imply those defects are fixed. Proposed path-selection and neutral-answer interactions below depend on questions 1 and 6 / XD-04.
 
 ## 1. Repository understanding
 
@@ -128,7 +130,7 @@ Only one primary CTA should compete for attention at each step. Architecture ter
 
 **Acceptance Criteria:**
 
-- [ ] The screen presents a record-backed path and a survey-only path in plain Vietnamese.
+- [ ] Both record-backed and survey-only paths are explained in plain Vietnamese. Explicit path controls versus optional PDF input remains question 1 / XD-04; final design follows the recorded choice.
 - [ ] The selected path is exposed programmatically and not indicated by color alone.
 - [ ] Survey-only submission contains no invented GPA, course, or technical skill.
 - [ ] Switching path invalidates data that must not carry forward and explains what changed.
@@ -174,7 +176,7 @@ Only one primary CTA should compete for attention at each step. Architecture ter
 - [ ] Answer state is keyed by question ID, not by RIASEC group.
 - [ ] Questions 1 and 2 can hold different values simultaneously.
 - [ ] Each control has a visible prompt, programmatic label, 1–5 range, step 1, current value, and endpoint meanings.
-- [ ] A displayed neutral value of 3 counts as answered only after explicit interaction or confirmation.
+- [ ] The UI distinguishes unanswered from an intentional neutral answer. Explicit interaction/confirmation for a displayed 3 is the proposed rule pending question 6 / XD-04; the approved alternative must retain that distinction and update its test oracle.
 - [ ] Progress is `answered question count / 10`; incomplete answers prevent final analysis and identify the missing question(s).
 - [ ] Final scores are group means using `R={1,2}`, `I={3,4,9}`, `A={5}`, `S={6}`, `E={7,10}`, `C={8}`; precision is preserved until display.
 - [ ] The UI calls the tool an exploration survey and does not present psychometric validity as verified.
@@ -215,7 +217,7 @@ Only one primary CTA should compete for attention at each step. Architecture ter
 
 ## 8. Functional requirements
 
-- **ING-UI-FR-01:** The UI must let the learner explicitly select record-backed or survey-only ingestion.
+- **ING-UI-FR-01:** The UI must support record-backed and survey-only ingestion without fabricated academic evidence; the path-selection interaction is conditional on question 1 / XD-04.
 - **ING-UI-FR-02:** The UI must validate one PDF against the approved extension, byte, MIME, and signature rules before upload.
 - **ING-UI-FR-03:** The UI must model file validation and asynchronous processing as explicit, mutually understandable states.
 - **ING-UI-FR-04:** The UI must prevent duplicate requests and reject stale responses after replacement, removal, navigation, or unmount.
@@ -227,6 +229,7 @@ Only one primary CTA should compete for attention at each step. Architecture ter
 - **ING-UI-FR-10:** The route must not insert default career intent, GPA, courses, or skills into a real request.
 - **ING-UI-FR-11:** All critical controls and status changes must satisfy the accessibility and responsive requirements below.
 - **ING-UI-FR-12:** The Week 4 design must include every approved state in this PRD and must not add a new feature without a traceable story.
+- **ING-UI-FR-13:** Changing profile, survey answers, tags or evidence path must invalidate dependent analysis/roadmap context before any new handoff; only responses for the current input snapshot may commit. Hoàng owns the input-change trigger; Vy and Nhật own their dependent views (XUI-AC-01).
 
 ## 9. UI state matrix
 
@@ -277,7 +280,7 @@ Any rule inferred only from current fallback/default code is not approved produc
 | Response schema invalid | Do not partially write store; show data-contract error and retry path. |
 | User selects twice | Only the current request may commit state. |
 | User replaces/removes/navigates | Abort or invalidate current request and ignore late response. |
-| Refresh/back | Current persistence behavior is memory-only; desired retention is HUMAN DECISION REQUIRED. Do not imply recovery exists. |
+| Refresh/back | During same-session back navigation preserve still-valid input; changed evidence makes downstream results stale. After reload, absent in-memory context requires re-entry; persistent restoration remains question 8 / XD-05. |
 | Demo selected | Load a fresh versioned fixture, label downstream state, and never mix it with the selected PDF. |
 
 ## 13. Design considerations for Week 4 Task 2
@@ -380,6 +383,8 @@ AND the primary action is reachable without horizontal scrolling
 
 ## 16. Traceability matrix
 
+AC shorthand in this matrix means the local `ING-UI-AC-*` IDs. Shared cases are defined in [UI PRD review §10](../ui-prd-review.md#10-acceptance-criteria-audit).
+
 | Objective | Epic | Story | Acceptance criteria | Implementation target | Test | Status |
 |---|---|---|---|---|---|---|
 | Honest input path | Evidence intake | VH-W4-US-01 | AC-04 | Upload route/store/request adapter | Component + integration | MISSING IMPLEMENTATION |
@@ -388,6 +393,14 @@ AND the primary action is reachable without horizontal scrolling
 | Correct interest vector | Evidence intake | VH-W4-US-04 | AC-03/08 | Survey state/scoring/UI | Unit + component | CONTRADICTORY, UNTESTED |
 | Preserve career intent | Evidence intake | VH-W4-US-05 | AC-05 | Tag selector/request adapter | Unit + integration | PARTIAL, UNTESTED |
 | Trustworthy transition | Trust/resilience | VH-W4-US-06 | AC-04/06/08 | Upload route/API/store/provenance | Integration + E2E | CONTRADICTORY, UNTESTED |
+| Current evidence across screens | Trust/resilience | VH-W4-US-01/06 | XUI-AC-01/02/04 | Upload → analytics → advisor; ING-UI-FR-13 | Shared snapshot/demo/interest-only cases | UNTESTED |
+
+### Cross-module handoff acceptance
+
+- Preserve all validated tag IDs and missing academic evidence as missing; backend aggregation semantics remain question 5. No conversion of RIASEC to measured competence is implied.
+- LIVE identifies origin from a real session, not extraction accuracy. Parsed/model-derived fields retain DERIVED/AI-GENERATED or UNKNOWN information as available; DEMO maps to Analytics MOCK. Do not invent source/version metadata.
+- Valid interest-only input may reach the Analytics partial state. It does not automatically satisfy Advisor's semester/course context; XUI-AC-04 and XD-01 govern that boundary.
+- Verify the shared journey at 375/768/1280px, including focus on errors, back navigation and stale responses (XUI-AC-06). Existing 1920px story checks remain additional coverage; these are planned checks, not measured results.
 
 ## 17. Success metrics
 
