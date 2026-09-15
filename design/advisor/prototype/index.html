@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MajorMatch Advisor/Core — Prototype Thiết kế UI (Week 4)</title>
+  <link rel="stylesheet" href="../../shared/tokens.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Header / Navigation Shell -->
+  <header class="app-header" role="banner">
+    <div class="header-container">
+      <div class="brand-group">
+        <span class="brand-wordmark">MajorMatch</span>
+        <span class="stage-badge">Giai đoạn 3: Lộ trình &amp; Cố vấn</span>
+      </div>
+      <div class="provenance-tag" id="global-provenance" role="status" aria-label="Nguồn dữ liệu">
+        <span class="provenance-pill demo">CHẾ ĐỘ MÔ PHỎNG (DEMO PROTOTYPE)</span>
+        <span class="provenance-pill derived">TÍNH TOÁN DẪN XUẤT</span>
+      </div>
+      <div class="header-actions">
+        <button type="button" class="btn btn-secondary" id="btn-toggle-inspector" aria-expanded="false" aria-controls="inspector-drawer">
+          Bảng điều khiển Reviewer
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Banner cảnh báo bản quyền và tính chân thực dữ liệu -->
+  <div class="simulation-banner" role="region" aria-label="Thông báo chế độ mô phỏng">
+    <div class="banner-content">
+      <strong>MÔ PHỎNG THIẾT KẾ ĐÁNH GIÁ (TASK 2):</strong> Giao diện này phục vụ duyệt thiết kế UI. Toàn bộ lộ trình và điểm số là dữ liệu giả định (synthetic fixtures), không đại diện cho cam kết tuyển dụng hay dữ liệu học vụ thực tế.
+    </div>
+  </div>
+
+  <!-- Live Announcer for Screen Readers -->
+  <div id="a11y-live-region" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- Main Application Content Area -->
+  <main class="main-layout" id="main-content">
+    
+    <!-- State: Context Missing / Direct Access (ADV-UI-AC-01) -->
+    <section id="state-context-missing" class="view-state hidden" aria-labelledby="heading-context-missing">
+      <div class="card card-warning">
+        <h2 id="heading-context-missing" class="card-title">Yêu cầu hoàn thành phân tích trước khi xem lộ trình</h2>
+        <p class="card-desc">
+          Bạn đang truy cập trực tiếp vào lộ trình nhưng hệ thống chưa nhận diện được hồ sơ phân tích chuyên ngành đã xác thực. Để đảm bảo tính chính xác, hệ thống không tự ý đưa dữ liệu mẫu vào phiên làm việc cá nhân.
+        </p>
+        <div class="missing-actions">
+          <button type="button" class="btn btn-primary" onclick="simulateState('default')">Xem với kịch bản Mô phỏng có sẵn (Demo)</button>
+          <a href="#quay-lai-phan-tich" class="btn btn-secondary">Quay lại trang Phân tích kỹ năng</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- State: DAG Error / Chu trình tiên quyết (ADV-UI-AC-02) -->
+    <section id="state-dag-error" class="view-state hidden" aria-labelledby="heading-dag-error">
+      <div class="card card-error">
+        <h2 id="heading-dag-error" class="card-title">Lỗi cấu trúc dữ liệu chương trình đào tạo (DAG Error)</h2>
+        <p class="card-desc">
+          Phát hiện vòng lặp phụ thuộc tiên quyết hoặc mã môn học tiên quyết không tồn tại trong phiên bản khung chương trình đào tạo hiện hành (Mã lỗi: <code>ERR_DAG_CYCLE_DETECTED: CS301 &lt;-&gt; CS302</code>).
+        </p>
+        <p class="card-note">Tính năng mô phỏng hoàn thành môn học tạm thời bị vô hiệu hóa để bảo vệ tính toàn vẹn dữ liệu.</p>
+        <div class="missing-actions">
+          <button type="button" class="btn btn-secondary" onclick="simulateState('default')">Khôi phục lộ trình hợp lệ</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- State: Active Roadmap & Advisor Workspace (Default Valid State) -->
+    <div id="state-active-workspace" class="workspace-grid">
+      
+      <!-- Cột Trái: Lộ trình môn học & Cây tiên quyết -->
+      <section class="roadmap-column" aria-labelledby="heading-roadmap">
+        
+        <!-- Header thông tin chuyên ngành đã chọn -->
+        <div class="card context-card">
+          <div class="context-meta">
+            <div>
+              <span class="context-label">Chuyên ngành định hướng:</span>
+              <h1 id="heading-roadmap" class="context-title">Khoa học Máy tính &amp; Kỹ thuật Dữ liệu / AI</h1>
+            </div>
+            <div class="curriculum-meta">
+              <span class="badge badge-neutral">CTĐT: KNTT-2024-v2.1</span>
+              <span class="badge badge-info" id="badge-session-mode">Chế độ: Demo Session</span>
+            </div>
+          </div>
+          <p class="context-summary">
+            Học kỳ hiện tại: <strong>Học kỳ 5</strong> &bull; Môn học thiếu cần bổ sung: <strong>5 môn cốt lõi</strong> &bull; GPA cơ sở: <strong>3.20 (Bảo lưu gốc)</strong>
+          </p>
+        </div>
+
+        <!-- Bảng chỉ số Readiness & So sánh Mô phỏng (Reversible Simulation) -->
+        <div class="card readiness-card" role="region" aria-label="Chỉ số mức độ sẵn sàng học tập">
+          <div class="readiness-header">
+            <div>
+              <h2 class="readiness-title">Tiến độ chuẩn bị học tập (Planning Readiness Indicator)</h2>
+              <p class="readiness-subtitle">Chỉ số dẫn xuất hỗ trợ lập kế hoạch học tập &bull; <em>Không phải tỷ lệ cơ hội việc làm thực tế</em></p>
+            </div>
+            <div class="readiness-score-box">
+              <div class="score-display">
+                <span class="score-number" id="simulated-score">45%</span>
+                <span class="score-delta" id="score-delta">+0% mô phỏng</span>
+              </div>
+              <span class="score-baseline-label">Điểm gốc: 45% (Bảo toàn)</span>
+            </div>
+          </div>
+
+          <!-- Thanh tiến độ phân biệt Baseline vs Projected -->
+          <div class="progress-track" role="progressbar" aria-valuenow="45" aria-valuemin="0" aria-valuemax="100" id="readiness-progressbar" aria-label="Tiến độ sẵn sàng">
+            <div class="progress-bar baseline-bar" id="bar-baseline" style="width: 45%;"></div>
+            <div class="progress-bar simulated-bar" id="bar-simulated" style="width: 0%;"></div>
+          </div>
+
+          <!-- Radar projection summary (6 trục RIASEC / Năng lực) -->
+          <div class="radar-summary">
+            <span class="radar-label">Năng lực trọng yếu liên quan:</span>
+            <div class="radar-tags">
+              <span class="tag" id="tag-ml">Machine Learning: <strong>55%</strong></span>
+              <span class="tag" id="tag-data">Cấu trúc Dữ liệu &amp; Giải thuật: <strong>70%</strong></span>
+              <span class="tag" id="tag-math">Toán &amp; Xác suất thống kê: <strong>60%</strong></span>
+            </div>
+          </div>
+
+          <!-- Nút Reset mô phỏng về gốc -->
+          <div class="readiness-footer">
+            <span id="simulated-count-label">Đã chọn mô phỏng: <strong>0 môn</strong></span>
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-reset-simulation" disabled onclick="resetAllSimulation()">
+              Đặt lại về điểm gốc ban đầu (Reset)
+            </button>
+          </div>
+        </div>
+
+        <!-- Danh sách học kỳ và môn học -->
+        <div class="semesters-container" id="semesters-list">
+          
+          <!-- Học kỳ 5 -->
+          <div class="semester-group" id="sem-5">
+            <div class="semester-header">
+              <h3 class="semester-title">Học kỳ 5 (Học kỳ kế tiếp khuyến nghị)</h3>
+              <span class="badge badge-success">Khả dụng ngay</span>
+            </div>
+            
+            <div class="tasks-list">
+              <!-- Môn CS201: Cấu trúc dữ liệu nâng cao (Eligible - chưa học) -->
+              <article class="task-card" id="task-CS201" data-id="CS201" data-status="eligible">
+                <div class="task-control">
+                  <input type="checkbox" id="chk-CS201" class="task-checkbox" onchange="toggleTaskSimulation('CS201')">
+                  <label for="chk-CS201" class="task-label">
+                    <span class="task-code">CS201</span>
+                    <span class="task-name">Cấu trúc Dữ liệu &amp; Giải thuật Nâng cao</span>
+                  </label>
+                </div>
+                <div class="task-meta">
+                  <span class="task-badge badge-eligible">Đủ điều kiện đăng ký</span>
+                  <span class="task-weight">+15% tiến độ</span>
+                </div>
+                <div class="task-desc">
+                  Môn học nền tảng bắt buộc trước khi học Trí tuệ Nhân tạo và Khai phá Dữ liệu.
+                </div>
+                <div class="prereq-info clear">
+                  <span class="prereq-icon">&check;</span>
+                  <span>Tiên quyết: Đã hoàn thành <em>CS101 (Nhập môn Lập trình)</em> ở kỳ 2.</span>
+                </div>
+              </article>
+
+              <!-- Môn MATH205: Xác suất Thống kê cho Khoa học Dữ liệu -->
+              <article class="task-card" id="task-MATH205" data-id="MATH205" data-status="eligible">
+                <div class="task-control">
+                  <input type="checkbox" id="chk-MATH205" class="task-checkbox" onchange="toggleTaskSimulation('MATH205')">
+                  <label for="chk-MATH205" class="task-label">
+                    <span class="task-code">MATH205</span>
+                    <span class="task-name">Xác suất Thống kê ứng dụng AI</span>
+                  </label>
+                </div>
+                <div class="task-meta">
+                  <span class="task-badge badge-eligible">Đủ điều kiện đăng ký</span>
+                  <span class="task-weight">+10% tiến độ</span>
+                </div>
+                <div class="task-desc">
+                  Trang bị kiến thức toán học về phân phối xác suất và suy diễn thống kê cho mô hình ML.
+                </div>
+                <div class="prereq-info clear">
+                  <span class="prereq-icon">&check;</span>
+                  <span>Tiên quyết: Đã đạt môn <em>Toán giải tích cơ sở</em>.</span>
+                </div>
+              </article>
+            </div>
+          </div>
+
+          <!-- Học kỳ 6 -->
+          <div class="semester-group" id="sem-6">
+            <div class="semester-header">
+              <h3 class="semester-title">Học kỳ 6 (Chuyên sâu Cơ sở ngành)</h3>
+              <span class="badge badge-warning" id="badge-sem-6">Có môn bị khóa tiên quyết</span>
+            </div>
+            
+            <div class="tasks-list">
+              <!-- Môn CS301: Nhập môn Học máy (Bị khóa bởi CS201 và MATH205) -->
+              <article class="task-card locked" id="task-CS301" data-id="CS301" data-status="locked" data-prereqs="CS201,MATH205">
+                <div class="task-control">
+                  <input type="checkbox" id="chk-CS301" class="task-checkbox" disabled onchange="toggleTaskSimulation('CS301')">
+                  <label for="chk-CS301" class="task-label">
+                    <span class="task-code">CS301</span>
+                    <span class="task-name">Nhập môn Trí tuệ Nhân tạo &amp; Machine Learning</span>
+                  </label>
+                </div>
+                <div class="task-meta">
+                  <span class="task-badge badge-locked" id="badge-CS301">Bị khóa tiên quyết</span>
+                  <span class="task-weight">+20% tiến độ</span>
+                </div>
+                <div class="task-desc">
+                  Lý thuyết và thực hành các thuật toán phân lớp, hồi quy, cây quyết định và mạng nơ-ron cơ bản.
+                </div>
+                <div class="prereq-info blocked" id="prereq-desc-CS301">
+                  <span class="prereq-icon">&times;</span>
+                  <span class="prereq-text">Chưa đủ điều kiện: Cần hoàn thành trước <strong>CS201</strong> và <strong>MATH205</strong>.</span>
+                </div>
+              </article>
+            </div>
+          </div>
+
+          <!-- Học kỳ 7 & 8 -->
+          <div class="semester-group" id="sem-7">
+            <div class="semester-header">
+              <h3 class="semester-title">Học kỳ 7 &amp; 8 (Đồ án tốt nghiệp &amp; Chuyên đề)</h3>
+              <span class="badge badge-neutral">Khóa dài hạn</span>
+            </div>
+            <div class="tasks-list">
+              <!-- Môn CS401: Đồ án Chuyên ngành AI (Phụ thuộc CS301) -->
+              <article class="task-card locked" id="task-CS401" data-id="CS401" data-status="locked" data-prereqs="CS301">
+                <div class="task-control">
+                  <input type="checkbox" id="chk-CS401" class="task-checkbox" disabled onchange="toggleTaskSimulation('CS401')">
+                  <label for="chk-CS401" class="task-label">
+                    <span class="task-code">CS401</span>
+                    <span class="task-name">Đồ án Tốt nghiệp Ứng dụng Học máy Thực chiến</span>
+                  </label>
+                </div>
+                <div class="task-meta">
+                  <span class="task-badge badge-locked" id="badge-CS401">Bị khóa tiên quyết</span>
+                  <span class="task-weight">+10% tiến độ</span>
+                </div>
+                <div class="prereq-info blocked" id="prereq-desc-CS401">
+                  <span class="prereq-icon">&times;</span>
+                  <span class="prereq-text">Chưa đủ điều kiện: Cần hoàn thành trước <strong>CS301</strong>.</span>
+                </div>
+              </article>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- Cột Phải: Cố vấn Trực tiếp (Advisor Chat & SSE Stream Control) -->
+      <section class="advisor-column" aria-labelledby="heading-advisor-chat">
+        <div class="card chat-card">
+          
+          <div class="chat-header">
+            <div>
+              <h2 id="heading-advisor-chat" class="chat-title">Cố vấn Học tập Thông minh</h2>
+              <p class="chat-subtitle">Giải thích lộ trình dựa trên ngữ cảnh lộ trình đã chọn</p>
+            </div>
+            <div class="chat-status-pill" id="chat-status-indicator">
+              <span class="status-dot idle" id="status-dot"></span>
+              <span id="status-text">Sẵn sàng</span>
+            </div>
+          </div>
+
+          <!-- Bảng thông tin ngữ cảnh được gửi (Privacy & Scoped Snapshot Disclosure) -->
+          <div class="context-snapshot-box" role="region" aria-label="Ngữ cảnh chuyển giao bảo mật">
+            <div class="snapshot-header">
+              <span class="snapshot-title">Ngữ cảnh gửi tới Cố vấn (Đã khử danh tính):</span>
+            </div>
+            <div class="snapshot-tags">
+              <span class="snap-pill">Ngành: CS_DATA_AI</span>
+              <span class="snap-pill">Môn thiếu: CS201, CS301</span>
+              <span class="snap-pill">Kỳ: 5</span>
+              <span class="snap-pill privacy-verified">&check; Không chứa tên/MSSV/PDF</span>
+            </div>
+          </div>
+
+          <!-- Khung hội thoại tin nhắn -->
+          <div class="chat-messages" id="chat-messages-container" role="log" aria-live="polite">
+            
+            <!-- Tin nhắn mẫu từ hệ thống -->
+            <div class="message-bubble assistant">
+              <div class="message-author">Cố vấn MajorMatch &bull; <em>Mô hình hỗ trợ lập kế hoạch</em></div>
+              <div class="message-content">
+                Xin chào bạn! Dựa trên phân tích bảng điểm của bạn ở chuyên ngành <strong>Khoa học Máy tính &amp; Kỹ thuật Dữ liệu</strong>, ưu tiên số 1 của bạn trong Kỳ 5 là hoàn thành môn <strong>CS201 (Cấu trúc dữ liệu nâng cao)</strong> để kịp mở khóa môn <strong>CS301 (Nhập môn Trí tuệ Nhân tạo)</strong> ở Kỳ 6. Bạn có câu hỏi nào về lộ trình này không?
+              </div>
+              <div class="message-citation">
+                <span class="citation-pill">Căn cứ: Khung CTĐT KNTT-2024 Điều 4.2</span>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Trạng thái lỗi hoặc gián đoạn luồng stream (Interrupted / 429) -->
+          <div id="chat-error-alert" class="chat-error-banner hidden" role="alert">
+            <span id="chat-error-message">Kết nối bị gián đoạn trước khi hoàn tất phản hồi.</span>
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-chat-retry" onclick="retryLastChatAttempt()">Thử lại</button>
+          </div>
+
+          <!-- Form nhập câu hỏi và các nút điều khiển (Stop / Send) -->
+          <form class="chat-composer" id="chat-form" onsubmit="handleChatSubmit(event)">
+            <label for="chat-input" class="sr-only">Nội dung câu hỏi cố vấn</label>
+            <div class="composer-row">
+              <input type="text" id="chat-input" class="chat-input" placeholder="Ví dụ: Vì sao tôi nên học CS201 trước CS301?..." autocomplete="off">
+              
+              <!-- Nút Gửi (Hiển thị khi idle) -->
+              <button type="submit" class="btn btn-primary" id="btn-chat-send">Gửi</button>
+              
+              <!-- Nút Dừng Stream (Hiển thị khi đang streaming - ADV-UI-AC-06) -->
+              <button type="button" class="btn btn-danger hidden" id="btn-chat-stop" onclick="handleChatStop()">
+                Dừng
+              </button>
+            </div>
+          </form>
+
+          <!-- Gợi ý câu hỏi nhanh (Prompt Suggestions) -->
+          <div class="quick-prompts">
+            <span class="quick-label">Câu hỏi gợi ý:</span>
+            <button type="button" class="btn-chip" onclick="applyQuickPrompt('Tại sao CS301 lại bị khóa ở kỳ 6?')">Tại sao CS301 bị khóa?</button>
+            <button type="button" class="btn-chip" onclick="applyQuickPrompt('Nếu tôi học song song CS201 và MATH205 thì sao?')">Học song song CS201 &amp; MATH205?</button>
+          </div>
+
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Modal xác nhận Cascade Reset khi bỏ chọn môn tiên quyết (ADV-UI-AC-03 / XD-03) -->
+  <div id="modal-cascade-reset" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modal-cascade-title" aria-describedby="modal-cascade-desc">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modal-cascade-title" class="modal-title">Cảnh báo hủy môn tiên quyết</h3>
+      </div>
+      <div class="modal-body">
+        <p id="modal-cascade-desc">
+          Môn <strong id="cascade-target-code">CS201</strong> là môn tiên quyết trực tiếp của <strong id="cascade-dependents-list">CS301, CS401</strong>. 
+        </p>
+        <p class="modal-alert">
+          Nếu hủy mô phỏng môn này, toàn bộ các môn phụ thuộc phía sau sẽ tự động bị hủy chọn và đưa về trạng thái bị khóa để đảm bảo tính đúng đắn của lộ trình.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeCascadeModal(false)">Giữ nguyên (Hủy thao tác)</button>
+        <button type="button" class="btn btn-danger" onclick="closeCascadeModal(true)">Đồng ý hủy tất cả</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reviewer Inspector Drawer (Công cụ chuyển trạng thái dành cho kiểm thử) -->
+  <aside id="inspector-drawer" class="inspector-drawer hidden" aria-label="Bảng điều khiển kiểm thử thiết kế">
+    <div class="inspector-header">
+      <h3>Bộ chuyển trạng thái Prototype (PRD States)</h3>
+      <button type="button" class="btn-icon" onclick="toggleInspector(false)" aria-label="Đóng bảng kiểm thử">&times;</button>
+    </div>
+    <div class="inspector-body">
+      <div class="inspector-group">
+        <label class="inspector-label">Trạng thái Lộ trình (Roadmap States):</label>
+        <div class="inspector-buttons">
+          <button type="button" class="btn btn-sm btn-secondary" onclick="simulateState('default')">Kịch bản chuẩn (Hợp lệ)</button>
+          <button type="button" class="btn btn-sm btn-secondary" onclick="simulateState('missing-context')">Thiếu ngữ cảnh (ADV-UI-AC-01)</button>
+          <button type="button" class="btn btn-sm btn-secondary" onclick="simulateState('dag-error')">Lỗi chu trình DAG (ADV-UI-AC-02)</button>
+        </div>
+      </div>
+
+      <div class="inspector-group">
+        <label class="inspector-label">Trạng thái Cố vấn SSE (Chat States):</label>
+        <div class="inspector-buttons">
+          <button type="button" class="btn btn-sm btn-secondary" onclick="triggerStreamingDemo()">Stream token tiếng Việt (AC-05)</button>
+          <button type="button" class="btn btn-sm btn-secondary" onclick="triggerInterruptedDemo()">Lỗi ngắt kết nối EOF (AC-07)</button>
+          <button type="button" class="btn btn-sm btn-secondary" onclick="triggerRateLimitDemo()">Lỗi quá tải HTTP 429 (AC-07)</button>
+        </div>
+      </div>
+
+      <div class="inspector-group">
+        <label class="inspector-label">Mô phỏng kích thước màn hình:</label>
+        <div class="inspector-buttons">
+          <button type="button" class="btn btn-sm btn-secondary" onclick="toggleViewportWidth('mobile')">Màn hình di động (375px)</button>
+          <button type="button" class="btn btn-sm btn-secondary" onclick="toggleViewportWidth('desktop')">Màn hình chuẩn (1120px)</button>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <script src="app.js"></script>
+</body>
+</html>
