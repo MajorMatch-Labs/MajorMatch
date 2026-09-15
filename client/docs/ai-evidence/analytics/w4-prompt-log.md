@@ -10,7 +10,7 @@
 | Workspace | `E:/MajorMatch/MajorMatch`, client subtree `client/` |
 | Baseline | `36b161cd89637b6f705cc9d9290c367fe1c09aca` |
 | Branch | `feat/anhvy-w4-analytics-ui-prd` |
-| Deliverable | `tasks/anh-vy/prd-analytics-ui.md` (đường dẫn tương đối client) |
+| Deliverable | `tasks/analytics/prd-analytics-ui.md` (đường dẫn tương đối client) |
 | Scope limit | Chưa design hoặc implement; Task 2 riêng sau PRD approval |
 
 Log này ghi cuộc trao đổi và thao tác thật trong phiên. Không tái dựng user prompt, review hoặc test chưa xảy ra. Các đoạn được ghi “tóm tắt” không phải trích nguyên văn.
@@ -25,13 +25,13 @@ Trích phần yêu cầu hành động:
 > giờ tôi muốn
 > git switch main git pull origin main git switch -c feat/anhvy-w4-analytics-ui-prd
 
-Vy yêu cầu dùng prompt trong README Analytics tại đường dẫn ổ D:, tạo hai deliverables `tasks/anh-vy/prd-analytics-ui.md`, `docs/ai-evidence/anh-vy/w4-prompt-log.md`, audit MajorCard/RadarComparison/SkillBreakdown và `/result`, chưa tạo design; sau khi PRD duyệt mới tạo `feat/anhvy-w4-analytics-ui-design`; yêu cầu pull request. Đây là tóm tắt phần còn lại của user prompt.
+Vy yêu cầu dùng prompt trong README Analytics tại đường dẫn ổ D:, tạo hai deliverables `tasks/analytics/prd-analytics-ui.md`, `docs/ai-evidence/analytics/w4-prompt-log.md`, audit MajorCard/RadarComparison/SkillBreakdown và `/result`, chưa tạo design; sau khi PRD duyệt mới tạo `feat/anhvy-w4-analytics-ui-design`; yêu cầu pull request. Đây là tóm tắt phần còn lại của user prompt.
 
-**Quan sát thật:** đọc đường dẫn D: thất bại vì không tồn tại trên máy. Agent tìm thấy và đọc bản hướng dẫn tương ứng `client/tasks/anh-vy/README.md` trong checkout, thông báo cho Vy; không tuyên bố đã đối chiếu nội dung file D:.
+**Quan sát thật:** đọc đường dẫn D: thất bại vì không tồn tại trên máy. Agent tìm thấy và đọc bản hướng dẫn tương ứng `client/tasks/analytics/README.md` trong checkout, thông báo cho Vy; không tuyên bố đã đối chiếu nội dung file D:.
 
 ### P2 — Áp dụng prompt có sẵn
 
-Nguồn: `tasks/anh-vy/README.md: Copy-paste prompt for the PRD agent`; đã đọc toàn bộ `.agents/skills/prd/SKILL.md`, `tasks/README.md`, `tasks/PRD_UI_BASE.md`.
+Nguồn: `tasks/analytics/README.md: Copy-paste prompt for the PRD agent`; đã đọc toàn bộ `.agents/skills/prd/SKILL.md`, `tasks/README.md`, `tasks/PRD_UI_BASE.md`.
 
 Tóm tắt chỉ dẫn đã áp dụng: vai trò Product Engineer/UI requirements owner; chỉ PRD Task 1; inspect repository; hỏi 3–5 câu có lựa chọn chữ cái; phân biệt sáu trục, top-major decision, state/accessibility/provenance; không phát minh scoring/benchmark/metrics; tách contradiction, kết thúc traceability và handoff. Không tạo ảnh/Figma/màn hình hoặc sửa production code.
 

@@ -8,12 +8,12 @@
 | Branch | `feat/longnhat-w4-advisor-ui-prd` |
 | Baseline | MajorMatch `origin/main` at `03957c0` |
 | Week / task | Week 4 / Task 1 — Advisor/Core UI PRD |
-| Output | `tasks/long-nhat/prd-advisor-ui.md` |
+| Output | `tasks/advisor/prd-advisor-ui.md` |
 | Status | PRD authored; human decisions and design work remain open |
 
 ## User instruction captured
 
-The user requested that the Long Nhật work use the guidance at `tasks/long-nhat/README.md`, produce the Advisor/Core UI PRD and this evidence log, and audit `/roadmap`, `/chat`, Zustand, readiness score, prerequisites, and SSE. The user explicitly deferred review of all three PRDs because Vy and Nhật are working concurrently.
+The user requested that the Long Nhật work use the guidance at `tasks/advisor/README.md`, produce the Advisor/Core UI PRD and this evidence log, and audit `/roadmap`, `/chat`, Zustand, readiness score, prerequisites, and SSE. The user explicitly deferred review of all three PRDs because Vy and Nhật are working concurrently.
 
 The user also required:
 
@@ -82,7 +82,7 @@ These observations were converted into traceable requirements or open decisions.
 
 ## Deliverable result
 
-Created `tasks/long-nhat/prd-advisor-ui.md` with:
+Created `tasks/advisor/prd-advisor-ui.md` with:
 
 - repository audit and evidence labels;
 - scope, goals, non-goals, target user, and journey;
