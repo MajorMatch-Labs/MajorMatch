@@ -59,9 +59,9 @@ Do not repeat current defects as requirements: group-keyed question state, first
 |---|---|---|
 | `tasks/README.md` | Three-owner workflow and definition of ready for design | Confirm ownership/process |
 | `tasks/PRD_UI_BASE.md` | Shared evidence-first UI PRD structure | Confirm as team standard |
-| `tasks/van-hoang/prd-ingestion-ui.md` | Hoàng's Week 4 Task 1 PRD | Resolve open decisions and approve |
-| `tasks/anh-vy/README.md` | Copy-paste agent direction for analytics PRD | Vy owns final decisions/evidence |
-| `tasks/long-nhat/README.md` | Copy-paste agent direction for advisor/core PRD | Nhật owns final decisions/evidence |
+| `tasks/ingestion/prd-ingestion-ui.md` | Hoàng's Week 4 Task 1 PRD | Resolve open decisions and approve |
+| `tasks/analytics/README.md` | Copy-paste agent direction for analytics PRD | Vy owns final decisions/evidence |
+| `tasks/advisor/README.md` | Copy-paste agent direction for advisor/core PRD | Nhật owns final decisions/evidence |
 | `tasks/project-audit-pre-ui-prd.md` | Rulebook-required audit before new feature/design work | Tech Lead prioritization |
 
 The PRD deliberately does not provide a mockup. It exposes current contradictions instead of claiming the existing UI behavior is the approved requirement.

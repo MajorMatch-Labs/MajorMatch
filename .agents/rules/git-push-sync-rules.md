@@ -27,7 +27,8 @@ Khi thực hiện commit hoặc tạo nhánh cho bất kỳ tính năng nào, Ag
 2. **Nghiêm cấm Push trực tiếp vào `main`**:
    - Nhánh `main` của repo chỉ nhận code thông qua Pull Request sau khi được Tech Lead (Long Nhật) review và merge.
 3. **Minh chứng AI (Bắt buộc theo Rubric Vibe Coding CLO2 & CLO3)**:
-   - Mỗi tuần làm việc phải có file nhật ký tại `docs/ai-evidence/<tên-thành-viên>/w<tuần>-prompt-log.md` ghi lại lịch sử Prompt Evolution và Human-in-the-loop.
+   - Mỗi tuần làm việc có nhật ký tại `docs/ai-evidence/<module>/w<tuần>-prompt-log.md`, với module ingestion/analytics/advisor. Tên tác giả vẫn theo bảng danh tính, không dùng tên module làm Git Author.
+4. **Thứ tự đồng bộ Week 4**: Client subtree trước, repo cha sau; cùng tên nhánh. Người review sửa tài liệu module khác giữ Author của mình và thêm `Co-authored-by` của chủ module. Không sửa lịch sử commit cũ.
 
 ---
 
