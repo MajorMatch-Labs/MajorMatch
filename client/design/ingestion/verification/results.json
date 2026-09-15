@@ -1,0 +1,126 @@
+{
+  "date": "2026-09-15T10:39:34.805Z",
+  "sourceRevision": "62c38af926aac90cb3f916bb53da54daf716d316",
+  "browser": "153.0.4234.32",
+  "base": "http://127.0.0.1:4173/design/ingestion/prototype/",
+  "checks": [
+    {
+      "name": "default at 375/768/1280 without horizontal page overflow",
+      "result": "PASS"
+    },
+    {
+      "name": "skip link reachable by keyboard",
+      "result": "PASS"
+    },
+    {
+      "name": "survey independence, no neutral default, five-tag limit, immutable survey-only handoff",
+      "result": "PASS"
+    },
+    {
+      "name": "browser PDF maximum, max+1, zero-byte and bad header",
+      "result": "PASS"
+    },
+    {
+      "name": "cancel and replacement reject late sample completion",
+      "result": "PASS"
+    },
+    {
+      "name": "error remains error; explicit demo is a separate action; 429 honors fixture retry delay",
+      "result": "PASS"
+    },
+    {
+      "name": "200% zoom reflow",
+      "result": "PASS"
+    },
+    {
+      "name": "forced-colors render and reduced-motion preference",
+      "result": "PASS"
+    },
+    {
+      "name": "shared token text, button, error, control border and focus contrast",
+      "result": "PASS"
+    },
+    {
+      "name": "no browser runtime errors, external requests or backend POSTs",
+      "result": "PASS"
+    }
+  ],
+  "contrast": [
+    {
+      "pair": [
+        "--mm-text",
+        "--mm-surface"
+      ],
+      "ratio": 16.955105845628285
+    },
+    {
+      "pair": [
+        "--mm-muted",
+        "--mm-surface"
+      ],
+      "ratio": 9.963643287120979
+    },
+    {
+      "pair": [
+        "--mm-on-primary",
+        "--mm-primary"
+      ],
+      "ratio": 7.9031114800249425
+    },
+    {
+      "pair": [
+        "--mm-error",
+        "--mm-bg"
+      ],
+      "ratio": 10.127465024992578
+    },
+    {
+      "pair": [
+        "--mm-border",
+        "--mm-surface"
+      ],
+      "ratio": 3.727737560336412
+    },
+    {
+      "pair": [
+        "--mm-focus",
+        "--mm-bg"
+      ],
+      "ratio": 12.838096975452519
+    }
+  ],
+  "screenshots": [
+    "analysis-error-1280.png",
+    "analysis-error-375.png",
+    "cancelled-1280.png",
+    "error-1280.png",
+    "error-375.png",
+    "forced-colors-375.png",
+    "handoff-1280.png",
+    "intake-1280.png",
+    "intake-375.png",
+    "intake-768.png",
+    "interests-375.png",
+    "partial-1280.png",
+    "partial-375.png",
+    "processing-1280.png",
+    "rate-1280.png",
+    "review-1280.png",
+    "review-375.png",
+    "schema-1280.png",
+    "success-1280.png",
+    "success-375.png",
+    "survey-1280.png",
+    "survey-375.png",
+    "timeout-1280.png",
+    "zoom-200.png"
+  ],
+  "notVerified": [
+    "screen-reader speech output",
+    "real PDF extraction",
+    "live API integration",
+    "production build",
+    "Figma fidelity (no Figma source authored)",
+    "user research or policy approval"
+  ]
+}
