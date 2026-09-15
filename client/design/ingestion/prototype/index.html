@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark"><title>MajorMatch | Thiết kế Ingestion</title>
+<link rel="stylesheet" href="../../shared/tokens.css"><link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip" href="#workspace">Đến nội dung chính</a>
+<header class="shell"><a class="wordmark" href="./" aria-label="MajorMatch, bắt đầu lại"><span class="brand-mark" aria-hidden="true">M</span>MajorMatch</a><nav aria-label="Hành trình MajorMatch"><span aria-current="step">Hồ sơ & sở thích</span><span title="Chưa kết nối trong bản minh họa">So sánh ngành</span><span title="Chưa kết nối trong bản minh họa">Lộ trình học tập</span></nav><div class="prototype-note"><span>Bản minh họa</span><button id="inspector-toggle" class="text-button" aria-expanded="false" aria-controls="inspector">Trạng thái review</button></div></header>
+<section id="inspector" hidden aria-label="Công cụ review thiết kế">
+<label for="scenario">Kịch bản minh họa</label><select id="scenario">
+<option value="default">Mặc định</option><option value="processing">Đang xử lý</option><option value="success">Bóc tách thành công (mẫu)</option><option value="partial">Bóc tách thiếu dữ liệu</option><option value="error">Lỗi 415</option><option value="timeout">Quá thời gian chờ</option><option value="rate">Giới hạn 429</option><option value="schema">Phản hồi sai cấu trúc</option><option value="cancelled">Đã hủy / phản hồi cũ</option><option value="analysis-error">Lỗi phân tích</option>
+</select><button id="apply-scenario" class="secondary">Mở kịch bản</button>
+<p>Công cụ cho reviewer. Các nhánh còn chờ quyết định nghiệp vụ được ghi trong design-spec.md; đây không phải chức năng dành cho người học.</p></section>
+<main id="workspace" class="workspace">
+<nav class="progress" aria-label="Các bước nhập liệu">
+<ol class="steps" aria-label="Tiến trình nhập liệu"><li data-stage="0" aria-current="step"><span>1</span><div><strong>Minh chứng học tập</strong><small>Có hồ sơ hoặc chỉ sở thích</small></div></li><li data-stage="1"><span>2</span><div><strong>Sở thích của bạn</strong><small>10 câu hỏi độc lập</small></div></li><li data-stage="2"><span>3</span><div><strong>Hướng muốn tìm hiểu</strong><small>Chọn từ 1 đến 5 hướng</small></div></li><li data-stage="3"><span>4</span><div><strong>Kiểm tra & tiếp tục</strong><small>Xem lại thông tin đã nhập</small></div></li></ol>
+</nav>
+<div class="content"><div class="section-meta"><span id="stage-label">Minh chứng học tập</span><span id="stage-count">1 / 4</span></div>
+<section id="stage" class="panel" aria-labelledby="stage-title"></section>
+<p id="status" class="status" role="status" aria-live="polite"></p>
+<div class="actions"><button id="back" class="text-button" hidden>Quay lại</button><span id="next-hint"></span><button id="next" class="primary" aria-describedby="next-hint" disabled>Tiếp tục</button></div>
+</div></main>
+<footer class="footer"><strong>MajorMatch</strong><p>Gợi ý để khám phá, không phải kết luận về năng lực hay cam kết nghề nghiệp.</p><small>Bản minh họa không gửi hồ sơ lên máy chủ.</small></footer>
+<script type="module" src="app.mjs"></script>
+</body></html>
