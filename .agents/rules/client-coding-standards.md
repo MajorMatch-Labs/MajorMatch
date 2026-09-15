@@ -14,7 +14,7 @@ Bộ quy tắc kỹ thuật dành cho AI Agent khi sinh mã nguồn, tái cấu 
    * Luôn bọc biểu đồ trong `<ResponsiveContainer width="100%" height="100%">` với thẻ cha có chiều cao cố định hoặc min-height rõ ràng.
    * Đảm bảo hiển thị hoàn hảo trên viewport di động (375px) và hỗ trợ bảng dữ liệu thay thế (Accessibility).
 5. **Giao diện & Thiết kế**:
-   * Áp dụng phong cách Dark Mode Glassmorphism hiện đại (kết hợp `backdrop-blur`, viền mờ `border-slate-800`, dải chuyển màu nhẹ nhàng).
+   * Theo client/DESIGN.md: giữ dark/indigo của brand, ưu tiên surface đặc và typography rõ; không bắt buộc glass/gradient.
    * Không sử dụng inline styles (`style={{ ... }}`), toàn bộ styling phải thông qua các utility classes của Tailwind CSS.
 
 ---
@@ -24,8 +24,8 @@ Bộ quy tắc kỹ thuật dành cho AI Agent khi sinh mã nguồn, tái cấu 
    * Khi người dùng tích chọn checkbox môn học hoặc điều chỉnh thanh trượt khảo sát, các chỉ số (% Job Readiness, điểm Holland) phải tự động tính toán lại tức thì phía Client mà không tải lại trang.
 2. **Trạng thái hệ thống rõ ràng (System Visibility)**:
    * Mọi tác vụ bất đồng bộ phải có đủ 4 trạng thái UI: `Empty`, `Loading / Skeleton`, `Error / Validation Alert`, `Success`.
-3. **Fault-Tolerant Mock Fallback**:
-   * Khi Backend AI hoặc Gateway chưa sẵn sàng, Client phải tự động chuyển sang cơ chế dữ liệu giả lập (`mockData.ts`) để đảm bảo ứng dụng luôn demo trơn tru khi chấm điểm.
+3. **Explicit Demo**:
+   * Lỗi live giữ trạng thái lỗi/retry; chỉ tải mock khi người học chủ động chọn demo. Nhãn DEMO xuyên suốt, không trộn hồ sơ thật với fixture. Theo client/DESIGN-GUARDRAILS.md.
 
 ---
 

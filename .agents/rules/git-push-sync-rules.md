@@ -49,7 +49,7 @@ Khi người dùng yêu cầu commit/push (hoặc dùng câu lệnh ngắn như 
 
 ### Bước 2: Cập nhật minh chứng AI (Bắt buộc theo Rubric Vibe Coding)
 
-- Đảm bảo đã cập nhật nhật ký prompt tuần tương ứng tại `client/docs/ai-evidence/<tên-thành-viên>/w<tuần>-prompt-log.md`.
+- Đảm bảo nhật ký tại `client/docs/ai-evidence/<module>/w<tuần>-prompt-log.md`, module ingestion/analytics/advisor. Tác giả giữ danh tính thành viên; review phần người khác thêm Co-authored-by.
 
 ### Bước 3: Commit chuẩn Conventional Commits tiếng Anh
 
@@ -61,13 +61,13 @@ Khi người dùng yêu cầu commit/push (hoặc dùng câu lệnh ngắn như 
 
 ### Bước 4: Push đồng bộ 1-1 lên cả 2 repository
 
-1. Đẩy lên repo cha:
-   ```bash
-   git push origin <tên-nhánh>
-   ```
-2. Đẩy thư mục client lên repo con:
+1. Đẩy client subtree trước:
    ```bash
    git subtree push --prefix=client client-remote <tên-nhánh>
+   ```
+2. Sau khi client thành công, đẩy repo cha:
+   ```bash
+   git push origin <tên-nhánh>
    ```
    _(Hoặc chạy script `.\sync-push.ps1`)._
 

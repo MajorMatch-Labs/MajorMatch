@@ -17,7 +17,7 @@ Bộ quy tắc kỹ thuật dành cho AI Agent khi sinh mã nguồn, tái cấu 
    - Luôn bọc biểu đồ trong `<ResponsiveContainer width="100%" height="100%">` với thẻ cha có chiều cao cố định hoặc min-height rõ ràng.
    - Đảm bảo hiển thị hoàn hảo trên viewport di động (375px) và hỗ trợ bảng dữ liệu thay thế (Accessibility).
 5. **Giao diện & Thiết kế**:
-   - Áp dụng phong cách Dark Mode Glassmorphism hiện đại (kết hợp `backdrop-blur`, viền mờ `border-slate-800`, dải chuyển màu nhẹ nhàng).
+   - Theo DESIGN.md: giữ dark/indigo của brand, ưu tiên surface đặc và typography rõ; không bắt buộc glass/gradient. Prototype trong design/ dùng native CSS với shared tokens; production giữ Tailwind.
    - Không sử dụng inline styles (`style={{ ... }}`), toàn bộ styling phải thông qua các utility classes của Tailwind CSS.
 
 ---
