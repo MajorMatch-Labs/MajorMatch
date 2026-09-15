@@ -6,6 +6,8 @@ Branch: `feat/vanhoang-w4-ingestion-ui-design`. Git Author: `Vcoch27 <hoangtungm
 
 Status: conditional review prototype, not production or PRD approval.
 
+Current visual revision: user-selected [option 1](references/selected-option-1.png), implemented as an open task surface with horizontal progress. Typography and indigo usage follow shared tokens; no production routes changed. See the latest section of the design review for verification and deliberate deviations from the generated image.
+
 - [Design specification and PRD mapping](design-spec.md)
 - [Editable prototype](prototype/index.html) — run `node client/design/shared/serve.cjs` from monorepo root, then open http://127.0.0.1:4173/design/ingestion/prototype/
 - [Desktop capture](screenshots/intake-1280.png) and [mobile capture](screenshots/intake-375.png)

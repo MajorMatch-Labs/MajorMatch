@@ -86,6 +86,27 @@ const mark=(name)=>checks.push({name,result:'PASS'});
  });
  for(const c of contrast)assert.ok(c.ratio>=(c.pair[0]==='--mm-border'?3:4.5),JSON.stringify(c));
  mark('shared token text, button, error, control border and focus contrast');
+ await open();await page.setViewportSize({width:375,height:900});
+ const tabTo=async selector=>{
+  for(let n=0;n<60;n++){
+   if(await page.evaluate(s=>document.activeElement?.matches(s),selector))return;
+   await page.keyboard.press('Tab');
+  }
+  throw new Error('Keyboard cannot reach '+selector);
+ };
+ await tabTo('input[name="path"]');await page.keyboard.press('ArrowDown');
+ assert.equal(await page.locator('input[value="survey"]').isChecked(),true);
+ await tabTo('#next');await page.keyboard.press('Enter');
+ for(let i=1;i<=10;i++){
+  await tabTo('input[name="q'+i+'"]');await page.keyboard.press('Space');
+  if(i===5||i===10){await tabTo('#next');await page.keyboard.press('Enter');}
+ }
+ await tabTo('.tag input');await page.keyboard.press('Space');
+ await tabTo('#next');await page.keyboard.press('Enter');
+ await tabTo('#next');await page.keyboard.press('Enter');await page.locator('#edit-input').waitFor();
+ assert.equal(await page.locator('h1').count(),1);
+ await screenshot('handoff-375',375);
+ mark('375px survey-only journey completed using keyboard, including ten answers and handoff');
  assert.deepEqual(errors,[]);assert.equal(requests.some(r=>r.method==='POST'),false);assert.equal(requests.some(r=>!r.url.startsWith('http://127.0.0.1:4173/')),false);
  mark('no browser runtime errors, external requests or backend POSTs');
  const sourceRevision=execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim();
