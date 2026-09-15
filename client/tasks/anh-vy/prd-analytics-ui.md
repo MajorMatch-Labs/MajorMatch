@@ -7,7 +7,7 @@
 | Owner | Nguyễn Thị Ánh Vy |
 | Module | Analytics — MajorCard, RadarComparison, SkillBreakdown, `/result` |
 | Week / task | Week 4 / Task 1 — UI PRD |
-| Status | Draft — chờ Vy và Tech Lead review; chưa được duyệt cho design |
+| Status | In review — đã bổ sung review chất lượng liên module; chờ Vy và Tech Lead duyệt design |
 | Date | 2026-09-15 |
 | Evidence baseline | Monorepo `36b161cd89637b6f705cc9d9290c367fe1c09aca` |
 | Branch | `feat/anhvy-w4-analytics-ui-prd` |
@@ -15,6 +15,8 @@
 | Verification scope | Audit mã nguồn và tài liệu; chưa chạy browser QA, automated tests hoặc usability test |
 
 Quy ước: **VERIFIED** = thấy trực tiếp trong nguồn; **INFERRED** = suy luận có căn cứ; **ASSUMPTION** = giả định chưa được chứng minh; **MISSING** = chưa tìm thấy bằng chứng; **CONTRADICTION** = các nguồn mâu thuẫn; **HUMAN DECISION REQUIRED** = cần chủ sản phẩm quyết định. VERIFIED về sự tồn tại của code/tài liệu không có nghĩa policy đã đúng hoặc UI đã pass.
+
+Review chất lượng từ baseline `9b260e2`: [UI PRD review](../ui-prd-review.md). C01–C11 bên dưới giữ bằng chứng lịch sử; rule auto-mock đã được đồng bộ trong vòng review, nhưng code fallback chưa được sửa. Review không thay thế phê duyệt của Vy hoặc Tech Lead. Các policy D02–D08 vẫn mở.
 
 Mọi đường dẫn nguồn bên dưới tính từ thư mục `client/`, trừ đường dẫn ghi rõ monorepo. Các yêu cầu UI là đích nghiệm thu đề xuất để review, không phải báo cáo đã triển khai.
 
@@ -179,6 +181,7 @@ As a sinh viên đã chọn hướng tìm hiểu, I want chuyển sang học ph�
 | ANA-UI-FR-08 | Lỗi theo §11 có thông điệp, hành động sửa/retry, kết thúc loading; không commit state một phần hoặc silent fallback |
 | ANA-UI-FR-09 | CTA học phần dùng đúng ngành/missing skills/context đã xác nhận; pending chặn submit trùng, lỗi giữ selection, chỉ chuyển `/roadmap` sau response hợp lệ đúng request |
 | ANA-UI-FR-10 | Tách baseline và simulation theo ngành/version; đổi hồ sơ làm kết quả stale; không cộng Match gốc, không giữ roadmap sai ngành; xử lý refresh/back theo §11 |
+| ANA-UI-FR-11 | Nhận invalidation từ mọi thay đổi profile, path, survey hoặc tag của Ingestion; một snapshot mới vô hiệu request và handoff cũ. Phản hồi chỉ được ghi khi còn đúng snapshot, major và request; kiểm bằng XUI-AC-01/03 |
 
 ## 8. UI state matrix
 
@@ -243,6 +246,8 @@ Match Score, radar năng lực, RIASEC và readiness là các khái niệm riên
 | Refresh/deep link | Store hiện in-memory; mất session hiển thị chưa có kết quả và CTA upload; demo là lựa chọn riêng. Không thêm persistence hồ sơ ngầm |
 | Back từ roadmap | Trong cùng session giữ selected major và baseline; preview mô phỏng có nhãn riêng. Nếu session mất dùng no-session state |
 | Hồ sơ/survey thay đổi | Mark stale và yêu cầu phân tích lại trước handoff; không trộn profile mới với analysis cũ |
+| Path/tag thay đổi | Cùng quy tắc invalidation với hồ sơ/survey; giữ input mới, chặn handoff cũ và vô hiệu response đang chạy; phối hợp Hoàng và Nhật theo XUI-AC-01 |
+| Interest-only thiếu context roadmap | Giữ phần phân tích hợp lệ đọc được; giải thích thiếu học kỳ/môn đã học, không gán semester hoặc GPA mẫu. Cách thu context hoặc roadmap thay thế chờ D06 / XD-01 |
 | Empty skill group | Count 0 và giải thích “Không có kỹ năng trong nhóm này theo dữ liệu hiện có”; không tự thêm skill |
 
 ## 12. Design considerations
@@ -272,6 +277,8 @@ Tất cả scenario dưới đây là **planned / UNTESTED**; không phải test
 
 ## 15. Traceability matrix
 
+Các AC01–AC08 là ID cục bộ của PRD Analytics. Dùng tên file hoặc tiền tố Analytics khi viện dẫn từ tài liệu khác; XUI-AC-* thuộc [bộ nghiệm thu liên module](../ui-prd-review.md#10-acceptance-criteria-audit).
+
 Status phản ánh baseline code, không phải mức hoàn thành tài liệu.
 
 | Objective | Epic | Story | Acceptance criteria | Feature / UI state | Implementation target | Test | Status |
@@ -285,6 +292,14 @@ Status phản ánh baseline code, không phải mức hoàn thành tài liệu.
 | O5 | BG-03 / FR-4 | ANA-US-06 | AC06 | Roadmap pending/error/disabled; FR-09 | result.handleGenerateRoadmap, api, Advisor boundary | Handoff fixture + late response scenario | PARTIAL |
 | O4 | BG-02 / NFR-C01 | ANA-US-04 / US-ANA-05 | AC04; D08 performance gate | Cached switching; FR-03 | store, result, RadarComparison | T-PERF-01 | UNTESTED |
 | O3 | BG-05 | ANA-US-05 | AC05 | Auto-mock/GPA mẫu trái brief | result, api, upload | Negative fallback tests planned | ORPHAN IMPLEMENTATION |
+| O1/O3/O5 | So sánh nhất quán xuyên module | ANA-US-04/05/06 | XUI-AC-01–06 | Evidence thay đổi, demo, thiếu detail/context, simulation và back | Ingestion/result/Advisor handoff; FR-11 | Integration + browser dự kiến | UNTESTED |
+
+### Đồng bộ với hai PRD còn lại
+
+- REAL/MOCK mô tả nguồn phiên tương ứng LIVE/DEMO; DERIVED và AI-GENERATED là cách tạo nội dung, có thể đi cùng cả hai nguồn. LIVE/REAL không xác nhận độ chính xác; thông tin nguồn chưa có giữ UNKNOWN.
+- Vy sở hữu danh sách/chọn ngành, chi tiết đang hiển thị và trạng thái CTA tại `/result`; Nhật phối hợp contract/generation và state roadmap/chat. Hoàng phát tín hiệu input thay đổi. Phân công này làm rõ các boundary đã có, không tạo API mới.
+- XUI-AC-03 kiểm tra thiếu detail của B không dùng detail A; XUI-AC-05 kiểm tra simulation đúng snapshot/ngành và không đổi Match/radar gốc. Retention của simulation qua reload chưa được cấp phép.
+- C01 được giải quyết ở chỉ dẫn coding theo yêu cầu Week 4; vẫn phải kiểm chứng lỗi API không thành mock success khi triển khai. D01 cần ghi nhận khi duyệt PRD, không giả định review này là chữ ký của Vy.
 
 ## 16. Success metrics
 
@@ -307,7 +322,7 @@ Phương pháp đề xuất: cho sinh viên chọn một hướng và giải th�
 | D07 | Target/baseline đo hiểu dữ liệu và hoàn thành tác vụ; mẫu pilot và event được phép | Vy + Tech Lead | Có |
 | D08 | Tiêu chí performance <50ms p95 hay QA-05 <16ms; timeout nghiệp vụ 15s hay giá trị hiện tại | Tech Lead + backend owner | Có |
 
-Không quyết định thay domain owner các policy có số hoặc tự thêm nguồn. Sau khi chốt phải cập nhật requirement, scenario và log cùng nhau; unresolved blocking decision giữ status Draft.
+Không quyết định thay domain owner các policy có số hoặc tự thêm nguồn. Sau khi chốt phải cập nhật requirement, scenario và log cùng nhau; unresolved blocking decision giữ status In review, chưa được Approved for design.
 
 ## 18. Design handoff checklist
 
