@@ -1,0 +1,28 @@
+:root {
+  color-scheme: dark;
+  --mm-bg: #0b0f19;
+  --mm-surface: #111827;
+  --mm-raised: #1e293b;
+  --mm-border: #64748b;
+  --mm-text: #f8fafc;
+  --mm-muted: #b8c3d4;
+  --mm-brand: #a5b4fc;
+  --mm-primary: #4338ca;
+  --mm-on-primary: #ffffff;
+  --mm-success: #6ee7b7;
+  --mm-warning: #fcd34d;
+  --mm-error: #fda4af;
+  --mm-focus: #c7d2fe;
+  --mm-font: "Segoe UI", system-ui, sans-serif;
+  --mm-space-1: 4px;
+  --mm-space-2: 8px;
+  --mm-space-3: 12px;
+  --mm-space-4: 16px;
+  --mm-space-6: 24px;
+  --mm-space-8: 32px;
+  --mm-space-12: 48px;
+  --mm-radius-control: 8px;
+  --mm-radius-panel: 12px;
+  --mm-control-height: 44px;
+  --mm-content: 1120px;
+}
