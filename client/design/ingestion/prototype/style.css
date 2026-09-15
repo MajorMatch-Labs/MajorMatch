@@ -15,6 +15,8 @@
 details{font-size:14px;color:var(--mm-muted)}summary{cursor:pointer;min-height:44px;padding:12px 0;color:var(--mm-brand)}pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;background:var(--mm-surface);padding:20px;border-radius:8px}.footer{width:min(1120px,calc(100% - 64px));margin:auto;padding:24px 0 32px;border-top:1px solid var(--ing-divider);color:var(--mm-muted);font-size:13px}.footer strong{font-weight:600;color:var(--mm-text)}.footer p{margin:6px 0}.footer small{font-size:12px}
 #inspector{background:var(--mm-surface);padding:20px 32px;display:flex;flex-wrap:wrap;gap:16px;align-items:center;border-bottom:1px solid var(--ing-divider)}#inspector p{width:100%;font-size:13px;margin:0;color:var(--mm-muted)}select{color:var(--mm-text);background:var(--mm-bg);border:1px solid var(--mm-border);padding:8px 12px;max-width:100%;min-height:44px;border-radius:8px}[data-stage="4"] .actions{display:none}
 /* Native radio semantics, with a consistent unselected ring on Windows. */
+.shell{flex-wrap:wrap;row-gap:0}
+.shell nav{flex-wrap:wrap}
 .path-choice input{appearance:none;border:1.5px solid var(--mm-muted);border-radius:50%;background:transparent;display:grid;place-content:center}
 .path-choice input:checked{border-color:var(--mm-brand)}
 .path-choice input:checked::before{content:"";width:10px;height:10px;border-radius:50%;background:var(--mm-brand)}
