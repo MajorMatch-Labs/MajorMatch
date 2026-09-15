@@ -5,15 +5,15 @@ This directory is the shared Week 4 workspace for the three MajorMatch Client ow
 1. Produce an evidence-based UI PRD.
 2. Produce a UI design from the approved PRD.
 
-The second task must not begin until the module owner and Tech Lead approve the PRD and resolve every blocking human decision.
+Final design approval requires the module owner and Tech Lead to resolve blocking human decisions. The current user-authorized design task may produce a review prototype with clearly annotated conditional variants; this does not approve unresolved policy. See [design workflow](../design/README.md) and [guardrails](../DESIGN-GUARDRAILS.md).
 
 ## Directory ownership
 
 | Owner | Module | PRD directory | Week 4 branch prefix |
 |---|---|---|---|
-| Văn Hoàng | Ingestion | `tasks/van-hoang/` | `feat/vanhoang-w4-...` |
-| Ánh Vy | Analytics | `tasks/anh-vy/` | `feat/anhvy-w4-...` |
-| Long Nhật | Advisor and client core | `tasks/long-nhat/` | `feat/longnhat-w4-...` |
+| Văn Hoàng | Ingestion | `tasks/ingestion/` | `feat/vanhoang-w4-...` |
+| Ánh Vy | Analytics | `tasks/analytics/` | `feat/anhvy-w4-...` |
+| Long Nhật | Advisor and client core | `tasks/advisor/` | `feat/longnhat-w4-...` |
 
 ## Required sources
 
