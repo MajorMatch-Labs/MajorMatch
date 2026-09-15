@@ -102,6 +102,10 @@ Use approved metrics only. If the baseline or target is absent, write `UNKNOWN â
 
 List unresolved target-user, scope, product-policy, scoring, privacy, ranking, and success decisions. An AI agent may present alternatives but must not silently choose one.
 
+For cross-module work use [ui-prd-review.md](ui-prd-review.md): link applicable XUI acceptance scenarios and XD decisions. Keep local story/requirement IDs stable. If an open decision changes an acceptance criterion, make the criterion conditional on that decision and specify the expected result for each relevant alternative; do not present one alternative as already approved elsewhere in the document.
+
+Record session origin separately from how a value was produced: LIVE/DEMO can coexist with DERIVED/AI-GENERATED. Missing metadata remains UNKNOWN. Same-session navigation, input invalidation and persistence after reload must have separate expectations.
+
 ## 18. Design handoff checklist
 
 - [ ] PRD approved by module owner and Tech Lead.

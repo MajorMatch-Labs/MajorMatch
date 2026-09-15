@@ -6,11 +6,13 @@
 |---|---|
 | Owner | Long Nhật — Advisor and client core |
 | Week / task | Week 4 / Task 1 — UI PRD |
-| Status | Draft — human review required before design |
+| Status | In review — cross-module quality revision; not approved for design |
 | Implementation baseline | MajorMatch `origin/main` at `03957c0` |
 | Scope | `/roadmap`, `/chat`, Zustand state, and the result-to-roadmap-to-chat handoff |
-| Excluded concurrent work | Analytics/Ingestion PRD review and consolidation |
+| Ownership boundary | Advisor/Core; shared review coordinates Analytics/Ingestion handoffs |
 | Next task | Week 4 / Task 2 — UI design on a separate branch after PRD approval |
+
+Quality review baseline: `9b260e2`. Shared findings, provenance vocabulary, integration scenarios and decision owners: [UI PRD review](../ui-prd-review.md). Earlier exclusions referred to the original concurrent authoring task; the user has now authorized cross-module review. No product-policy or design approval is implied.
 
 ## 1. Repository understanding and audit
 
@@ -76,7 +78,7 @@ Model names, streaming protocol, Web 2.0 labels, GPU state, gradients, and decor
 ## 4. Non-goals
 
 - No implementation, refactor, or UI design in this task.
-- No review or consolidation of the Ingestion and Analytics PRDs while they are being produced concurrently.
+- Module-specific Ingestion/Analytics implementation remains outside Advisor scope; integration requirements are coordinated through the shared review.
 - No automatic proof that a learner completed a course, project, or certificate.
 - No employment probability, admission guarantee, graduation audit, or claim that “100% readiness” means job-ready.
 - No automatic prerequisite graph inference from semester display order or course names.
@@ -154,7 +156,7 @@ An academic advisor may review a student-shared plan, but advisor record managem
 - [ ] Each roadmap task has a stable ID, type, source reference, prerequisite ID list, and verified-versus-simulated completion state.
 - [ ] A task with unmet prerequisites is disabled and names the unmet task(s) in text.
 - [ ] Completing the final prerequisite makes the dependent task available without reloading.
-- [ ] Unchecking a prerequisite removes every now-invalid dependent simulated completion in one consistent update and announces the reset list.
+- [ ] Unchecking a prerequisite follows the approved question 5 / XD-03 policy: immediate cascade or confirmation. If confirmation is required, Cancel preserves the entire state; Confirm resets the prerequisite and invalid descendants atomically. Never expose a partially reset state. Announce the resulting change.
 - [ ] Unknown prerequisite IDs, duplicate IDs, or cycles produce a roadmap data error and disable simulation.
 - [ ] Semester order alone is never interpreted as a prerequisite graph.
 - [ ] Typecheck and lint pass.
@@ -226,11 +228,11 @@ An academic advisor may review a student-shared plan, but advisor record managem
 
 - **ADV-UI-FR-01:** The result-to-roadmap transition must validate stable selected-major and request context without inserting synthetic defaults.
 - **ADV-UI-FR-02:** The roadmap route must render empty, loading, success, invalid-data, service-error, retry, and explicit-demo states.
-- **ADV-UI-FR-03:** Every result-bearing state must expose `LIVE`, `DEMO`, `DERIVED`, or `AI-GENERATED` provenance and available source/version.
+- **ADV-UI-FR-03:** Every result-bearing state must expose session origin (`LIVE`/`DEMO`) together with applicable derivation (`DERIVED`/`AI-GENERATED`) and available source/version; unknown metadata remains explicitly unknown. These labels are not mutually exclusive.
 - **ADV-UI-FR-04:** The client must validate stable roadmap/task IDs and an explicit prerequisite graph before enabling simulation.
 - **ADV-UI-FR-05:** The client must model verified completion separately from simulated completion.
 - **ADV-UI-FR-06:** Simulation must recompute from immutable baseline data and an approved versioned policy.
-- **ADV-UI-FR-07:** Removing a prerequisite must atomically remove invalid simulated descendants and report the change.
+- **ADV-UI-FR-07:** An approved prerequisite-removal action must atomically reset invalid simulated descendants and report the change; immediate versus confirmed removal remains question 5 / XD-03.
 - **ADV-UI-FR-08:** The client must not modify the original match score or baseline radar through checklist interaction.
 - **ADV-UI-FR-09:** The roadmap-to-chat handoff must create an immutable, minimal, major-scoped context snapshot.
 - **ADV-UI-FR-10:** Chat must implement a validated SSE event parser rather than append raw network chunks.
@@ -238,6 +240,7 @@ An academic advisor may review a student-shared plan, but advisor record managem
 - **ADV-UI-FR-12:** Real chat/roadmap errors must remain errors and must never silently become synthetic success.
 - **ADV-UI-FR-13:** Roadmap and chat controls/status must meet the accessibility and responsive requirements below.
 - **ADV-UI-FR-14:** Task 2 design must represent every approved state and must not add a feature without a story and acceptance criteria.
+- **ADV-UI-FR-15:** Ingestion evidence changes must invalidate dependent roadmap, simulation and active chat requests; responses may update only their matching evidence/major/roadmap context (XUI-AC-01/05). Same-session navigation may retain a matching snapshot; this does not authorize persistence after reload.
 
 ## 9. UI state matrix
 
@@ -298,7 +301,7 @@ Structured curriculum facts, prerequisite IDs, course IDs, and verified completi
 | Timeout/network/5xx | End loading, preserve prior valid snapshot, offer retry and separately labeled demo |
 | Roadmap schema/DAG invalid | Do not enable simulation or overwrite prior valid plan |
 | Unknown/duplicate task ID | Reject update; retain prior state; explain data error |
-| Uncheck prerequisite | Recompute atomically; disclose dependent resets |
+| Uncheck prerequisite | Follow question 5's approved immediate/confirmation policy; Cancel keeps state, committed removal resets descendants atomically and announces changes |
 | Chat malformed SSE | Keep partial content, label protocol error, offer explicit retry |
 | Chat EOF before done/idle | Label interrupted, retain partial content, no automatic POST replay |
 | User Stop/major switch/unmount | Abort reader/fetch/timers; reject late updates |
@@ -350,14 +353,18 @@ AND a previous valid roadmap is not overwritten
 
 ### ADV-UI-AC-03 — Cascade and exact reversal
 
+Conditional on question 5 / XD-03 approval. This case verifies the committed action, not a default choice of immediate reset.
+
 ```gherkin
 GIVEN B depends on A and C depends on B
 AND A, B, and C are simulated complete
-WHEN A is unchecked
+WHEN removal of A is committed under the approved interaction policy
 THEN B and C are removed in the same update
 AND the reset items are announced
 AND simulated values equal a fresh calculation from the remaining valid set
 ```
+
+If confirmation is selected: GIVEN the same state, WHEN the learner cancels the removal dialog, THEN A/B/C and simulated values remain unchanged and focus returns to the initiating control. Test the approved branch; do not implement both policies as an unrequested user setting.
 
 ### ADV-UI-AC-04 — Baseline immutability
 
@@ -410,6 +417,8 @@ AND no control or prerequisite explanation is hidden by horizontal overflow
 
 ## 17. Traceability matrix
 
+AC shorthand below resolves to local `ADV-UI-AC-*` IDs. XUI cases live in [UI PRD review §10](../ui-prd-review.md#10-acceptance-criteria-audit).
+
 | Objective | Epic | Story | Acceptance criteria | Implementation target | Proposed test | Status |
 |---|---|---|---|---|---|---|
 | Honest roadmap entry | Action planning/trust | LN-W4-US-01 | AC-01 | Result/roadmap routes, API adapter, store | Integration + E2E | CONTRADICTORY / UNTESTED |
@@ -419,6 +428,15 @@ AND no control or prerequisite explanation is hidden by horizontal overflow
 | Controlled stream | Guided explanation | LN-W4-US-05 | AC-05/06/07 | SSE parser/service/chat state | Unit + component + integration | CONTRADICTORY / UNTESTED |
 | Safe revisit | Guided explanation/privacy | LN-W4-US-06 | AC-08 plus storage/Markdown cases | Chat render/persistence policy | Unit + component | MISSING IMPLEMENTATION |
 | Accessible narrow flow | Cross-cutting trust | All | AC-08 | Roadmap/chat components/styles | Browser/E2E/a11y | PARTIAL / UNTESTED |
+| Valid shared context | Trustworthy journey | LN-W4-US-01/03/04 | XUI-AC-01–06 | Result/roadmap/chat, API and store; ADV-UI-FR-15 | Integration + browser | UNTESTED |
+
+### Shared handoff and protocol acceptance
+
+- LIVE/DEMO describe session origin; DERIVED/AI-GENERATED describe transformation. Real transport does not verify curriculum facts. Preserve unknown source/version as UNKNOWN and align Analytics REAL/MOCK labels with this vocabulary.
+- In interest-only analysis, missing semester/course context blocks live roadmap generation with actionable explanation; no default semester/GPA is introduced. Acquiring context or offering another roadmap mode awaits XD-01. Keep valid Analytics content readable.
+- Chat attempt identity and evidence/major/roadmap matching are client isolation requirements; they do not assert server deduplication support. Approve event payload, terminal success/error marker and timeout semantics with the backend before live acceptance. Until then `done` in the AC is a required agreed terminal signal, not proof that the deployed endpoint emits a named event.
+- Extend ADV-UI-AC-05/07 with malformed JSON, server error after partial output, terminal error versus success and duplicate terminal signal fixtures. The message must preserve partial content, show the correct terminal state and complete at most once. Fixture format follows the approved contract, not an invented endpoint.
+- Shared browser coverage is 375/768/1280px, keyboard and reduced motion (XUI-AC-06). Persisted history cases in US-06 apply only after question 9 approval; memory-only/error/Stop cases remain required.
 
 ## 18. Success metrics
 
@@ -457,5 +475,5 @@ Comprehension of prerequisites/provenance, ability to identify a feasible next a
 - [ ] All provenance, empty, loading, invalid, error, retry, stopped, interrupted, and success states are included.
 - [ ] 375px, desktop, keyboard, screen-reader, contrast, focus, and reduced-motion behavior are annotated.
 - [ ] Each frame maps to a story and acceptance-criteria ID.
-- [ ] Export and three-PRD review remain outside this branch.
+- [ ] Export remains outside module scope; shared review findings affecting this PRD are addressed or explicitly blocked with a decision owner.
 - [ ] Task 2 uses a separate `feat/longnhat-w4-advisor-ui-design` branch and separate commits.

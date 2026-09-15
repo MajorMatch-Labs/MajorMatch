@@ -28,8 +28,10 @@ Bộ quy tắc kỹ thuật dành cho AI Agent khi sinh mã nguồn, tái cấu 
    - Khi người dùng tích chọn checkbox môn học hoặc điều chỉnh thanh trượt khảo sát, các chỉ số (% Job Readiness, điểm Holland) phải tự động tính toán lại tức thì phía Client mà không tải lại trang.
 2. **Trạng thái hệ thống rõ ràng (System Visibility)**:
    - Mọi tác vụ bất đồng bộ phải có đủ 4 trạng thái UI: `Empty`, `Loading / Skeleton`, `Error / Validation Alert`, `Success`.
-3. **Fault-Tolerant Mock Fallback**:
-   - Khi Backend AI hoặc Gateway chưa sẵn sàng, Client phải tự động chuyển sang cơ chế dữ liệu giả lập (`mockData.ts`) để đảm bảo ứng dụng luôn demo trơn tru khi chấm điểm.
+3. **Explicit Demo and Honest Failure States**:
+   - Khi Backend AI hoặc Gateway lỗi, Client phải kết thúc loading, giữ input hợp lệ và hiển thị lỗi cùng hành động phục hồi. Không tự đổi lỗi thật thành mock success.
+   - Chỉ tải `mockData.ts` sau khi người dùng chủ động chọn demo; giữ nhãn dữ liệu minh họa xuyên suốt upload → result → roadmap → chat, không trộn hồ sơ thật vào fixture hoặc đổi demo thành live khi mạng hồi phục.
+   - Đây là hướng Week 4 đã được người dùng yêu cầu, thay thế chỉ dẫn auto-fallback cũ. Tiêu chí liên module: `tasks/ui-prd-review.md`, XUI-AC-02. Code hiện tại chưa được sửa bởi việc cập nhật rule này.
 
 ---
 
