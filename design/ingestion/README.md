@@ -2,6 +2,17 @@
 Owner: Văn Hoàng. PRD: [prd-ingestion-ui.md](../../tasks/ingestion/prd-ingestion-ui.md).
 Branch: `feat/vanhoang-w4-ingestion-ui-design`. Git Author: `Vcoch27 <hoangtungmy123@gmail.com>`.
 
+## Review artifacts
+
+Status: conditional review prototype, not production or PRD approval.
+
+- [Design specification and PRD mapping](design-spec.md)
+- [Editable prototype](prototype/index.html) — run `node client/design/shared/serve.cjs` from monorepo root, then open http://127.0.0.1:4173/design/ingestion/prototype/
+- [Desktop capture](screenshots/intake-1280.png) and [mobile capture](screenshots/intake-375.png)
+- [Design review](review.md) and [reproducible verification](verification/README.md)
+
+In a standalone client checkout, omit `client/` from the server command. The reviewer scenario selector exposes simulated recovery states; it is not a proposed learner-facing feature.
+
 ## Start
 After the foundation is merged in both repos, fetch origin/main and create the branch above from it. In a standalone client checkout, use its own origin/main and coordinate the matching monorepo branch. Read ../../DESIGN.md and ../../DESIGN-GUARDRAILS.md relative to this document.
 
@@ -21,8 +32,8 @@ Push client first with git subtree push --prefix=client client-remote <branch> f
 ```
 
 ## Checklist
-- [ ] Spec maps screen/state → PRD story/AC → fixture → screenshot/check.
-- [ ] Explicit conditional decision variants and live-integration exclusions.
-- [ ] Source runs using design/README.md instructions.
-- [ ] Actual screenshots and review, with no fabricated pass claims.
+- [x] Spec maps screen/state → PRD story/AC → fixture → screenshot/check.
+- [x] Explicit conditional decision variants and live-integration exclusions.
+- [x] Source runs using design/README.md instructions.
+- [x] Actual screenshots and review, with no fabricated pass claims.
 - [ ] Correct author/coauthors; matching client/monorepo branches and paired PRs.
