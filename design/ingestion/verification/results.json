@@ -1,6 +1,6 @@
 {
-  "date": "2026-09-15T10:39:34.805Z",
-  "sourceRevision": "62c38af926aac90cb3f916bb53da54daf716d316",
+  "date": "2026-09-15T11:28:59.606Z",
+  "sourceRevision": "73ac0e76d2a0ea5bff544481a1e6155e9d894347",
   "browser": "153.0.4234.32",
   "base": "http://127.0.0.1:4173/design/ingestion/prototype/",
   "checks": [
@@ -38,6 +38,10 @@
     },
     {
       "name": "shared token text, button, error, control border and focus contrast",
+      "result": "PASS"
+    },
+    {
+      "name": "375px survey-only journey completed using keyboard, including ten answers and handoff",
       "result": "PASS"
     },
     {
@@ -97,6 +101,7 @@
     "error-375.png",
     "forced-colors-375.png",
     "handoff-1280.png",
+    "handoff-375.png",
     "intake-1280.png",
     "intake-375.png",
     "intake-768.png",

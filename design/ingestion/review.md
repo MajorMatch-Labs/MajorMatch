@@ -1,5 +1,15 @@
 # Frontend Design Review: Ingestion review prototype
 
+## Current revision: selected option 1
+
+2026-09-15: user selected the first displayed Product Design concept and requested attention to typography/colors plus commits. Source `73ac0e7` supersedes the visual assessment below. [Chosen target](references/selected-option-1.png) and current [desktop](screenshots/intake-1280.png), [mobile](screenshots/intake-375.png) captures show the open layout, horizontal progress, icon-assisted choices and restrained shared indigo. The original review below records the first pass; its old screenshots are recoverable in Git, while linked PNGs now show the revised source.
+
+Frontend Design Review was used for this implementation. Visual comparison covered intake, survey, review, mobile handoff and zoom. Font family remains the shared Vietnamese-capable sans; hierarchy is refined through size, regular/semibold weights and spacing, not decorative type. Low-contrast dividers separate content only; control borders remain distinct. No marketing imagery, account feature or new brand palette was introduced.
+
+Verification rerun: **4 model tests and 11 browser groups PASS**, 25 actual screenshots. New keyboard-only 375px test traverses both survey pages, tags, review and handoff. The 200% CSS-zoom check initially failed: removing action overflow alone was insufficient; allowing header wrapping fixed the remaining overflow. Final generated results name the tested source. Local server was restarted after an initial connection-refused run. Neither failure is counted as a pass.
+
+Verdict: ready for user visual review, not production sign-off. Screen-reader speech, live integrations, Figma fidelity and policy approval remain unverified. Existing Q1-Q9 remain open; visual selection is not business-policy approval.
+
 ## Context
 
 Văn Hoàng · Week 4 Task 2 · source revision `62c38af`. Purpose: let learners provide evidence, independently answer interest questions and review their selected career directions. Direction: restrained MajorMatch dark/indigo workflow, strong task hierarchy and explicit provenance. Reviewed using the client-local Microsoft Frontend Design Review skill. Taste is installed but explicitly does not govern multi-step product forms.
