@@ -33,7 +33,7 @@ client/src/modules/
   * Kéo thả tệp bảng điểm/CV PDF (`FileDropzone.tsx`).
   * Khảo sát trắc nghiệm 10 câu hỏi tính cách Holland RIASEC (`RiasecSurvey.tsx`).
   * Kiểm tra tính hợp lệ của file (dung lượng, định dạng) và thuật toán tính điểm RIASEC tại Client.
-* **Thư mục minh chứng AI:** `client/docs/ai-evidence/van-hoang/`
+* **Thư mục minh chứng AI:** `client/docs/ai-evidence/ingestion/`
 
 ### 👩‍💻 Ánh Vy - Module `analytics`
 * **Vị trí thư mục:** `src/modules/analytics/`
@@ -42,7 +42,7 @@ client/src/modules/
   * Bộ thẻ đề xuất top 3 ngành học (`MajorCard.tsx`).
   * Bảng phân rã kỹ năng Đạt / Đang phát triển / Còn thiếu (`SkillBreakdown.tsx`).
   * Tinh chỉnh giao diện, animation, màu sắc và độ tương thích di động (Mobile Responsive).
-* **Thư mục minh chứng AI:** `client/docs/ai-evidence/anh-vy/`
+* **Thư mục minh chứng AI:** `client/docs/ai-evidence/analytics/`
 
 ### 🧑‍💻 Long Nhật - Tech Lead & Module `advisor`
 * **Vị trí thư mục:** `src/modules/advisor/` & Toàn bộ kiến trúc Core
@@ -51,7 +51,7 @@ client/src/modules/
   * Cây lộ trình học tương tác (`MilestoneTree.tsx`).
   * Khung chat cố vấn học tập Streaming SSE thời gian thực (`StreamingChatBox.tsx`).
   * Review PRs, duy trì CI/CD và kiến trúc API kết nối Backend HPC.
-* **Thư mục minh chứng AI:** `client/docs/ai-evidence/long-nhat/`
+* **Thư mục minh chứng AI:** `client/docs/ai-evidence/advisor/`
 
 ---
 

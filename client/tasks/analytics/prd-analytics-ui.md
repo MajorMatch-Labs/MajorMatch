@@ -44,7 +44,7 @@ Luồng hiện có: `/upload` → `ApiService.analyzeSkillGap` → `setAnalysisR
 | E12 | `docs/03-specifications/API_SPEC.md: §2.2`; monorepo `backend-hpc/schemas.py: CalculateMatchResponse`; `backend-hpc/main.py: calculate-match`; `backend-hpc/ml_engine.py: process_skill_assessment, MLEngine` | Đối chiếu backend thực tế; backend không nằm trong subtree client |
 | E13 | `docs/05-testing-and-rules/TESTING_PLAN.md: §5–6`; `package.json`; danh sách file test/spec | Kế hoạch có ví dụ Playwright; không tìm thấy suite client thực thi trong checkout |
 | E14 | `.agents/rules/client-coding-standards.md`; `tailwind.config.ts`; `src/styles/globals.css` | Atomic selectors, bảng thay thế, Tailwind, tokens và hiệu ứng hiện có |
-| E15 | `tasks/README.md`; `tasks/PRD_UI_BASE.md`; `tasks/anh-vy/README.md`; `.agents/skills/prd/SKILL.md` | Quy trình Week 4, template và cổng duyệt design |
+| E15 | `tasks/README.md`; `tasks/PRD_UI_BASE.md`; `tasks/analytics/README.md`; `.agents/skills/prd/SKILL.md` | Quy trình Week 4, template và cổng duyệt design |
 
 ### 1.2. Audit UI hiện tại — đọc tĩnh
 

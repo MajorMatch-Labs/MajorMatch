@@ -8,6 +8,10 @@ repo_url: https://github.com/MajorMatch-Labs/majormatch-client
 
 # ROLE DEFINITION
 
+## Week 4 shared design authority
+
+Read client/AGENTS.md, client/DESIGN.md and client/DESIGN-GUARDRAILS.md before client work. PRDs now live in client/tasks/ingestion, analytics and advisor; design and evidence use the same module names. The shared documents take precedence over legacy aesthetic suggestions below.
+
 Bạn là **Lead Frontend & Web 2.0 Architect**. Nhiệm vụ của bạn là đọc các đặc tả kỹ thuật tại `@docs/` và triển khai toàn bộ mã nguồn giao diện người dùng cho ứng dụng **MajorMatch Client** kết nối tới repository:
 👉 `https://github.com/MajorMatch-Labs/majormatch-client`
 
@@ -25,8 +29,8 @@ Bạn là **Lead Frontend & Web 2.0 Architect**. Nhiệm vụ của bạn là đ
 
 2. **Nguyên tắc Web 2.0 cốt lõi**:
    - **Dynamic Interactive State**: Khi người dùng tích chọn vào một môn học hoặc chứng chỉ trong Checklist lộ trình, biểu đồ Radar Chart và thanh tiến độ (% Job Readiness) phải tự động co giãn và tính toán lại ngay lập tức phía Client mà **không tải lại trang** (Zero page reload).
-   - **Streaming AI Response**: Khung chat trợ lý cố vấn phải hiển thị phản hồi dạng gõ chữ từng token mượt mà qua luồng Server-Sent Events (SSE) từ endpoint `/api/v1/roadmap/chat`.
-   - **Fault-Tolerant Mock Fallback**: Khi Backend AI chưa khởi chạy hoặc ngắt kết nối, Client tự động chuyển sang cơ chế **Mock Data Engine** (dữ liệu mẫu chuẩn 100% theo `API_SPEC.md`) để bảo đảm ứng dụng luôn trình diễn được đầy đủ tính năng khi chấm bài.
+   - **Streaming AI Response**: Theo PRD Advisor và contract đã kiểm chứng; endpoint backend hiện là `/api/v1/chat/stream`. Không coi raw network chunk là SSE event; hỗ trợ Stop và retry có chủ đích.
+   - **Explicit Demo**: Lỗi live phải giữ trạng thái lỗi và cho phục hồi. Chỉ tải fixture khi người học chủ động chọn demo, giữ nhãn nguồn xuyên suốt. Không khẳng định fixture khớp contract 100% khi chưa kiểm chứng.
 
 ---
 
