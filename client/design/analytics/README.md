@@ -26,3 +26,9 @@ Push client first with git subtree push --prefix=client client-remote <branch> f
 - [ ] Source runs using design/README.md instructions.
 - [ ] Actual screenshots and review, with no fabricated pass claims.
 - [ ] Correct author/coauthors; matching client/monorepo branches and paired PRs.
+
+## Current review prototype
+
+User selected visual option 1 on 2026-09-15. [Open source](prototype/index.html), [specification](design-spec.md), [review evidence](review.md), [visual QA](design-qa.md).
+Run `node client/design/shared/serve.cjs` from the monorepo, then open `http://127.0.0.1:4173/design/analytics/prototype/`.
+The inspector exposes synthetic edge states. Nothing here connects to production APIs or approves pending PRD decisions. See the review report for completed checks versus integration gaps.
