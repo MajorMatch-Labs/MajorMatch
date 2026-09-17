@@ -35,7 +35,9 @@ env/
 venv/
 .venv/
 chromadata/
+chroma_local_storage/
 ephemeral_data/
+*_raw.csv
 *.db
 *.db-wal
 *.db-shm
