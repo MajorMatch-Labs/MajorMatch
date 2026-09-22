@@ -1,35 +1,28 @@
 "use client";
 
 import React, { useState, useRef } from "react";
-import { UploadCloud, FileText, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { UploadCloud, CheckCircle2, AlertCircle, Loader2, FileCode2 } from "lucide-react";
 import { useProfileStore } from "@/stores/useProfileStore";
-import { ApiService } from "@/services/api";
+import { IngestionService } from "@/modules/ingestion/services/ingestionService";
 
 export const FileDropzone: React.FC = () => {
-  const { profile, uploadedFileName, isUploading, setProfile, setUploading } = useProfileStore();
+  const { profile, uploadedFileName, isUploading } = useProfileStore();
   const [isDragOver, setIsDragOver] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = async (file: File) => {
     setErrorMsg(null);
-    if (!file.name.toLowerCase().endsWith(".pdf")) {
-      setErrorMsg("Hệ thống chỉ chấp nhận tệp định dạng .PDF chuẩn");
-      return;
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      setErrorMsg("Dung lượng tệp vượt quá giới hạn cho phép (Tối đa 10MB)");
+    const validation = IngestionService.validateTranscriptFile(file);
+    if (!validation.isValid) {
+      setErrorMsg(validation.errorMessage || "Tệp không hợp lệ");
       return;
     }
 
-    setUploading(true);
     try {
-      const res = await ApiService.parseTranscript(file);
-      setProfile(res.profile, file.name);
-    } catch {
-      setErrorMsg("Không thể bóc tách file. Vui lòng thử lại.");
-    } finally {
-      setUploading(false);
+      await IngestionService.uploadTranscript(file);
+    } catch (err: any) {
+      setErrorMsg(err.message || "Không thể bóc tách file. Vui lòng thử lại.");
     }
   };
 
@@ -109,6 +102,23 @@ export const FileDropzone: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Tùy chọn nạp dữ liệu Mock Demo nhanh nếu không có file PDF sẵn */}
+      {!profile && !isUploading && (
+        <div className="mt-2 text-center">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              IngestionService.loadOfflineDemoData();
+            }}
+            className="inline-flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 font-medium py-1 px-2.5 rounded-md hover:bg-indigo-500/10 transition-colors"
+          >
+            <FileCode2 className="w-3.5 h-3.5" />
+            <span>Sử dụng bảng điểm mẫu thử nghiệm (Offline Mock)</span>
+          </button>
+        </div>
+      )}
 
       {errorMsg && (
         <div className="mt-3 flex items-center gap-2 text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-2 rounded-lg">
