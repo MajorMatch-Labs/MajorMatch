@@ -1,10 +1,13 @@
 /**
  * Dịch vụ giao tiếp API với Backend HPC có tích hợp Mock Data Fallback
+ * Phụ trách: LONG NHẬT (Tech Lead & Architecture Core)
  */
 
 import {
   TranscriptParsingResponse,
-  SkillGapAnalysisResponse,
+  CalculateMatchRequest,
+  CalculateMatchResponse,
+  RoadmapGenerationRequest,
   RoadmapGenerationResponse,
   HealthCheckResponse
 } from "../types/api";
@@ -37,95 +40,95 @@ export class ApiService {
   }
 
   /**
-   * Tải lên và bóc tách tệp PDF học bạ/CV
+   * Tải lên và bóc tách tệp PDF học bạ/CV qua endpoint chuẩn của Backend HPC
+   * Endpoint: POST /api/v1/profile/upload-transcript
    */
   static async parseTranscript(file: File): Promise<TranscriptParsingResponse> {
     try {
       const formData = new FormData();
       formData.append("file", file);
+      formData.append("document_type", "transcript");
 
-      const res = await fetch(`${API_BASE_URL}/api/v1/profile/parse-transcript`, {
+      const res = await fetch(`${API_BASE_URL}/api/v1/profile/upload-transcript`, {
         method: "POST",
         body: formData,
-        signal: AbortSignal.timeout(10000)
+        signal: AbortSignal.timeout(15000)
       });
 
-      if (!res.ok) throw new Error("Upload failed");
-      return await res.json();
-    } catch {
-      console.warn("Backend upload failed or offline. Using high-fidelity Mock Transcript data.");
-      // Giả lập độ trễ bóc tách chân thực
-      await new Promise((r) => setTimeout(r, 900));
+      if (!res.ok) throw new Error(`Upload failed with status: ${res.status}`);
+      const data = await res.json();
+      return {
+        ...data,
+        profile: data.profile_data || data.profile
+      };
+    } catch (err) {
+      console.warn("Backend upload failed or offline. Using high-fidelity Mock Transcript data.", err);
+      await new Promise((r) => setTimeout(r, 800));
       return MOCK_TRANSCRIPT_PARSING;
     }
   }
 
   /**
-   * Phân tích khoảng cách kỹ năng (Skill Gap) & Tính điểm Match Score
+   * Tính toán độ phù hợp chuyên ngành & đo lường khoảng cách kỹ năng (Skill Gap)
+   * Endpoint: POST /api/v1/assessment/calculate-match
    */
-  static async analyzeSkillGap(
-    targetCareer: string,
-    userSkills: string[],
-    riasecScores?: Record<string, number>
-  ): Promise<SkillGapAnalysisResponse> {
+  static async calculateMatch(
+    requestPayload: CalculateMatchRequest
+  ): Promise<CalculateMatchResponse> {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/analysis/skill-gap`, {
+      const res = await fetch(`${API_BASE_URL}/api/v1/assessment/calculate-match`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          target_career: targetCareer,
-          user_skills: userSkills,
-          riasec_scores: riasecScores || {}
-        }),
-        signal: AbortSignal.timeout(6000)
+        body: JSON.stringify(requestPayload),
+        signal: AbortSignal.timeout(8000)
       });
 
-      if (!res.ok) throw new Error("Analysis failed");
-      return await res.json();
-    } catch {
-      console.warn("Skill gap analysis API offline. Falling back to Mock Analysis response.");
-      await new Promise((r) => setTimeout(r, 700));
+      if (!res.ok) throw new Error(`Calculate match failed: ${res.status}`);
+      const data: CalculateMatchResponse = await res.json();
+      return {
+        ...data,
+        top_recommendations: data.top_matches
+      };
+    } catch (err) {
+      console.warn("Calculate match API offline. Falling back to Mock Analysis response.", err);
+      await new Promise((r) => setTimeout(r, 600));
       return {
         ...MOCK_SKILL_GAP_ANALYSIS,
-        target_career: targetCareer || MOCK_SKILL_GAP_ANALYSIS.target_career
+        target_career: requestPayload.target_career_tags[0] || MOCK_SKILL_GAP_ANALYSIS.target_career
       };
     }
   }
 
   /**
    * Sinh lộ trình học tập cá nhân hóa qua RAG & Qwen 2.5 LLM
+   * Endpoint: POST /api/v1/roadmap/generate
    */
   static async generateRoadmap(
-    targetMajor: string,
-    missingSkills: string[],
-    cumulativeGpa: number
+    payload: RoadmapGenerationRequest
   ): Promise<RoadmapGenerationResponse> {
     try {
       const res = await fetch(`${API_BASE_URL}/api/v1/roadmap/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          target_major: targetMajor,
-          missing_skills: missingSkills,
-          cumulative_gpa: cumulativeGpa
-        }),
+        body: JSON.stringify(payload),
         signal: AbortSignal.timeout(20000)
       });
 
-      if (!res.ok) throw new Error("Roadmap generation failed");
+      if (!res.ok) throw new Error(`Roadmap generation failed: ${res.status}`);
       return await res.json();
-    } catch {
-      console.warn("Roadmap generation offline. Falling back to Mock Milestone Tree.");
-      await new Promise((r) => setTimeout(r, 1200));
+    } catch (err) {
+      console.warn("Roadmap generation offline. Falling back to Mock Milestone Tree.", err);
+      await new Promise((r) => setTimeout(r, 1000));
       return {
         ...MOCK_ROADMAP,
-        target_major: targetMajor || MOCK_ROADMAP.target_major
+        target_major: payload.target_major_id || MOCK_ROADMAP.target_major
       };
     }
   }
 
   /**
    * Trợ lý ảo cố vấn nghề nghiệp Streaming Chat (Server-Sent Events)
+   * Endpoint: POST /api/v1/chat/stream
    */
   static async streamChat(
     message: string,
@@ -135,12 +138,13 @@ export class ApiService {
     onError: (err: any) => void
   ) {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/roadmap/chat`, {
+      const res = await fetch(`${API_BASE_URL}/api/v1/chat/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message,
-          target_major: targetMajor
+          major_focus: targetMajor,
+          student_profile_context: `Định hướng chuyên ngành: ${targetMajor}`
         })
       });
 
@@ -158,15 +162,14 @@ export class ApiService {
         onChunk(text);
       }
       onComplete();
-    } catch {
-      console.warn("Chat stream offline. Using simulated interactive streaming typewriter.");
+    } catch (err) {
+      console.warn("Chat stream offline. Using simulated interactive streaming typewriter.", err);
       const fallbackResponse =
         `Dựa trên định hướng chuyên ngành **${targetMajor || "AI & Data Science"}**, ` +
         `bạn nên ưu tiên bổ sung kỹ năng về Mô hình Ngôn ngữ Lớn (LLM) và Vector Database (như ChromaDB). ` +
         `Môn học **CS402 - Học sâu ứng dụng** trong học kỳ tới sẽ là bước đệm then chốt giúp bạn nâng cao năng lực toán học ứng dụng và thuật toán tối ưu hóa. ` +
         `Hãy bắt đầu bằng một đồ án thực chiến cá nhân trên GitHub để làm nổi bật hồ sơ của mình nhé!`;
 
-      // Giả lập luồng gõ chữ thời gian thực từng từ
       const words = fallbackResponse.split(" ");
       for (const word of words) {
         onChunk(word + " ");
