@@ -131,46 +131,6 @@ export const MOCK_SKILL_GAP_ANALYSIS: SkillGapAnalysisResponse = {
     }
   ]
 };
-    {
-      rank: 2,
-      major_name: "Fullstack Software Engineer",
-      match_score: 78.0,
-      description: "Phát triển toàn diện từ giao diện Web 2.0 hiện đại đến hệ thống kiến trúc microservices và cơ sở dữ liệu phân tán.",
-      radar_data: [
-        { axis: "Toán & Thống kê", user_score: 8.5, benchmark_score: 7.0 },
-        { axis: "Thuật toán & CTDL", user_score: 8.0, benchmark_score: 8.0 },
-        { axis: "Học máy & Deep Learning", user_score: 7.5, benchmark_score: 6.0 },
-        { axis: "Kỹ thuật Dữ liệu (SQL/BigData)", user_score: 7.0, benchmark_score: 8.0 },
-        { axis: "Lập trình ứng dụng (Python/Web)", user_score: 9.0, benchmark_score: 9.5 },
-        { axis: "DevOps & MLOps cơ bản", user_score: 6.0, benchmark_score: 8.5 }
-      ],
-      skill_gap: {
-        mastered_skills: ["Python", "JavaScript", "OOP", "Database Design", "Git"],
-        developing_skills: ["React", "TypeScript", "RESTful API", "Docker"],
-        missing_skills: ["Next.js App Router", "Kubernetes", "Redis Caching", "CI/CD Pipeline"]
-      }
-    },
-    {
-      rank: 3,
-      major_name: "Cloud & DevOps Solutions Architect",
-      match_score: 68.2,
-      description: "Quy hoạch và vận hành hạ tầng đám mây phân tán, đảm bảo tính sẵn sàng cao, bảo mật và khả năng mở rộng quy mô lớn.",
-      radar_data: [
-        { axis: "Toán & Thống kê", user_score: 8.5, benchmark_score: 6.5 },
-        { axis: "Thuật toán & CTDL", user_score: 8.0, benchmark_score: 7.5 },
-        { axis: "Học máy & Deep Learning", user_score: 7.5, benchmark_score: 5.0 },
-        { axis: "Kỹ thuật Dữ liệu (SQL/BigData)", user_score: 7.0, benchmark_score: 7.5 },
-        { axis: "Lập trình ứng dụng (Python/Web)", user_score: 9.0, benchmark_score: 8.0 },
-        { axis: "DevOps & MLOps cơ bản", user_score: 6.0, benchmark_score: 9.5 }
-      ],
-      skill_gap: {
-        mastered_skills: ["Linux Basics", "Networking Protocols", "Python Scripting"],
-        developing_skills: ["Docker Containerization", "Git Flow", "Bash Automation"],
-        missing_skills: ["Terraform IaC", "AWS Cloud Solutions", "Kubernetes Clustering", "Zero-Trust Security"]
-      }
-    }
-  ]
-};
 
 export const MOCK_ROADMAP: RoadmapGenerationResponse = {
   status: "success",

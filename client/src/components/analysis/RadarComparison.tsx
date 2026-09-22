@@ -12,6 +12,7 @@ import {
   Legend
 } from "recharts";
 import { RadarAxisItem } from "@/types/api";
+import { RadarTransformer } from "@/modules/analytics/utils/radarTransformer";
 
 interface RadarComparisonProps {
   data: RadarAxisItem[];
@@ -19,13 +20,16 @@ interface RadarComparisonProps {
 }
 
 export const RadarComparison: React.FC<RadarComparisonProps> = ({ data, majorName }) => {
-  // Chuẩn hóa dữ liệu cho Recharts
-  const chartData = data.map((item) => ({
-    axis: item.axis,
-    "Năng lực hiện tại": item.user_score,
-    "Chuẩn ngành yêu cầu": item.benchmark_score,
-    fullMark: 10,
-  }));
+  // Chuẩn hóa an toàn dữ liệu từ backend qua RadarTransformer
+  const chartData = RadarTransformer.transform(data);
+
+  if (chartData.length === 0) {
+    return (
+      <div className="w-full h-[360px] flex items-center justify-center text-slate-500 text-xs italic">
+        Chưa có dữ liệu trục năng lực cho chuyên ngành {majorName}
+      </div>
+    );
+  }
 
   return (
     <div className="w-full h-[360px] flex flex-col items-center justify-center">
@@ -57,7 +61,7 @@ export const RadarComparison: React.FC<RadarComparisonProps> = ({ data, majorNam
           {/* Lớp 2: Năng lực sinh viên hiện tại */}
           <Radar
             name="Năng lực sinh viên hiện tại"
-            dataKey="Năng lực hiện tại"
+            dataKey="Năng lực sinh viên hiện tại"
             stroke="#6366f1"
             strokeWidth={2.5}
             fill="#6366f1"

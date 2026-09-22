@@ -100,6 +100,28 @@ export class ApiService {
   }
 
   /**
+   * Alias tương thích ngược cho analyzeSkillGap
+   */
+  static async analyzeSkillGap(
+    targetCareer: string,
+    userSkills?: string[],
+    riasecScores?: Record<string, number>
+  ): Promise<CalculateMatchResponse> {
+    const holland: any = {
+      realistic: riasecScores?.R || 3.0,
+      investigative: riasecScores?.I || 3.0,
+      artistic: riasecScores?.A || 3.0,
+      social: riasecScores?.S || 3.0,
+      enterprising: riasecScores?.E || 3.0,
+      conventional: riasecScores?.C || 3.0
+    };
+    return this.calculateMatch({
+      holland_scores: holland,
+      target_career_tags: [targetCareer || "ai_engineer"]
+    });
+  }
+
+  /**
    * Sinh lộ trình học tập cá nhân hóa qua RAG & Qwen 2.5 LLM
    * Endpoint: POST /api/v1/roadmap/generate
    */

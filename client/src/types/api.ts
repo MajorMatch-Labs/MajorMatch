@@ -22,6 +22,8 @@ export interface CourseParsedItem {
   credits: number;
   grade_letter: string;
   grade_point: number;
+  letter_grade?: string;
+  point_grade?: number;
 }
 
 export interface ProfileData {
