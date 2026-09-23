@@ -31,18 +31,20 @@ export default function ResultPage() {
   }, [analysisResult, setAnalysisResult]);
 
   const currentResult = analysisResult || MOCK_SKILL_GAP_ANALYSIS;
-  const currentMajor = selectedMajor || currentResult.top_recommendations[0];
+  const recommendations = currentResult.top_matches || currentResult.top_recommendations || [];
+  const currentMajor = selectedMajor || recommendations[0];
 
   const handleGenerateRoadmap = async () => {
     if (!currentMajor) return;
     setGeneratingRoadmap(true);
     try {
       const gpa = profile?.cumulative_gpa || 3.42;
-      const res = await ApiService.generateRoadmap(
-        currentMajor.major_name,
-        currentMajor.skill_gap.missing_skills,
-        gpa
-      );
+      const res = await ApiService.generateRoadmap({
+        target_major_id: currentMajor.major_id || "CS_DATA_AI",
+        missing_skills: currentMajor.skill_gap?.missing_skills || currentResult.skill_breakdown?.missing_skills || [],
+        current_semester: 4,
+        cumulative_gpa: gpa
+      });
       setRoadmap(res);
       router.push("/roadmap");
     } catch {
@@ -75,11 +77,11 @@ export default function ResultPage() {
           <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">
             Top 3 Chuyên ngành Phù hợp Nhất:
           </span>
-          {currentResult.top_recommendations.map((major) => (
+          {recommendations.map((major) => (
             <MajorCard
               key={major.rank}
               major={major}
-              isSelected={currentMajor.major_name === major.major_name}
+              isSelected={currentMajor?.major_name === major.major_name}
               onSelect={(m) => setSelectedMajor(m)}
             />
           ))}
@@ -91,10 +93,10 @@ export default function ResultPage() {
             <div className="flex items-center justify-between gap-3 mb-1">
               <h3 className="text-sm font-bold text-white tracking-tight">
                 Biểu đồ Radar Năng lực:{" "}
-                <span className="text-indigo-400">{currentMajor.major_name}</span>
+                <span className="text-indigo-400">{currentMajor?.major_name}</span>
               </h3>
               <span className="px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/30 text-xs font-mono font-bold">
-                {currentMajor.match_score}% Match
+                {currentMajor?.match_percentage || currentMajor?.match_score}% Match
               </span>
             </div>
             <p className="text-xs text-slate-400">
@@ -103,8 +105,8 @@ export default function ResultPage() {
           </div>
 
           <RadarComparison
-            data={currentMajor.radar_data}
-            majorName={currentMajor.major_name}
+            data={currentMajor?.radar_data || currentResult.radar_chart_data || []}
+            majorName={currentMajor?.major_name || "Chuyên ngành"}
           />
 
           <div className="text-[11px] text-center text-slate-500 border-t border-slate-800/80 pt-3">
@@ -116,9 +118,9 @@ export default function ResultPage() {
       {/* Phân rã 3 nhóm kỹ năng */}
       <div className="space-y-3">
         <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">
-          Phân rã Kỹ năng của {currentMajor.major_name}:
+          Phân rã Kỹ năng của {currentMajor?.major_name}:
         </span>
-        <SkillBreakdown skillGap={currentMajor.skill_gap} />
+        <SkillBreakdown skillGap={currentMajor?.skill_gap || currentResult.skill_breakdown} />
       </div>
 
       {/* CTA Button: Sinh lộ trình học tập với AI */}

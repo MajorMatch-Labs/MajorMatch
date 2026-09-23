@@ -40,7 +40,7 @@ export const MajorCard: React.FC<MajorCardProps> = ({ major, isSelected, onSelec
 
         <div className="text-right">
           <span className="text-sm font-extrabold text-indigo-300 font-mono">
-            {major.match_score}%
+            {major.match_percentage || major.match_score || 0}%
           </span>
           <div className="text-[10px] text-slate-400 uppercase font-medium -mt-0.5">
             Match Score
@@ -54,13 +54,13 @@ export const MajorCard: React.FC<MajorCardProps> = ({ major, isSelected, onSelec
       <div className="w-full bg-slate-800/80 rounded-full h-1.5 overflow-hidden mb-3">
         <div
           className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-cyan-400 transition-all duration-500"
-          style={{ width: `${major.match_score}%` }}
+          style={{ width: `${major.match_percentage || major.match_score || 0}%` }}
         />
       </div>
 
       <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-800/60">
         <span className="text-slate-400 text-[11px]">
-          {major.skill_gap.missing_skills.length} kỹ năng cần bù đắp
+          {major.skill_gap?.missing_skills?.length ?? 4} kỹ năng cần bù đắp
         </span>
         <span
           className={`flex items-center gap-1 font-semibold text-[11px] ${
