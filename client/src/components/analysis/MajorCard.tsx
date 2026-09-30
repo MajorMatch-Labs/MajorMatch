@@ -12,18 +12,26 @@ interface MajorCardProps {
 
 export const MajorCard: React.FC<MajorCardProps> = ({ major, isSelected, onSelect }) => {
   const rankColors = [
-    "from-amber-400 to-yellow-600 border-amber-500/40 text-amber-300",
-    "from-slate-300 to-slate-500 border-slate-400/40 text-slate-200",
-    "from-amber-700 to-amber-900 border-amber-700/40 text-amber-500",
+    "from-amber-400 to-yellow-600 border-amber-500/40 text-amber-300 shadow-amber-500/20",
+    "from-slate-300 to-slate-500 border-slate-400/40 text-slate-200 shadow-slate-500/20",
+    "from-amber-700 to-amber-900 border-amber-700/40 text-amber-500 shadow-amber-700/20",
   ];
 
   return (
     <div
       onClick={() => onSelect(major)}
-      className={`relative cursor-pointer rounded-xl p-4 transition-all duration-200 border ${
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect(major);
+        }
+      }}
+      className={`relative cursor-pointer rounded-xl p-4 transition-all duration-300 ease-out border outline-none ${
         isSelected
-          ? "glass-panel-glow border-indigo-500/60 bg-indigo-950/20 scale-[1.01]"
-          : "glass-panel border-slate-800 hover:border-slate-700 bg-slate-900/40"
+          ? "glass-panel-glow border-indigo-500/80 bg-indigo-950/30 scale-[1.015] shadow-lg shadow-indigo-500/15"
+          : "glass-panel border-slate-800/80 hover:border-slate-700 bg-slate-900/40 hover:bg-slate-900/60 hover:scale-[1.005]"
       }`}
     >
       <div className="flex items-start justify-between gap-3 mb-2">
@@ -42,18 +50,24 @@ export const MajorCard: React.FC<MajorCardProps> = ({ major, isSelected, onSelec
           <span className="text-sm font-extrabold text-indigo-300 font-mono">
             {major.match_percentage || major.match_score || 0}%
           </span>
-          <div className="text-[10px] text-slate-400 uppercase font-medium -mt-0.5">
-            Match Score
+          <div className="text-[10px] uppercase font-semibold -mt-0.5">
+            {(major.match_percentage || major.match_score || 0) >= 80 ? (
+              <span className="text-emerald-400">Rất phù hợp</span>
+            ) : (major.match_percentage || major.match_score || 0) >= 65 ? (
+              <span className="text-indigo-400">Phù hợp</span>
+            ) : (
+              <span className="text-amber-400">Tiềm năng</span>
+            )}
           </div>
         </div>
       </div>
 
       <p className="text-xs text-slate-400 line-clamp-2 mb-3">{major.description}</p>
 
-      {/* Progress Bar */}
+      {/* Progress Bar với hiệu ứng chuyển động mượt mà */}
       <div className="w-full bg-slate-800/80 rounded-full h-1.5 overflow-hidden mb-3">
         <div
-          className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-cyan-400 transition-all duration-500"
+          className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-sky-400 to-emerald-400 transition-all duration-700 ease-out"
           style={{ width: `${major.match_percentage || major.match_score || 0}%` }}
         />
       </div>
