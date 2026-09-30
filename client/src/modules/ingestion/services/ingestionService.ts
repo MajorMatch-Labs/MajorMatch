@@ -97,7 +97,11 @@ export class IngestionService {
     });
 
     if (careerTags.length > 0) {
-      careerTags.forEach((tag) => store.addCareerTag(tag));
+      careerTags.forEach((tag) => {
+        if (!store.selectedCareerTags.includes(tag)) {
+          store.toggleCareerTag(tag);
+        }
+      });
     }
 
     // Kích hoạt tính toán lại độ phù hợp ngành

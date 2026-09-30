@@ -58,7 +58,7 @@ export function validatePdfMimeAndExtension(file: File): FileValidationResult {
     };
   }
 
-  if (file.type && !FILE_VALIDATION_CONSTANTS.ALLOWED_MIME_TYPES.includes(file.type)) {
+  if (file.type && !(FILE_VALIDATION_CONSTANTS.ALLOWED_MIME_TYPES as readonly string[]).includes(file.type)) {
     return {
       isValid: false,
       errorCode: 'INVALID_MIME_TYPE',
