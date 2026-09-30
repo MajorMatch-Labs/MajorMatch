@@ -86,6 +86,39 @@ export class SseLineBufferParser {
   }
 
   /**
+   * Bóc tách payload JSON từ data của sự kiện SSE
+   * Hỗ trợ cả định dạng OpenAI token format và cờ [DONE]
+   */
+  public static extractTokenPayload(event: SseRawEvent): SseTokenPayload | null {
+    const rawData = event.data.trim();
+    if (!rawData) return null;
+
+    if (rawData === '[DONE]') {
+      return { done: true };
+    }
+
+    try {
+      const parsed = JSON.parse(rawData);
+      if (typeof parsed === 'string') {
+        return { token: parsed, done: false };
+      }
+
+      const token = parsed.token ?? parsed.delta ?? parsed.choices?.[0]?.delta?.content ?? '';
+      const done = Boolean(parsed.done ?? parsed.is_finished ?? (parsed.choices?.[0]?.finish_reason === 'stop'));
+
+      return {
+        token,
+        done,
+        model: parsed.model,
+        error: parsed.error,
+      };
+    } catch {
+      // Neu khong phai JSON thi coi nguyen van data la token text
+      return { token: rawData, done: false };
+    }
+  }
+
+  /**
    * Reset bo dem ve trang thai ban dau
    */
   public reset(): void {
