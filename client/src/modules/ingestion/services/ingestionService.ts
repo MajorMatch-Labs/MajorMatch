@@ -6,53 +6,58 @@
 
 import { useProfileStore } from "@/stores/useProfileStore";
 import { MOCK_TRANSCRIPT_PARSING } from "@/services/mockData";
+import {
+  calculateHollandScores,
+  rankRiasecTraits,
+  getDominantHollandCode,
+  UserSurveyAnswers,
+  RawRiasecScores,
+  RankedTraitResult,
+} from "../utils/riasecScoring";
+import {
+  validateTranscriptPdfFull,
+  validatePdfMimeAndExtension,
+  validatePdfFileSize,
+  FileValidationResult as DetailedValidationResult,
+  formatFileSize,
+} from "../utils/fileValidation";
 
 export interface FileValidationResult {
   isValid: boolean;
   errorMessage?: string;
+  formattedSize?: string;
 }
 
 export class IngestionService {
   /**
-   * Tiền kiểm định tính hợp lệ của tệp bảng điểm tại Client trước khi gửi tới Backend HPC
-   * Tiêu chuẩn: Tệp PDF, không vượt quá 10MB, đúng phần mở rộng
+   * Tiền kiểm định tính hợp lệ đồng bộ của tệp bảng điểm tại Client
    */
   static validateTranscriptFile(file: File): FileValidationResult {
-    if (!file) {
-      return { isValid: false, errorMessage: "Vui lòng chọn một tệp tin." };
+    const check = validatePdfMimeAndExtension(file);
+    if (!check.isValid) {
+      return { isValid: false, errorMessage: check.errorMessage };
     }
 
-    const fileName = file.name.toLowerCase();
-    if (!fileName.endsWith(".pdf")) {
-      return {
-        isValid: false,
-        errorMessage: "Hệ thống chỉ chấp nhận tệp định dạng chuẩn .PDF."
-      };
+    const sizeCheck = validatePdfFileSize(file);
+    if (!sizeCheck.isValid) {
+      return { isValid: false, errorMessage: sizeCheck.errorMessage };
     }
 
-    const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
-    if (file.size > MAX_SIZE_BYTES) {
-      return {
-        isValid: false,
-        errorMessage: `Dung lượng tệp (${(file.size / (1024 * 1024)).toFixed(1)}MB) vượt quá giới hạn 10MB.`
-      };
-    }
+    return { isValid: true, formattedSize: sizeCheck.formattedSize };
+  }
 
-    if (file.size === 0) {
-      return {
-        isValid: false,
-        errorMessage: "Tệp tin rỗng, vui lòng kiểm tra lại."
-      };
-    }
-
-    return { isValid: true };
+  /**
+   * Tiền kiểm định bất đồng bộ toàn diện cả tiêu đề Magic Bytes %PDF-
+   */
+  static async validateTranscriptFileAdvanced(file: File): Promise<DetailedValidationResult> {
+    return await validateTranscriptPdfFull(file);
   }
 
   /**
    * Gửi tệp bảng điểm đã qua kiểm định lên Store và kích hoạt tiến trình bóc tách API
    */
   static async uploadTranscript(file: File): Promise<void> {
-    const validation = this.validateTranscriptFile(file);
+    const validation = await this.validateTranscriptFileAdvanced(file);
     if (!validation.isValid) {
       throw new Error(validation.errorMessage);
     }
@@ -62,12 +67,27 @@ export class IngestionService {
   }
 
   /**
+   * Tính toán điểm Holland RIASEC từ 10 câu trả lời khảo sát và nạp vào State Store
+   */
+  static processSurveyAnswers(answers: UserSurveyAnswers): {
+    scores: RawRiasecScores;
+    ranked: RankedTraitResult[];
+    dominantCode: { code: string; primary: string; secondary: string };
+  } {
+    const scores = calculateHollandScores(answers);
+    const ranked = rankRiasecTraits(scores);
+    const dominantCode = getDominantHollandCode(scores);
+
+    return { scores, ranked, dominantCode };
+  }
+
+  /**
    * Gửi kết quả khảo sát RIASEC và danh sách thẻ mục tiêu lên hệ thống
    * Tự động kích hoạt tính toán Cosine Similarity và phân loại ML
    */
   static async submitRiasecSurvey(
     scores: Record<string, number>,
-    careerTags: string[]
+    careerTags: string[] = []
   ): Promise<void> {
     const store = useProfileStore.getState();
 
@@ -75,6 +95,10 @@ export class IngestionService {
     Object.entries(scores).forEach(([group, val]) => {
       store.setRiasecScore(group, val);
     });
+
+    if (careerTags.length > 0) {
+      careerTags.forEach((tag) => store.addCareerTag(tag));
+    }
 
     // Kích hoạt tính toán lại độ phù hợp ngành
     await store.calculateMatchAction();
