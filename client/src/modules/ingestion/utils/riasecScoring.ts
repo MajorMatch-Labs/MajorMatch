@@ -61,3 +61,50 @@ export function calculateHollandScores(answers: UserSurveyAnswers): RawRiasecSco
     c: normalizeTrait('C'),
   };
 }
+
+export interface RankedTraitResult {
+  key: RiasecTraitKey;
+  score: number;
+  percentage: number;
+}
+
+/**
+ * Xep hang 6 nhom RIASEC tu cao xuong thap va tinh ti le %
+ */
+export function rankRiasecTraits(scores: RawRiasecScores): RankedTraitResult[] {
+  const list: { key: RiasecTraitKey; score: number }[] = [
+    { key: 'R', score: scores.r },
+    { key: 'I', score: scores.i },
+    { key: 'A', score: scores.a },
+    { key: 'S', score: scores.s },
+    { key: 'E', score: scores.e },
+    { key: 'C', score: scores.c },
+  ];
+
+  list.sort((a, b) => b.score - a.score);
+
+  return list.map((item) => ({
+    key: item.key,
+    score: item.score,
+    // Chuyen doi thang diem 1.0 - 5.0 sang ty le % (1.0 = 20%, 5.0 = 100%)
+    percentage: Math.round((item.score / 5.0) * 100),
+  }));
+}
+
+/**
+ * Trich xuat ma Holland Code 2 chu cai noi troi nhat (Vi du: "IR", "IA", "SE")
+ */
+export function getDominantHollandCode(scores: RawRiasecScores): {
+  code: string;
+  primary: RiasecTraitKey;
+  secondary: RiasecTraitKey;
+} {
+  const ranked = rankRiasecTraits(scores);
+  const primary = ranked[0].key;
+  const secondary = ranked[1].key;
+  return {
+    code: `${primary}${secondary}`,
+    primary,
+    secondary,
+  };
+}
