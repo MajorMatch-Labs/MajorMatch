@@ -164,6 +164,23 @@ export const StreamingChatBox: React.FC = () => {
               <Loader2 className="w-3 h-3 animate-spin" /> Đang kết nối...
             </span>
           )}
+          {streamStatus === "interrupted" && (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono bg-amber-500/10 text-amber-300 border border-amber-500/30">
+              Đã dừng phản hồi
+            </span>
+          )}
+          {streamStatus === "error" && (
+            <button
+              type="button"
+              onClick={() => {
+                const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
+                if (lastUserMsg) handleSend(lastUserMsg.content);
+              }}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono bg-rose-500/10 text-rose-300 border border-rose-500/30 hover:bg-rose-500/20 transition-colors"
+            >
+              Lỗi kết nối - Thử lại
+            </button>
+          )}
         </div>
       </div>
 
