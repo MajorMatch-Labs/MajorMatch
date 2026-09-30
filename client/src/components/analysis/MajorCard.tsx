@@ -50,18 +50,24 @@ export const MajorCard: React.FC<MajorCardProps> = ({ major, isSelected, onSelec
           <span className="text-sm font-extrabold text-indigo-300 font-mono">
             {major.match_percentage || major.match_score || 0}%
           </span>
-          <div className="text-[10px] text-slate-400 uppercase font-medium -mt-0.5">
-            Match Score
+          <div className="text-[10px] uppercase font-semibold -mt-0.5">
+            {(major.match_percentage || major.match_score || 0) >= 80 ? (
+              <span className="text-emerald-400">Rất phù hợp</span>
+            ) : (major.match_percentage || major.match_score || 0) >= 65 ? (
+              <span className="text-indigo-400">Phù hợp</span>
+            ) : (
+              <span className="text-amber-400">Tiềm năng</span>
+            )}
           </div>
         </div>
       </div>
 
       <p className="text-xs text-slate-400 line-clamp-2 mb-3">{major.description}</p>
 
-      {/* Progress Bar */}
+      {/* Progress Bar với hiệu ứng chuyển động mượt mà */}
       <div className="w-full bg-slate-800/80 rounded-full h-1.5 overflow-hidden mb-3">
         <div
-          className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-cyan-400 transition-all duration-500"
+          className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-sky-400 to-emerald-400 transition-all duration-700 ease-out"
           style={{ width: `${major.match_percentage || major.match_score || 0}%` }}
         />
       </div>
