@@ -72,3 +72,75 @@ export function validatePdfMimeAndExtension(file: File): FileValidationResult {
     formattedSize: formatFileSize(file.size),
   };
 }
+
+/**
+ * Kiem tra dung luong tep tin khong vuot qua nguong gioi han 10MB
+ */
+export function validatePdfFileSize(file: File): FileValidationResult {
+  if (file.size > FILE_VALIDATION_CONSTANTS.MAX_FILE_SIZE_BYTES) {
+    return {
+      isValid: false,
+      errorCode: 'FILE_TOO_LARGE',
+      errorMessage: `Dung lượng tệp (${formatFileSize(file.size)}) vượt quá giới hạn tối đa cho phép là 10 MB.`,
+    };
+  }
+
+  return {
+    isValid: true,
+    file,
+    formattedSize: formatFileSize(file.size),
+  };
+}
+
+/**
+ * Kiem tra tieu de Magic Bytes '%PDF-' cua tep tin o tang nhi phan (ArrayBuffer)
+ */
+export async function validatePdfMagicBytes(file: File): Promise<FileValidationResult> {
+  try {
+    const slice = file.slice(0, 4);
+    const buffer = await slice.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+
+    const isMatch = FILE_VALIDATION_CONSTANTS.PDF_MAGIC_BYTES.every((byte, idx) => bytes[idx] === byte);
+
+    if (!isMatch) {
+      return {
+        isValid: false,
+        errorCode: 'INVALID_MAGIC_BYTES',
+        errorMessage: 'Nội dung tệp không phải là tệp PDF hợp lệ (sai mã nhận dạng nhị phân %PDF-).',
+      };
+    }
+
+    return {
+      isValid: true,
+      file,
+      formattedSize: formatFileSize(file.size),
+    };
+  } catch (error) {
+    return {
+      isValid: false,
+      errorCode: 'INVALID_MAGIC_BYTES',
+      errorMessage: `Không thể đọc cấu trúc tệp: ${(error as Error).message}`,
+    };
+  }
+}
+
+/**
+ * Ham kiem tra toan dien tat ca tieu chi cho tep bang diem
+ */
+export async function validateTranscriptPdfFull(file: File): Promise<FileValidationResult> {
+  const basicCheck = validatePdfMimeAndExtension(file);
+  if (!basicCheck.isValid) return basicCheck;
+
+  const sizeCheck = validatePdfFileSize(file);
+  if (!sizeCheck.isValid) return sizeCheck;
+
+  const magicCheck = await validatePdfMagicBytes(file);
+  if (!magicCheck.isValid) return magicCheck;
+
+  return {
+    isValid: true,
+    file,
+    formattedSize: formatFileSize(file.size),
+  };
+}
