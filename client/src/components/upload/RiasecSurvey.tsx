@@ -1,17 +1,47 @@
 "use client";
 
-import React from "react";
-import { HOLLAND_QUESTIONS, AVAILABLE_CAREER_TAGS } from "@/types/survey";
+import React, { useMemo } from "react";
+import { AVAILABLE_CAREER_TAGS } from "@/types/survey";
 import { useProfileStore } from "@/stores/useProfileStore";
-import { Sparkles, Compass, Check } from "lucide-react";
+import { Sparkles, Compass, Check, Award, BrainCircuit } from "lucide-react";
+import { RIASEC_QUESTIONS_DATASET } from "@/modules/ingestion/constants/riasecQuestions";
+import {
+  RIASEC_TRAIT_DEFINITIONS,
+  RiasecTraitKey,
+} from "@/modules/ingestion/constants/riasecConstants";
+import {
+  calculateHollandScores,
+  getDominantHollandCode,
+  rankRiasecTraits,
+} from "@/modules/ingestion/utils/riasecScoring";
 
 export const RiasecSurvey: React.FC = () => {
   const {
     riasecScores,
     selectedCareerTags,
     setRiasecScore,
-    toggleCareerTag
+    toggleCareerTag,
   } = useProfileStore();
+
+  // Tinh toan ma Holland noi troi tu diem so hien tai
+  const dominantInfo = useMemo(() => {
+    const rawScores = {
+      r: riasecScores.r || 3.0,
+      i: riasecScores.i || 3.0,
+      a: riasecScores.a || 3.0,
+      s: riasecScores.s || 3.0,
+      e: riasecScores.e || 3.0,
+      c: riasecScores.c || 3.0,
+    };
+    const ranked = rankRiasecTraits(rawScores);
+    const dominant = getDominantHollandCode(rawScores);
+    return {
+      code: dominant.code,
+      primaryMeta: RIASEC_TRAIT_DEFINITIONS[dominant.primary],
+      secondaryMeta: RIASEC_TRAIT_DEFINITIONS[dominant.secondary],
+      topTwo: ranked.slice(0, 2),
+    };
+  }, [riasecScores]);
 
   return (
     <div className="space-y-6">
@@ -58,15 +88,46 @@ export const RiasecSurvey: React.FC = () => {
               2. Trắc nghiệm Thiên hướng Holland Code (RIASEC)
             </h3>
           </div>
-          <span className="text-[11px] text-slate-400 font-mono">10 Câu hỏi trượt</span>
+          <span className="text-[11px] text-slate-400 font-mono">10 Câu hỏi trắc nghiệm</span>
         </div>
+
+        {/* Khung xem trước thiên hướng nhận diện thời gian thực */}
+        <div className="mb-4 p-3 rounded-lg bg-indigo-950/40 border border-indigo-800/40 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2.5">
+            <BrainCircuit className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+            <span className="text-xs text-slate-300">
+              Thiên hướng nhận diện:{" "}
+              <strong className="text-indigo-300 font-mono text-sm">{dominantInfo.code}</strong>{" "}
+              ({dominantInfo.primaryMeta.codeName} & {dominantInfo.secondaryMeta.codeName})
+            </span>
+          </div>
+          <div className="flex gap-1.5">
+            {dominantInfo.topTwo.map((trait) => (
+              <span
+                key={trait.key}
+                className="text-[10px] font-mono px-2 py-0.5 rounded border"
+                style={{
+                  color: RIASEC_TRAIT_DEFINITIONS[trait.key].color,
+                  backgroundColor: RIASEC_TRAIT_DEFINITIONS[trait.key].badgeBg,
+                  borderColor: `${RIASEC_TRAIT_DEFINITIONS[trait.key].color}40`,
+                }}
+              >
+                {trait.key}: {trait.percentage}%
+              </span>
+            ))}
+          </div>
+        </div>
+
         <p className="text-xs text-slate-400 mb-4">
           Kéo thanh trượt từ 1 (Rất không thích) đến 5 (Rất đam mê) để hệ thống nhận diện thiên hướng tự nhiên của bạn:
         </p>
 
         <div className="space-y-4">
-          {HOLLAND_QUESTIONS.map((q) => {
-            const currentScore = riasecScores[q.group] || 3;
+          {RIASEC_QUESTIONS_DATASET.map((q) => {
+            const groupKey = q.category.toLowerCase();
+            const currentScore = riasecScores[groupKey] || 3;
+            const traitMeta = RIASEC_TRAIT_DEFINITIONS[q.category];
+
             return (
               <div
                 key={q.id}
@@ -75,7 +136,14 @@ export const RiasecSurvey: React.FC = () => {
                 <div className="flex items-start justify-between gap-3 mb-2">
                   <div className="text-xs text-slate-200 font-medium">
                     <span className="text-indigo-400 font-semibold mr-1.5">Câu {q.id}:</span>
-                    {q.text}
+                    {q.questionText}
+                    <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-1.5">
+                      <span
+                        className="inline-block w-1.5 h-1.5 rounded-full"
+                        style={{ backgroundColor: traitMeta.color }}
+                      />
+                      <span>{q.scenarioHint}</span>
+                    </div>
                   </div>
                   <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-indigo-950/80 text-indigo-300 border border-indigo-800/50 flex-shrink-0">
                     {currentScore}/5
@@ -90,7 +158,7 @@ export const RiasecSurvey: React.FC = () => {
                     max="5"
                     step="1"
                     value={currentScore}
-                    onChange={(e) => setRiasecScore(q.group, parseInt(e.target.value))}
+                    onChange={(e) => setRiasecScore(groupKey, parseInt(e.target.value))}
                     className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500 focus:outline-none"
                   />
                   <span className="text-[10px] text-slate-500">5</span>
