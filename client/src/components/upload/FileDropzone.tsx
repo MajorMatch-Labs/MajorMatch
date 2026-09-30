@@ -13,7 +13,7 @@ export const FileDropzone: React.FC = () => {
 
   const handleFile = async (file: File) => {
     setErrorMsg(null);
-    const validation = IngestionService.validateTranscriptFile(file);
+    const validation = await IngestionService.validateTranscriptFileAdvanced(file);
     if (!validation.isValid) {
       setErrorMsg(validation.errorMessage || "Tệp không hợp lệ");
       return;
