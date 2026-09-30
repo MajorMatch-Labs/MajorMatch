@@ -7,9 +7,18 @@
 export { RadarComparison } from "@/components/analysis/RadarComparison";
 export { MajorCard } from "@/components/analysis/MajorCard";
 export { SkillBreakdown } from "@/components/analysis/SkillBreakdown";
+export { RadarTooltip } from "./components/RadarTooltip";
+export { useRadarMetrics } from "./hooks/useRadarMetrics";
 export { RadarTransformer } from "./utils/radarTransformer";
+export { RADAR_ANIMATION_CONFIG, RADAR_THEME_TOKENS } from "./constants/radarConfig";
 export type {
   RechartsRadarPoint,
   SkillGapMetrics,
-  RadarReadinessSummary
+  RadarReadinessSummary,
 } from "./utils/radarTransformer";
+export type {
+  RadarCustomTooltipProps,
+  RadarTooltipPayloadItem,
+  SkillFilterCategory,
+  RadarMemoComparisonProps,
+} from "./types/radarTypes";
