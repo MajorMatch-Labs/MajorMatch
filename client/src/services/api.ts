@@ -157,45 +157,75 @@ export class ApiService {
     targetMajor: string,
     onChunk: (chunk: string) => void,
     onComplete: () => void,
-    onError: (err: any) => void
+    onError: (err: any) => void,
+    skillsContext?: { mastered?: string[]; missing?: string[] },
+    gpa?: number
   ) {
     try {
       const res = await fetch(`${API_BASE_URL}/api/v1/chat/stream`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "text/event-stream"
+        },
         body: JSON.stringify({
           message,
           major_focus: targetMajor,
-          student_profile_context: `Định hướng chuyên ngành: ${targetMajor}`
+          gpa: gpa || 3.2,
+          mastered_skills: skillsContext?.mastered || [],
+          missing_skills: skillsContext?.missing || [],
+          student_profile_context: `Định hướng: ${targetMajor} | Kỹ năng cần bù đắp: ${skillsContext?.missing?.join(", ") || "Chưa xác định"}`
         })
       });
 
       if (!res.ok || !res.body) {
-        throw new Error("Stream error");
+        throw new Error(`HTTP_${res.status}: Lỗi kết nối luồng chat`);
       }
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder("utf-8");
+      let buffer = "";
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         const text = decoder.decode(value, { stream: true });
-        onChunk(text);
+        buffer += text;
+
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith("data:")) {
+            const dataContent = trimmed.slice(5).trim();
+            if (dataContent === "[DONE]") {
+              break;
+            }
+            try {
+              const parsed = JSON.parse(dataContent);
+              const token = parsed.token || parsed.delta || "";
+              if (token) onChunk(token);
+            } catch {
+              if (dataContent) onChunk(dataContent + " ");
+            }
+          }
+        }
       }
       onComplete();
     } catch (err) {
       console.warn("Chat stream offline. Using simulated interactive streaming typewriter.", err);
+      const missingList = skillsContext?.missing?.slice(0, 3).join(", ") || "Hệ thống phân tán, MLOps";
       const fallbackResponse =
-        `Dựa trên định hướng chuyên ngành **${targetMajor || "AI & Data Science"}**, ` +
-        `bạn nên ưu tiên bổ sung kỹ năng về Mô hình Ngôn ngữ Lớn (LLM) và Vector Database (như ChromaDB). ` +
-        `Môn học **CS402 - Học sâu ứng dụng** trong học kỳ tới sẽ là bước đệm then chốt giúp bạn nâng cao năng lực toán học ứng dụng và thuật toán tối ưu hóa. ` +
-        `Hãy bắt đầu bằng một đồ án thực chiến cá nhân trên GitHub để làm nổi bật hồ sơ của mình nhé!`;
+        `Dựa trên định hướng chuyên ngành **${targetMajor || "AI & Data Science"}** và các kỹ năng bạn đang cần bù đắp (${missingList}), ` +
+        `bạn nên ưu tiên xây dựng đồ án thực chiến kết hợp mô hình ngôn ngữ lớn (LLM) và Vector Database (như ChromaDB). ` +
+        `Các môn học tiên quyết trong học kỳ tới sẽ là bước đệm then chốt giúp bạn nâng cao năng lực giải thuật và tối ưu hóa hệ thống. ` +
+        `Hãy bắt đầu bằng việc giải quyết các bài toán thực tế trên GitHub để làm nổi bật hồ sơ nhé!`;
 
       const words = fallbackResponse.split(" ");
       for (const word of words) {
         onChunk(word + " ");
-        await new Promise((r) => setTimeout(r, 40));
+        await new Promise((r) => setTimeout(r, 35));
       }
       onComplete();
     }
