@@ -111,6 +111,32 @@
 
 ---
 
+### TUẦN 6 - CHƯƠNG 6: AI LẬP TRÌNH (CODE GENERATION & STREAMING SSE)
+* **Mục tiêu**: Vận dụng AI Code Generation để hiện thực hóa các thuật toán phức tạp, xử lý dữ liệu streaming thời gian thực Server-Sent Events và tối ưu hóa hiệu năng render giao diện không giật lag.
+* **Đóng góp của từng thành viên**:
+  - **Văn Hoàng** (11 Commits nhánh `feat/vanhoang-w6-riasec-and-validation`):
+    - Xây dựng thuật toán tính điểm tâm lý học sở thích [riasecScoring.ts](../src/modules/ingestion/utils/riasecScoring.ts) chuẩn hóa theo thang 1.0 - 5.0 và xếp hạng mã Holland 2 chữ cái nổi trội.
+    - Xây dựng tiện ích kiểm tra tệp PDF nâng cao [fileValidation.ts](../src/modules/ingestion/utils/fileValidation.ts) kiểm tra dung lượng $\le 10\text{MB}$ và magic bytes nhị phân `%PDF-`.
+    - Nâng cấp `RiasecSurvey.tsx` với thanh tiến trình trực quan và xem trước thiên hướng nhận diện thời gian thực.
+    - Viết bộ kiểm thử tự động [ingestionAlgorithm.test.ts](../../tests/unit/ingestionAlgorithm.test.ts).
+    - Lập hồ sơ minh chứng AI `docs/ai-evidence/ingestion/w6-prompt-log.md`.
+  - **Ánh Vy** (11 Commits nhánh `feat/anhvy-w6-radar-optimization`):
+    - Xây dựng custom hook [useRadarMetrics.ts](../src/modules/analytics/hooks/useRadarMetrics.ts) ứng dụng `useMemo` chống tính toán lại dữ liệu trục.
+    - Bọc `RadarComparison.tsx` bằng `React.memo` kết hợp hàm so sánh sâu `areRadarPropsEqual` chống re-render thừa khi chuyển ngành.
+    - Xây dựng Custom Tooltip [RadarTooltip.tsx](../src/modules/analytics/components/RadarTooltip.tsx) hiển thị trực quan độ lệch delta năng lực (+/-).
+    - Thêm bộ lọc đa danh mục kỹ năng (All / Mastered / Developing / Missing) trong `SkillBreakdown.tsx`.
+    - Viết bộ kiểm thử [radarOptimization.test.ts](../../tests/unit/radarOptimization.test.ts).
+    - Lập hồ sơ minh chứng AI `docs/ai-evidence/analytics/w6-prompt-log.md`.
+  - **Long Nhật** (11 Commits nhánh `feat/longnhat-w6-advisor-sse-streaming`):
+    - Xây dựng bộ giải mã luồng sự kiện [sseParser.ts](../src/modules/advisor/utils/sseParser.ts) xử lý ghép chunk UTF-8, lọc heartbeat ping và bóc tách token.
+    - Xây dựng bộ điều khiển luồng [sseStreamController.ts](../src/modules/advisor/services/sseStreamController.ts) với AbortSignal ngắt tức thì và idle timeout guard 15s.
+    - Xây dựng bộ hiển thị [MarkdownMessage.tsx](../src/modules/advisor/components/MarkdownMessage.tsx) định dạng an toàn cho tin nhắn AI.
+    - Tích hợp Smart Auto-Scroll phát hiện người dùng cuộn chuột và bổ sung nút Dừng phản hồi / Thử lại trong `StreamingChatBox.tsx`.
+    - Viết bộ kiểm thử [sseParser.test.ts](../../tests/unit/sseParser.test.ts).
+    - Lập hồ sơ minh chứng AI `docs/ai-evidence/advisor/w6-prompt-log.md`.
+
+---
+
 ## 3. BẢNG TỔNG KẾT BẰNG CHỨNG HỌC PHẦN (AUDIT CHECKLIST)
 
 - [x] Đầy đủ commit riêng biệt cho từng thành viên theo từng tuần học.
