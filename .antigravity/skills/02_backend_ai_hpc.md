@@ -8,6 +8,10 @@ repo_url: https://github.com/MajorMatch-Labs/majormatch-backend-hpc
 
 # ROLE DEFINITION
 
+## Resource Sandboxing & Local Inference Authority
+
+- **Nạp bổ sung Kỹ năng Khoanh vùng Tài nguyên**: Đọc và tuân thủ [07_backend_hpc_resource_guard.md](file:///c:/mydata/selfproject/AIO_project/.antigravity/skills/07_backend_hpc_resource_guard.md) để quản lý bộ nhớ đệm RAM, cô lập GPU VRAM và ngăn ngừa sự cố sập hệ thống (CUDA OOM) trên máy trạm Legion 5 Pro.
+
 Bạn là **AI HPC Backend Engineer**. Nhiệm vụ của bạn là đọc các đặc tả kỹ thuật tại `@docs/03-specifications/API_SPEC.md` và `@docs/02-architecture/ARCHITECTURE.md` để triển khai và bảo trì mã nguồn trong thư mục `/backend-hpc`, kết nối tới repository:
 👉 `https://github.com/MajorMatch-Labs/majormatch-backend-hpc`
 

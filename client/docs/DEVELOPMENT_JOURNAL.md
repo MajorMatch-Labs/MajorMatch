@@ -18,6 +18,8 @@
 | **Tuần 3** | PRD & User Stories (AC / Gherkin) | Đặc tả User Stories cho Cây lộ trình (Milestone) & Streaming Chatbot Advisor. | Đặc tả User Stories cho Drag-and-Drop file và Khảo sát RIASEC. | Đặc tả User Stories cho Biểu đồ Radar 6 chiều và Thẻ ngành học đề xuất. | **Đã hoàn thành ✅** |
 | **Tuần 4** | UI Prototyping & AI Design Review | Code UI Prototype `MilestoneTree.tsx`, `StreamingChatBox.tsx` & Dashboard. | Code UI Prototype `FileDropzone.tsx` & `RiasecSurvey.tsx`. | Code UI Prototype `RadarComparison.tsx`, `MajorCard.tsx`, `SkillBreakdown.tsx`. | **Đã hoàn thành ✅** |
 | **Tuần 5** | Architecture Patterns & API State Integration | Xây dựng Reactive Zustand Store (`useProfileStore.ts`) & Native API Client. | Xây dựng `IngestionService` Adapter, File Validation $\le 10\text{MB}$ & Offline Mock Loader. | Xây dựng `RadarTransformer` Adapter, chuyển đổi dữ liệu Recharts & Type-safe. | **Đã hoàn thành ✅** |
+| **Tuần 6** | AI Lập trình (Code Generation & Streaming) | Tích hợp SSE Stream Parser, Chat Controller và Markdown Renderer. | Chuẩn hóa RIASEC 10 câu, Magic Bytes Validation & Ingestion Tests. | Tối ưu hóa hiệu năng Recharts Radar (React.memo, delta tooltip). | **Đã hoàn thành ✅** |
+| **Tuần 7** | Lộ trình Milestone & Chuẩn hóa Kỹ năng Giai đoạn | Tích hợp hiển thị kỹ năng đầu ra cho từng môn và từng kỳ trong MilestoneTree, đồng bộ RAG Schemas. | Xây dựng `curriculumSkillMapper.ts`, chuẩn hóa mã môn sang kỹ năng và unit tests. | Thiết kế component `MilestoneSkillBadges.tsx`, highlight trực quan kỹ năng bù đắp Gap. | **Đã hoàn thành ✅** |
 
 ---
 
@@ -134,6 +136,28 @@
     - Tích hợp Smart Auto-Scroll phát hiện người dùng cuộn chuột và bổ sung nút Dừng phản hồi / Thử lại trong `StreamingChatBox.tsx`.
     - Viết bộ kiểm thử [sseParser.test.ts](../../tests/unit/sseParser.test.ts).
     - Lập hồ sơ minh chứng AI `docs/ai-evidence/advisor/w6-prompt-log.md`.
+
+---
+
+### TUẦN 7 - CHƯƠNG 7: LỘ TRÌNH HỌC TẬP TƯƠNG TÁC & PHÂN BỔ KỸ NĂNG THEO GIAI ĐOẠN
+* **Mục tiêu**: Chuẩn hóa toàn bộ danh mục kỹ năng đầu ra cho từng môn học và từng giai đoạn học kỳ (Milestone Stages) trên lộ trình học tập, liên kết động với phân rã kỹ năng thiếu để sinh viên thấy rõ giá trị thực tế của từng đề xuất.
+* **Đóng góp của từng thành viên**:
+  - **Văn Hoàng** (Nhánh `feat/vanhoang-w7-curriculum-skills-mapping`):
+    - Mở rộng hợp đồng dữ liệu Client DTO: thêm `target_skills` cho `RecommendedCourse` và `milestone_skills` cho `SemesterMilestone`.
+    - Xây dựng tiện ích chuẩn hóa [curriculumSkillMapper.ts](../src/modules/ingestion/utils/curriculumSkillMapper.ts) ánh xạ toàn bộ mã học phần sang danh mục kỹ năng chuẩn và phân loại danh mục (AI, Data, Infra, Software, Foundation).
+    - Viết bộ kiểm thử tự động [curriculumSkillMapper.test.ts](../../tests/unit/curriculumSkillMapper.test.ts).
+    - Lập hồ sơ minh chứng AI `docs/ai-evidence/ingestion/w7-prompt-log.md`.
+  - **Ánh Vy** (Nhánh `feat/anhvy-w7-milestone-skills-badges`):
+    - Thiết kế component [MilestoneSkillBadges.tsx](../src/modules/analytics/components/MilestoneSkillBadges.tsx) hiển thị dải huy hiệu kỹ năng trọng tâm của từng giai đoạn học kỳ.
+    - Nâng cấp `InteractiveTask.tsx` phát hiện và highlight trực quan các kỹ năng giúp bù đắp trực tiếp khoảng trống năng lực hiện tại (`Bù đắp Gap`).
+    - Viết bộ kiểm thử tự động [milestoneSkillBadges.test.ts](../../tests/unit/milestoneSkillBadges.test.ts).
+    - Lập hồ sơ minh chứng AI `docs/ai-evidence/analytics/w7-prompt-log.md`.
+  - **Long Nhật** (Nhánh `feat/longnhat-w7-roadmap-skill-tree-integration`):
+    - Tích hợp dải kỹ năng chuẩn đầu ra giai đoạn và truyền `skills` cho từng môn học trong [MilestoneTree.tsx](../src/components/roadmap/MilestoneTree.tsx).
+    - Bổ sung dữ liệu kỹ năng chi tiết cho cả 3 giai đoạn (Kỳ 5, 6, 7 & 8) trong [mockData.ts](../src/services/mockData.ts).
+    - Đồng bộ hóa cấu trúc Pydantic Schema và bộ sinh lộ trình dự phòng tại `backend-hpc/schemas.py` và `backend-hpc/rag_service.py`.
+    - Viết bộ kiểm thử [roadmapSkills.test.ts](../../tests/unit/roadmapSkills.test.ts).
+    - Lập hồ sơ minh chứng AI `docs/ai-evidence/advisor/w7-prompt-log.md`.
 
 ---
 

@@ -23,8 +23,13 @@ export const InteractiveTask: React.FC<InteractiveTaskProps> = ({
   skills,
   rationale
 }) => {
-  const { completedItems, toggleCompletedItem } = useProfileStore();
+  const { completedItems, toggleCompletedItem, analysisResult } = useProfileStore();
   const isCompleted = !!completedItems[id];
+
+  const missingSkillsSet = React.useMemo(() => {
+    const list = analysisResult?.skill_breakdown?.missing_skills || [];
+    return new Set(list.map((s) => s.toLowerCase().trim()));
+  }, [analysisResult]);
 
   return (
     <div
@@ -88,14 +93,22 @@ export const InteractiveTask: React.FC<InteractiveTaskProps> = ({
 
         {skills && skills.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-2">
-            {skills.map((s, idx) => (
-              <span
-                key={idx}
-                className="text-[9px] font-mono px-2 py-0.5 rounded bg-slate-800/80 text-slate-300 border border-slate-700/60"
-              >
-                #{s}
-              </span>
-            ))}
+            {skills.map((s, idx) => {
+              const isClosingGap = missingSkillsSet.has(s.toLowerCase().trim());
+              return (
+                <span
+                  key={idx}
+                  className={`text-[9px] font-mono px-2 py-0.5 rounded border transition-colors ${
+                    isClosingGap
+                      ? "bg-indigo-950/90 text-indigo-200 border-indigo-500/60 font-semibold ring-1 ring-indigo-500/20"
+                      : "bg-slate-800/80 text-slate-300 border-slate-700/60"
+                  }`}
+                >
+                  #{s}
+                  {isClosingGap && <span className="ml-1 text-[8px] text-emerald-400">✓ Gap</span>}
+                </span>
+              );
+            })}
           </div>
         )}
       </div>

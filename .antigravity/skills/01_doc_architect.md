@@ -52,3 +52,12 @@ MajorMatch/
         ├── TESTING_PLAN.md
         └── CODING_CONVENTIONS.md
 ```
+---
+
+# LIÊN KẾT KỸ NĂNG THEO TỪNG GIAI ĐOẠN
+
+- **Phase 2 (Thu nhận & Kiểm định)**: Nạp skill [06_ingestion_verification_guard.md](file:///c:/mydata/selfproject/AIO_project/.antigravity/skills/06_ingestion_verification_guard.md) để áp dụng nguyên tắc "Bằng chứng là tối thượng", kiểm tra Magic Bytes PDF `%PDF-`, khử định danh PII và ngăn chặn ảo giác điểm số/học bạ.
+- **Phase 3 (Giao diện Web 2.0 & Trải nghiệm)**: Nạp skill [05_frontend_anti_slop_design_taste.md](file:///c:/mydata/selfproject/AIO_project/.antigravity/skills/05_frontend_anti_slop_design_taste.md) để chống AI Slop, thiết kế Glassmorphism chuẩn chiều sâu, và nạp [03_frontend_client.md](file:///c:/mydata/selfproject/AIO_project/.antigravity/skills/03_frontend_client.md).
+- **Phase 4 (Điện toán AI HPC & Vector Engine)**: Nạp skill [07_backend_hpc_resource_guard.md](file:///c:/mydata/selfproject/AIO_project/.antigravity/skills/07_backend_hpc_resource_guard.md) khoanh vùng tài nguyên VRAM/RAM, cô lập semaphore Ollama và [02_backend_ai_hpc.md](file:///c:/mydata/selfproject/AIO_project/.antigravity/skills/02_backend_ai_hpc.md).
+- **Phase 5 (Hạ tầng Đám mây & Gateway)**: Nạp skill [04_cloud_infra.md](file:///c:/mydata/selfproject/AIO_project/.antigravity/skills/04_cloud_infra.md) thiết lập Cloudflare Tunnel Zero-Trust và Nginx rate limiting.
+

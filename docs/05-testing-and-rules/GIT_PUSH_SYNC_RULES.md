@@ -52,6 +52,9 @@ git subtree push --prefix=backend-hpc backend-remote $branch
 ---
 
 ## 4. BẢO VỆ DANH TÍNH TÁC GIẢ & AN TOÀN DỮ LIỆU
-1. **Author Email**: Mỗi thành viên phải cấu hình đúng email GitHub của mình trên máy cá nhân (`git config user.email "your-email@example.com"`). Mọi commit giữ nguyên danh tính người viết để hệ thống chấm tự động ghi nhận điểm số.
-2. **Cấm file nhạy cảm**: Không bao giờ commit file định dạng `.docx`, file chứa API keys, file `.env.local` lên bất kỳ kho chứa nào.
-3. **Cấm force push bừa bãi**: Tuyệt đối không dùng cờ `--force` trên các nhánh dùng chung (`main`, `developer/*`) để không làm mất lịch sử merge của nhóm.
+1. **Ngôn ngữ Commit bắt buộc bằng tiếng Anh**: Toàn bộ thông điệp Git commit (tiêu đề và nội dung) **BẮT BUỘC 100% viết bằng tiếng Anh** theo chuẩn Conventional Commits (`feat(...)`, `fix(...)`, `docs(...)`, v.v.). Nghiêm cấm mọi hình thức commit bằng tiếng Việt.
+2. **Author == Committer & Cấm dính Co-author ngoài ý muốn**: Khi commit cho thành viên nào, bắt buộc đồng nhất cả `Author` và `Committer` (bằng cách thiết lập biến môi trường `$env:GIT_AUTHOR_*` và `$env:GIT_COMMITTER_*`). Tuyệt đối không tự ý thêm trailer `Co-authored-by:` trên các nhánh tính năng cá nhân nhằm tránh bị GitHub hiển thị 2 avatar lồng nhau.
+3. **Cấu hình Email chính chủ**: Mỗi thành viên phải cấu hình đúng email GitHub của mình trên máy cá nhân (`git config user.email "your-email@example.com"`). Mọi commit giữ nguyên danh tính người viết để hệ thống chấm tự động ghi nhận điểm số.
+4. **Cấm file nhạy cảm**: Không bao giờ commit file định dạng `.docx`, file chứa API keys, file `.env.local` lên bất kỳ kho chứa nào.
+5. **Cấm force push bừa bãi**: Tuyệt đối không dùng cờ `--force` trên các nhánh dùng chung (`main`, `developer/*`) để không làm mất lịch sử merge của nhóm.
+
