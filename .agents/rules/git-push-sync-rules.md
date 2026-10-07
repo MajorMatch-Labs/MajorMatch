@@ -51,13 +51,21 @@ Khi người dùng yêu cầu commit/push (hoặc dùng câu lệnh ngắn như 
 
 - Đảm bảo nhật ký tại `client/docs/ai-evidence/<module>/w<tuần>-prompt-log.md`, module ingestion/analytics/advisor. Tác giả giữ danh tính thành viên; review phần người khác thêm Co-authored-by.
 
-### Bước 3: Commit chuẩn Conventional Commits tiếng Anh
+### Bước 3: Bắt buộc 100% Commit tiếng Anh & Đồng nhất Danh tính Tác giả
 
-- Thực hiện commit với đúng cờ `--author` của thành viên phụ trách:
-  ```bash
-  git add <các-file-chỉnh-sửa>
-  git commit -m "<type>(<scope>): <mô-tả-tiếng-Anh>" --author="<Author Name> <<Email>>"
-  ```
+- **Ngôn ngữ commit**: **BẮT BUỘC 100% thông điệp commit viết bằng TIẾNG ANH (English)** theo chuẩn Conventional Commits (`feat`, `fix`, `docs`, `test`, `refactor`, `perf`, `chore`). **CẤM TUYỆT ĐỐI sử dụng tiếng Việt** trong tiêu đề và nội dung commit.
+- **Quy tắc Author == Committer (Chống lỗi 2 avatar / Co-author ngoài ý muốn)**:
+  - Khi commit cho thành viên nào, bắt buộc thiết lập cả Author và Committer trùng khớp trước khi tạo commit:
+    ```powershell
+    $env:GIT_AUTHOR_NAME = "<Author Name>"
+    $env:GIT_AUTHOR_EMAIL = "<Email>"
+    $env:GIT_COMMITTER_NAME = "<Author Name>"
+    $env:GIT_COMMITTER_EMAIL = "<Email>"
+    git add <các-file-chỉnh-sửa>
+    git -c user.name="<Author Name>" -c user.email="<Email>" commit -m "<type>(<scope>): <english-imperative-description>"
+    ```
+  - **CẤM TUYỆT ĐỐI** tự động gắn trailer `Co-authored-by:` vào commit của nhánh tính năng cá nhân để đảm bảo mỗi commit chỉ hiển thị duy nhất 1 avatar chính chủ trên GitHub.
+
 
 ### Bước 4: Push đồng bộ 1-1 lên cả 2 repository
 

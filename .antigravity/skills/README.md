@@ -37,3 +37,12 @@ Khi AI Agent bước vào một giai đoạn làm việc cụ thể, hãy yêu c
 - **Khi làm UI/UX**: *"Nạp skill `.antigravity/skills/05_frontend_anti_slop_design_taste.md` và `.antigravity/skills/03_frontend_client.md` để rà soát mã nguồn giao diện, loại bỏ AI Slop và tối ưu hóa vi tương tác."*
 - **Khi làm Backend/AI**: *"Nạp skill `.antigravity/skills/07_backend_hpc_resource_guard.md` và `.antigravity/skills/02_backend_ai_hpc.md` để khoanh vùng tài nguyên VRAM/RAM, cô lập mô hình Ollama và bảo vệ an toàn máy tính trạm."*
 - **Khi làm Thu nhận dữ liệu**: *"Nạp skill `.antigravity/skills/06_ingestion_verification_guard.md` để kiểm tra toàn vẹn tệp PDF và bảo vệ quyền riêng tư PII."*
+
+---
+
+## 📌 QUY TẮC BẮT BUỘC KHI COMMIT (GIT CONVENTIONS FOR AGENTS)
+
+Mọi thay đổi mã nguồn qua các giai đoạn phát triển bắt buộc tuân thủ nghiêm ngặt:
+1. **100% Thông điệp Git Commit bằng Tiếng Anh**: Sử dụng Conventional Commits (`feat(...)`, `fix(...)`, `docs(...)`, `test(...)`, `refactor(...)`, `perf(...)`, `chore(...)`). Tuyệt đối cấm sử dụng tiếng Việt trong tiêu đề hoặc nội dung commit.
+2. **Đồng nhất Author == Committer (Chống lỗi 2 avatar)**: Thiết lập đúng danh tính thành viên phụ trách trước khi commit. Cấm tự động gắn trailer `Co-authored-by:` trên các nhánh tính năng cá nhân để đảm bảo hiển thị duy nhất 1 avatar chính chủ trên GitHub.
+
