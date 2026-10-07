@@ -141,12 +141,14 @@ export const MOCK_ROADMAP: RoadmapGenerationResponse = {
     {
       semester_name: "Học kỳ 5 (Học kỳ đề xuất tiếp theo)",
       target_focus: "Hoàn thiện nền tảng Học sâu & Kỹ thuật Dữ liệu nâng cao",
+      milestone_skills: ["Deep Learning", "PyTorch", "SQL", "Data Modeling", "ETL Pipelines", "Computer Vision"],
       recommended_courses: [
         {
           course_code: "CS402",
           course_name: "Học sâu và Ứng dụng (Deep Learning)",
           credits: 3,
           rationale: "Bù đắp khoảng trống kỹ năng PyTorch, mạng tích chập (CNN) và kiến trúc Transformer.",
+          target_skills: ["Deep Learning", "PyTorch", "Computer Vision", "Neural Networks"],
           completed: false
         },
         {
@@ -154,6 +156,7 @@ export const MOCK_ROADMAP: RoadmapGenerationResponse = {
           course_name: "Hệ quản trị CSDL Nâng cao & Phân tích Dữ liệu lớn",
           credits: 3,
           rationale: "Bù đắp kỹ năng xử lý dữ liệu lớn với Spark và tối ưu hóa truy vấn SQL phân tán.",
+          target_skills: ["SQL", "Data Modeling", "ETL Pipelines", "Pandas"],
           completed: false
         }
       ],
@@ -170,12 +173,14 @@ export const MOCK_ROADMAP: RoadmapGenerationResponse = {
     {
       semester_name: "Học kỳ 6 (Học kỳ chuyên sâu)",
       target_focus: "Xử lý Ngôn ngữ Tự nhiên (NLP), Vector DB và Kiến trúc RAG",
+      milestone_skills: ["NLP", "Transformers", "Large Language Models", "Prompt Engineering", "Docker", "MLOps", "ChromaDB"],
       recommended_courses: [
         {
           course_code: "CS415",
           course_name: "Xử lý Ngôn ngữ Tự nhiên & Mô hình Ngôn ngữ Lớn",
           credits: 3,
           rationale: "Giúp nắm vững kỹ thuật Embedding, Fine-tuning mô hình ngôn ngữ và xây dựng Agentic Workflows.",
+          target_skills: ["NLP", "Transformers", "Large Language Models", "Prompt Engineering"],
           completed: false
         },
         {
@@ -183,6 +188,7 @@ export const MOCK_ROADMAP: RoadmapGenerationResponse = {
           course_name: "Kiến trúc Hệ thống Đám mây & MLOps",
           credits: 3,
           rationale: "Bù đắp kỹ năng triển khai mô hình AI lên production, đóng gói Docker và giám sát độ trễ suy luận.",
+          target_skills: ["Docker", "Kubernetes", "CI/CD", "Cloud Computing", "MLOps"],
           completed: false
         }
       ],
@@ -199,12 +205,14 @@ export const MOCK_ROADMAP: RoadmapGenerationResponse = {
     {
       semester_name: "Học kỳ 7 & 8 (Tốt nghiệp & Thực chiến Doanh nghiệp)",
       target_focus: "Khóa luận tốt nghiệp AI & Thực tập kỹ sư dữ liệu tại doanh nghiệp",
+      milestone_skills: ["System Design", "Hybrid Cloud", "Fullstack & AI", "Research", "Project Management"],
       recommended_courses: [
         {
           course_code: "CS499",
           course_name: "Đồ án Khóa luận Tốt nghiệp Ngành Khoa học Dữ liệu",
           credits: 6,
           rationale: "Đóng gói toàn bộ kiến thức thành một sản phẩm công nghệ hoàn chỉnh công bố báo cáo kỹ thuật.",
+          target_skills: ["System Design", "Hybrid Cloud", "Research", "Project Management"],
           completed: false
         }
       ],

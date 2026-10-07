@@ -79,6 +79,26 @@ export const MilestoneTree: React.FC<MilestoneTreeProps> = ({ semesters, targetM
               <p className="text-xs text-indigo-200/80 font-medium mt-1">
                 Trọng tâm: {sem.target_focus}
               </p>
+
+              {/* Dải kỹ năng chuẩn đầu ra của giai đoạn */}
+              {sem.milestone_skills && sem.milestone_skills.length > 0 && (
+                <div className="mt-2.5 p-2.5 rounded-xl bg-slate-900/60 border border-slate-800/80">
+                  <div className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-300 uppercase tracking-wider mb-1.5">
+                    <Sparkles className="w-3 h-3 text-indigo-400" />
+                    <span>Kỹ năng chuẩn đầu ra giai đoạn {idx + 1}:</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {sem.milestone_skills.map((skill, sIdx) => (
+                      <span
+                        key={sIdx}
+                        className="text-[9px] font-mono px-2 py-0.5 rounded-md bg-slate-800/80 text-slate-300 border border-slate-700/60"
+                      >
+                        #{skill}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Content Groups */}
@@ -96,6 +116,7 @@ export const MilestoneTree: React.FC<MilestoneTreeProps> = ({ semesters, targetM
                     title={course.course_name}
                     subtitle={course.course_code}
                     credits={course.credits}
+                    skills={course.target_skills}
                     rationale={course.rationale}
                   />
                 ))}
