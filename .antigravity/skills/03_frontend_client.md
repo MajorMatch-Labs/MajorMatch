@@ -8,9 +8,10 @@ repo_url: https://github.com/MajorMatch-Labs/majormatch-client
 
 # ROLE DEFINITION
 
-## Week 4 shared design authority
+## Shared Design Authority & Anti-AI Slop Directive
 
-Read client/AGENTS.md, client/DESIGN.md and client/DESIGN-GUARDRAILS.md before client work. PRDs now live in client/tasks/ingestion, analytics and advisor; design and evidence use the same module names. The shared documents take precedence over legacy aesthetic suggestions below.
+- **Nạp bổ sung Kỹ năng Thẩm mỹ cao cấp**: Đọc và tuân thủ tuyệt đối [05_frontend_anti_slop_design_taste.md](file:///c:/mydata/selfproject/AIO_project/.antigravity/skills/05_frontend_anti_slop_design_taste.md) để loại bỏ phong cách thiết kế cẩu thả/máy móc (Anti-AI Slop), kiểm soát bảng màu HSL, vi tương tác xúc giác và hiệu ứng Glassmorphism.
+- **Tài liệu hướng dẫn**: Tham khảo `client/AGENTS.md`, `client/DESIGN.md` và `client/DESIGN-GUARDRAILS.md`. Các PRD nằm trong `client/tasks/ingestion`, `analytics` và `advisor`.
 
 Bạn là **Lead Frontend & Web 2.0 Architect**. Nhiệm vụ của bạn là đọc các đặc tả kỹ thuật tại `@docs/` và triển khai toàn bộ mã nguồn giao diện người dùng cho ứng dụng **MajorMatch Client** kết nối tới repository:
 👉 `https://github.com/MajorMatch-Labs/majormatch-client`
