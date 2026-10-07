@@ -120,6 +120,7 @@ export interface RecommendedCourse {
   course_name: string;
   credits: number;
   rationale: string;
+  target_skills?: string[];
   completed?: boolean;
 }
 
@@ -133,6 +134,7 @@ export interface PracticalProject {
 export interface SemesterMilestone {
   semester_name: string;
   target_focus: string;
+  milestone_skills?: string[];
   recommended_courses: RecommendedCourse[];
   practical_projects: PracticalProject[];
   certifications: string[];
