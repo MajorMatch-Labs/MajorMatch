@@ -23,15 +23,42 @@ export const RiasecSurvey: React.FC = () => {
     toggleCareerTag,
   } = useProfileStore();
 
+  // State độc lập cho từng câu hỏi từ 1 đến 10
+  const [questionAnswers, setQuestionAnswers] = React.useState<Record<number, number>>({
+    1: 3, 2: 4, 3: 3, 4: 3, 5: 4, 6: 4, 7: 3, 8: 3, 9: 3, 10: 4
+  });
+
+  const handleScoreChange = (qId: number, val: number) => {
+    const nextAnswers = { ...questionAnswers, [qId]: val };
+    setQuestionAnswers(nextAnswers);
+
+    // Tính điểm trung bình theo chuẩn từng nhóm RIASEC
+    const rScores = [nextAnswers[1] || 3, nextAnswers[8] || 3];
+    const iScores = [nextAnswers[2] || 3, nextAnswers[7] || 3];
+    const aScores = [nextAnswers[3] || 3, nextAnswers[9] || 3];
+    const sScores = [nextAnswers[4] || 3];
+    const eScores = [nextAnswers[5] || 3, nextAnswers[10] || 3];
+    const cScores = [nextAnswers[6] || 3];
+
+    const calcAvg = (arr: number[]) => Math.round((arr.reduce((a, b) => a + b, 0) / arr.length) * 10) / 10;
+
+    setRiasecScore('r', calcAvg(rScores));
+    setRiasecScore('i', calcAvg(iScores));
+    setRiasecScore('a', calcAvg(aScores));
+    setRiasecScore('s', calcAvg(sScores));
+    setRiasecScore('e', calcAvg(eScores));
+    setRiasecScore('c', calcAvg(cScores));
+  };
+
   // Tinh toan ma Holland noi troi tu diem so hien tai
   const dominantInfo = useMemo(() => {
     const rawScores = {
-      r: riasecScores.r || 3.0,
-      i: riasecScores.i || 3.0,
-      a: riasecScores.a || 3.0,
-      s: riasecScores.s || 3.0,
-      e: riasecScores.e || 3.0,
-      c: riasecScores.c || 3.0,
+      r: riasecScores.r || riasecScores.R || 3.0,
+      i: riasecScores.i || riasecScores.I || 3.0,
+      a: riasecScores.a || riasecScores.A || 3.0,
+      s: riasecScores.s || riasecScores.S || 3.0,
+      e: riasecScores.e || riasecScores.E || 3.0,
+      c: riasecScores.c || riasecScores.C || 3.0,
     };
     const ranked = rankRiasecTraits(rawScores);
     const dominant = getDominantHollandCode(rawScores);
@@ -124,8 +151,7 @@ export const RiasecSurvey: React.FC = () => {
 
         <div className="space-y-4">
           {RIASEC_QUESTIONS_DATASET.map((q) => {
-            const groupKey = q.category.toLowerCase();
-            const currentScore = riasecScores[groupKey] || 3;
+            const currentScore = questionAnswers[q.id] ?? 3;
             const traitMeta = RIASEC_TRAIT_DEFINITIONS[q.category];
 
             return (
@@ -158,7 +184,7 @@ export const RiasecSurvey: React.FC = () => {
                     max="5"
                     step="1"
                     value={currentScore}
-                    onChange={(e) => setRiasecScore(groupKey, parseInt(e.target.value))}
+                    onChange={(e) => handleScoreChange(q.id, parseInt(e.target.value))}
                     className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-600 focus:outline-none"
                   />
                   <span className="text-[10px] text-slate-400">5</span>

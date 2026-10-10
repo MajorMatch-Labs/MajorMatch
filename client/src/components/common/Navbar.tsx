@@ -12,21 +12,27 @@ import {
   ShieldCheck,
   Github,
   Sun,
-  Moon
+  Moon,
+  User,
+  LogOut
 } from "lucide-react";
 import { ApiService } from "@/services/api";
 import { HealthCheckResponse } from "@/types/api";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 export const Navbar: React.FC = () => {
   const pathname = usePathname();
   const [health, setHealth] = useState<HealthCheckResponse | null>(null);
   const [isDark, setIsDark] = useState<boolean>(true);
+  const { user, isAuthenticated, openAuthModal, logout, checkAuthSession } = useAuthStore();
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
 
   useEffect(() => {
     ApiService.checkHealth().then(setHealth);
+    checkAuthSession();
     const isDarkTheme = document.documentElement.classList.contains("dark");
     setIsDark(isDarkTheme);
-  }, []);
+  }, [checkAuthSession]);
 
   const toggleTheme = () => {
     const nextDark = !isDark;
@@ -88,8 +94,8 @@ export const Navbar: React.FC = () => {
           })}
         </nav>
 
-        {/* Right Section: Node Status & Github */}
-        <div className="flex items-center gap-3">
+        {/* Right Section: Node Status, Theme & Auth */}
+        <div className="flex items-center gap-2.5">
           {health && (
             <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 text-[11px]">
               <span className="relative flex h-2 w-2">
@@ -104,7 +110,7 @@ export const Navbar: React.FC = () => {
           {/* Theme Toggle Button */}
           <button
             onClick={toggleTheme}
-            className="p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800/80 transition-all border border-slate-200 dark:border-slate-800"
+            className="p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-all border border-slate-200 dark:border-slate-800"
             title={isDark ? "Chuyển sang chế độ Sáng (Light mode)" : "Chuyển sang chế độ Tối (Dark mode)"}
             aria-label="Toggle Theme"
           >
@@ -115,11 +121,63 @@ export const Navbar: React.FC = () => {
             )}
           </button>
 
+          {/* User Account / Login Button */}
+          {isAuthenticated && user ? (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowProfileMenu(!showProfileMenu)}
+                className="flex items-center gap-2 p-1.5 pr-3 rounded-full bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800/80 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-all"
+              >
+                <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-600 to-cyan-500 flex items-center justify-center text-white text-[11px] font-bold">
+                  {user.name.charAt(0)}
+                </div>
+                <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 hidden sm:inline">
+                  {user.name.split(" ").slice(-1)[0]}
+                </span>
+              </button>
+
+              {showProfileMenu && (
+                <div className="absolute right-0 mt-2 w-56 rounded-2xl glass-panel border border-slate-200 dark:border-slate-800 shadow-xl p-3 bg-white dark:bg-slate-900 animate-in fade-in zoom-in-95 duration-150 z-50">
+                  <div className="px-2 py-1.5 border-b border-slate-200 dark:border-slate-800">
+                    <p className="text-xs font-bold text-slate-900 dark:text-white">{user.name}</p>
+                    <p className="text-[10px] text-slate-500 font-mono">MSSV: {user.studentId}</p>
+                    <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-medium truncate mt-0.5">
+                      {user.major}
+                    </p>
+                  </div>
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowProfileMenu(false);
+                        logout();
+                      }}
+                      className="w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      <span>Đăng xuất</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => openAuthModal("login")}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-600/25 transition-all"
+            >
+              <User className="w-3.5 h-3.5" />
+              <span>Đăng nhập</span>
+            </button>
+          )}
+
           <a
-            href="https://github.com/MajorMatch-Labs/majormatch-client"
+            href="https://github.com/MajorMatch-Labs/MajorMatch"
             target="_blank"
             rel="noopener noreferrer"
-            className="p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800/80 transition-colors border border-slate-200 dark:border-slate-800"
+            className="p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors border border-slate-200 dark:border-slate-800"
             title="GitHub Repository"
           >
             <Github className="w-4 h-4" />

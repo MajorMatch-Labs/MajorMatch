@@ -18,7 +18,7 @@ import {
   MOCK_HEALTH_CHECK
 } from "./mockData";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE_URL = typeof window !== "undefined" ? "" : (process.env.NEXT_PUBLIC_API_URL || "");
 
 export class ApiService {
   /**
@@ -29,7 +29,7 @@ export class ApiService {
       const res = await fetch(`${API_BASE_URL}/api/v1/health`, {
         method: "GET",
         headers: { "Content-Type": "application/json" },
-        signal: AbortSignal.timeout(3000)
+        signal: AbortSignal.timeout(5000)
       });
       if (!res.ok) throw new Error("Backend unhealthy");
       return await res.json();
@@ -44,28 +44,26 @@ export class ApiService {
    * Endpoint: POST /api/v1/profile/upload-transcript
    */
   static async parseTranscript(file: File): Promise<TranscriptParsingResponse> {
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("document_type", "transcript");
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("document_type", "transcript");
 
-      const res = await fetch(`${API_BASE_URL}/api/v1/profile/upload-transcript`, {
-        method: "POST",
-        body: formData,
-        signal: AbortSignal.timeout(15000)
-      });
+    const res = await fetch(`${API_BASE_URL}/api/v1/profile/upload-transcript`, {
+      method: "POST",
+      body: formData,
+      signal: AbortSignal.timeout(30000)
+    });
 
-      if (!res.ok) throw new Error(`Upload failed with status: ${res.status}`);
-      const data = await res.json();
-      return {
-        ...data,
-        profile: data.profile_data || data.profile
-      };
-    } catch (err) {
-      console.warn("Backend upload failed or offline. Using high-fidelity Mock Transcript data.", err);
-      await new Promise((r) => setTimeout(r, 800));
-      return MOCK_TRANSCRIPT_PARSING;
+    if (!res.ok) {
+      const errorText = await res.text().catch(() => "");
+      throw new Error(`Bóc tách tệp thất bại (HTTP ${res.status}): ${errorText || "Lỗi máy chủ xử lý PDF"}`);
     }
+
+    const data = await res.json();
+    return {
+      ...data,
+      profile: data.profile_data || data.profile
+    };
   }
 
   /**
@@ -75,28 +73,23 @@ export class ApiService {
   static async calculateMatch(
     requestPayload: CalculateMatchRequest
   ): Promise<CalculateMatchResponse> {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/assessment/calculate-match`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(requestPayload),
-        signal: AbortSignal.timeout(8000)
-      });
+    const res = await fetch(`${API_BASE_URL}/api/v1/assessment/calculate-match`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(requestPayload),
+      signal: AbortSignal.timeout(15000)
+    });
 
-      if (!res.ok) throw new Error(`Calculate match failed: ${res.status}`);
-      const data: CalculateMatchResponse = await res.json();
-      return {
-        ...data,
-        top_recommendations: data.top_matches
-      };
-    } catch (err) {
-      console.warn("Calculate match API offline. Falling back to Mock Analysis response.", err);
-      await new Promise((r) => setTimeout(r, 600));
-      return {
-        ...MOCK_SKILL_GAP_ANALYSIS,
-        target_career: requestPayload.target_career_tags[0] || MOCK_SKILL_GAP_ANALYSIS.target_career
-      };
+    if (!res.ok) {
+      const errorText = await res.text().catch(() => "");
+      throw new Error(`Tính toán khoảng cách kỹ năng thất bại (HTTP ${res.status}): ${errorText}`);
     }
+
+    const data: CalculateMatchResponse = await res.json();
+    return {
+      ...data,
+      top_recommendations: data.top_matches
+    };
   }
 
   /**
@@ -108,12 +101,12 @@ export class ApiService {
     riasecScores?: Record<string, number>
   ): Promise<CalculateMatchResponse> {
     const holland: any = {
-      realistic: riasecScores?.R || 3.0,
-      investigative: riasecScores?.I || 3.0,
-      artistic: riasecScores?.A || 3.0,
-      social: riasecScores?.S || 3.0,
-      enterprising: riasecScores?.E || 3.0,
-      conventional: riasecScores?.C || 3.0
+      realistic: riasecScores?.R || riasecScores?.r || 3.0,
+      investigative: riasecScores?.I || riasecScores?.i || 3.0,
+      artistic: riasecScores?.A || riasecScores?.a || 3.0,
+      social: riasecScores?.S || riasecScores?.s || 3.0,
+      enterprising: riasecScores?.E || riasecScores?.e || 3.0,
+      conventional: riasecScores?.C || riasecScores?.c || 3.0
     };
     return this.calculateMatch({
       holland_scores: holland,
@@ -128,24 +121,19 @@ export class ApiService {
   static async generateRoadmap(
     payload: RoadmapGenerationRequest
   ): Promise<RoadmapGenerationResponse> {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/roadmap/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(20000)
-      });
+    const res = await fetch(`${API_BASE_URL}/api/v1/roadmap/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(25000)
+    });
 
-      if (!res.ok) throw new Error(`Roadmap generation failed: ${res.status}`);
-      return await res.json();
-    } catch (err) {
-      console.warn("Roadmap generation offline. Falling back to Mock Milestone Tree.", err);
-      await new Promise((r) => setTimeout(r, 1000));
-      return {
-        ...MOCK_ROADMAP,
-        target_major: payload.target_major_id || MOCK_ROADMAP.target_major
-      };
+    if (!res.ok) {
+      const errorText = await res.text().catch(() => "");
+      throw new Error(`Sinh lộ trình học tập thất bại (HTTP ${res.status}): ${errorText}`);
     }
+
+    return await res.json();
   }
 
   /**

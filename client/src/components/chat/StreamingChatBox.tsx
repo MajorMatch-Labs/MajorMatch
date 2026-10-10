@@ -77,7 +77,7 @@ export const StreamingChatBox: React.FC = () => {
     const assistantIndex = messages.length + 1;
     setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
 
-    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    const apiBaseUrl = typeof window !== "undefined" ? "" : (process.env.NEXT_PUBLIC_API_URL || "");
     const endpoint = `${apiBaseUrl}/api/v1/chat/stream`;
 
     await controllerRef.current?.startStream(

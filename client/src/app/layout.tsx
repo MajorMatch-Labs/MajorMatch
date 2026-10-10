@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "@/styles/globals.css";
 import { Navbar } from "@/components/common/Navbar";
 import { Footer } from "@/components/common/Footer";
+import { AuthModal } from "@/components/auth/AuthModal";
 
 export const metadata: Metadata = {
   title: "MajorMatch - Hệ thống Định hướng & Phân tích Kỹ năng Học tập Web 2.0",
@@ -46,6 +47,7 @@ export default function RootLayout({
           {children}
         </main>
 
+        <AuthModal />
         <Footer />
       </body>
     </html>
