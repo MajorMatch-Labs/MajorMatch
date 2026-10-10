@@ -1,0 +1,79 @@
+name: Deploy Client to AWS EC2
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'client/**'
+      - '.github/workflows/deploy-client-ec2.yml'
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    name: Build & Deploy Client Docker to AWS EC2
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 1. Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 2. Setup Node.js 20 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: client/package-lock.json
+
+      - name: 3. Install Dependencies
+        run: |
+          cd client
+          npm ci || npm install
+
+      - name: 4. Build Next.js 14 Standalone
+        run: |
+          cd client
+          npm run build
+
+      - name: 5. Package Standalone Artifacts
+        run: |
+          cd client
+          mkdir -p public
+          tar -czf ../client-package.tar.gz .next/standalone .next/static public Dockerfile docker-compose.yml
+
+      - name: 6. Upload Package to AWS EC2
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "client-package.tar.gz"
+          target: "/home/ubuntu"
+          overwrite: true
+
+      - name: 7. Deploy & Restart Docker Container on AWS EC2
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
+            echo "[+] Extracting package..."
+            mkdir -p ~/client
+            tar -xzf ~/client-package.tar.gz -C ~/client
+            rm -f ~/client-package.tar.gz
+
+            echo "[+] Building Docker Image on EC2..."
+            cd ~/client
+            sudo docker build -t majormatch-client:latest .
+
+            echo "[+] Recreating Docker Container..."
+            sudo docker rm -f majormatch-client || true
+            sudo docker run -d --name majormatch-client --restart always -p 3000:3000 majormatch-client:latest
+
+            echo "[+] Reloading Nginx Reverse Proxy..."
+            sudo nginx -t && sudo nginx -s reload
+
+            echo "[✓] Deployment completed successfully! Web is running at port 3000/80."
+            sudo docker ps | grep majormatch-client

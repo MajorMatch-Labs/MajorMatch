@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  majormatch-client:
+    image: majormatch-client:latest
+    container_name: majormatch-client
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    networks:
+      - majormatch-net
+
+networks:
+  majormatch-net:
+    driver: bridge

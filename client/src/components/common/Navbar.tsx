@@ -10,7 +10,9 @@ import {
   GitFork,
   MessageSquare,
   ShieldCheck,
-  Github
+  Github,
+  Sun,
+  Moon
 } from "lucide-react";
 import { ApiService } from "@/services/api";
 import { HealthCheckResponse } from "@/types/api";
@@ -18,10 +20,25 @@ import { HealthCheckResponse } from "@/types/api";
 export const Navbar: React.FC = () => {
   const pathname = usePathname();
   const [health, setHealth] = useState<HealthCheckResponse | null>(null);
+  const [isDark, setIsDark] = useState<boolean>(true);
 
   useEffect(() => {
     ApiService.checkHealth().then(setHealth);
+    const isDarkTheme = document.documentElement.classList.contains("dark");
+    setIsDark(isDarkTheme);
   }, []);
+
+  const toggleTheme = () => {
+    const nextDark = !isDark;
+    setIsDark(nextDark);
+    if (nextDark) {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("majormatch-theme", "dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("majormatch-theme", "light");
+    }
+  };
 
   const navLinks = [
     { href: "/", label: "Trang chủ", icon: Compass },
@@ -84,11 +101,25 @@ export const Navbar: React.FC = () => {
             </div>
           )}
 
+          {/* Theme Toggle Button */}
+          <button
+            onClick={toggleTheme}
+            className="p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800/80 transition-all border border-slate-200 dark:border-slate-800"
+            title={isDark ? "Chuyển sang chế độ Sáng (Light mode)" : "Chuyển sang chế độ Tối (Dark mode)"}
+            aria-label="Toggle Theme"
+          >
+            {isDark ? (
+              <Sun className="w-4 h-4 text-amber-400 animate-in spin-in-90 duration-200" />
+            ) : (
+              <Moon className="w-4 h-4 text-indigo-600 animate-in spin-in-90 duration-200" />
+            )}
+          </button>
+
           <a
             href="https://github.com/MajorMatch-Labs/majormatch-client"
             target="_blank"
             rel="noopener noreferrer"
-            className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors border border-slate-800"
+            className="p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800/80 transition-colors border border-slate-200 dark:border-slate-800"
             title="GitHub Repository"
           >
             <Github className="w-4 h-4" />
