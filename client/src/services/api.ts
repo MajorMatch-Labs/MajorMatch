@@ -13,8 +13,6 @@ import {
 } from "../types/api";
 import {
   MOCK_TRANSCRIPT_PARSING,
-  MOCK_SKILL_GAP_ANALYSIS,
-  MOCK_ROADMAP,
   MOCK_HEALTH_CHECK
 } from "./mockData";
 
@@ -125,7 +123,7 @@ export class ApiService {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(25000)
+      signal: AbortSignal.timeout(30000)
     });
 
     if (!res.ok) {
@@ -133,7 +131,24 @@ export class ApiService {
       throw new Error(`Sinh lộ trình học tập thất bại (HTTP ${res.status}): ${errorText}`);
     }
 
-    return await res.json();
+    const data: any = await res.json();
+    const readiness = data.job_readiness_percentage ?? data.readiness_score ?? 70;
+    const semesters = (data.semesters || []).map((sem: any) => ({
+      semester_name: sem.semester_name || sem.semester_title || `Học kỳ ${sem.semester_number}`,
+      target_focus: sem.target_focus || sem.semester_title || "Phát triển năng lực chuyên môn",
+      milestone_skills: sem.milestone_skills || [],
+      recommended_courses: sem.recommended_courses || [],
+      certifications: sem.certifications || [],
+      practical_projects: sem.practical_projects || (sem.practical_project ? [sem.practical_project] : [])
+    }));
+
+    return {
+      status: "success",
+      target_major: data.target_major,
+      readiness_score: readiness,
+      total_milestones: semesters.length,
+      semesters
+    };
   }
 
   /**
@@ -157,12 +172,18 @@ export class ApiService {
           Accept: "text/event-stream"
         },
         body: JSON.stringify({
+          conversation_id: `conv-${Date.now()}`,
           message,
           major_focus: targetMajor,
           gpa: gpa || 3.2,
           mastered_skills: skillsContext?.mastered || [],
           missing_skills: skillsContext?.missing || [],
-          student_profile_context: `Định hướng: ${targetMajor} | Kỹ năng cần bù đắp: ${skillsContext?.missing?.join(", ") || "Chưa xác định"}`
+          student_profile_context: `Định hướng: ${targetMajor} | Kỹ năng cần bù đắp: ${skillsContext?.missing?.join(", ") || "Chưa xác định"}`,
+          context: {
+            target_major: targetMajor,
+            current_gpa: gpa || 3.2,
+            missing_skills: skillsContext?.missing || []
+          }
         })
       });
 

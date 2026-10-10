@@ -11,29 +11,16 @@ import { ArrowRight, Loader2, Sparkles } from "lucide-react";
 export default function UploadPage() {
   const router = useRouter();
   const {
-    profile,
-    selectedCareerTags,
-    riasecScores,
     isAnalyzing,
-    setAnalyzing,
-    setAnalysisResult,
+    calculateMatchAction,
   } = useProfileStore();
 
   const handleStartAnalysis = async () => {
-    setAnalyzing(true);
     try {
-      const targetCareer = selectedCareerTags[0] || "ai_engineer";
-      const userSkills = profile?.detected_skills || [
-        "Python", "Algorithms", "Data Structures", "SQL", "Web Development"
-      ];
-
-      const res = await ApiService.analyzeSkillGap(targetCareer, userSkills, riasecScores);
-      setAnalysisResult(res);
+      await calculateMatchAction();
       router.push("/result");
-    } catch {
-      console.error("Analysis failed");
-    } finally {
-      setAnalyzing(false);
+    } catch (err) {
+      console.error("Quá trình tính toán năng lực thất bại:", err);
     }
   };
 

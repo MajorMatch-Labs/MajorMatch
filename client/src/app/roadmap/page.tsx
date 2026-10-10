@@ -3,20 +3,46 @@
 import React, { useEffect } from "react";
 import { useProfileStore } from "@/stores/useProfileStore";
 import { MilestoneTree } from "@/components/roadmap/MilestoneTree";
-import { MOCK_ROADMAP } from "@/services/mockData";
-import { Sparkles, MessageSquare, ArrowLeft } from "lucide-react";
+import { Sparkles, MessageSquare, ArrowLeft, Loader2, GitBranch } from "lucide-react";
 import Link from "next/link";
 
 export default function RoadmapPage() {
-  const { roadmap, selectedMajor, setRoadmap } = useProfileStore();
+  const {
+    roadmap,
+    selectedMajor,
+    isGeneratingRoadmap,
+    generateRoadmapAction,
+  } = useProfileStore();
 
+  // Tự động kích hoạt RAG sinh lộ trình nếu người dùng truy cập trực tiếp /roadmap
   useEffect(() => {
-    if (!roadmap) {
-      setRoadmap(MOCK_ROADMAP);
+    if (!roadmap && !isGeneratingRoadmap) {
+      generateRoadmapAction(4);
     }
-  }, [roadmap, setRoadmap]);
+  }, [roadmap, isGeneratingRoadmap, generateRoadmapAction]);
 
-  const currentRoadmap = roadmap || MOCK_ROADMAP;
+  if (isGeneratingRoadmap || !roadmap) {
+    return (
+      <div className="min-h-[55vh] flex flex-col items-center justify-center p-6 text-center space-y-5 max-w-md mx-auto">
+        <div className="relative">
+          <div className="w-20 h-20 rounded-3xl bg-emerald-50 dark:bg-emerald-600/10 border-2 border-emerald-500/30 flex items-center justify-center shadow-lg shadow-emerald-500/20 animate-pulse">
+            <GitBranch className="w-10 h-10 text-emerald-600 dark:text-emerald-400" />
+          </div>
+          <Loader2 className="w-8 h-8 text-indigo-500 absolute -top-2 -right-2 animate-spin" />
+        </div>
+        <div className="space-y-2">
+          <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+            Đang Xây Dựng Cây Lộ Trình Học Tập Cá Nhân Hóa
+          </h3>
+          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
+            ChromaDB RAG và mô hình Ollama Qwen 2.5 7B đang kiểm tra điều kiện tiên quyết và thiết kế đồ án thực chiến cho từng học kỳ...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const currentRoadmap = roadmap;
   const majorName = selectedMajor?.major_name || currentRoadmap.target_major;
 
   return (

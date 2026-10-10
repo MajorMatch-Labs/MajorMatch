@@ -6,53 +6,61 @@ import { useProfileStore } from "@/stores/useProfileStore";
 import { MajorCard } from "@/components/analysis/MajorCard";
 import { RadarComparison } from "@/components/analysis/RadarComparison";
 import { SkillBreakdown } from "@/components/analysis/SkillBreakdown";
-import { ApiService } from "@/services/api";
-import { MOCK_SKILL_GAP_ANALYSIS } from "@/services/mockData";
-import { Sparkles, ArrowRight, Loader2, GitBranch } from "lucide-react";
+import { Sparkles, ArrowRight, Loader2, GitBranch, Cpu } from "lucide-react";
 
 export default function ResultPage() {
   const router = useRouter();
   const {
     analysisResult,
     selectedMajor,
-    profile,
+    isAnalyzing,
     isGeneratingRoadmap,
-    setAnalysisResult,
     setSelectedMajor,
-    setRoadmap,
-    setGeneratingRoadmap,
+    calculateMatchAction,
+    generateRoadmapAction,
   } = useProfileStore();
 
-  // Tự động nạp dữ liệu mẫu nếu người dùng truy cập trực tiếp trang /result
+  // Tự động kích hoạt tính toán Cosine Similarity nếu người dùng vào thẳng trang /result
   useEffect(() => {
-    if (!analysisResult) {
-      setAnalysisResult(MOCK_SKILL_GAP_ANALYSIS);
+    if (!analysisResult && !isAnalyzing) {
+      calculateMatchAction();
     }
-  }, [analysisResult, setAnalysisResult]);
-
-  const currentResult = analysisResult || MOCK_SKILL_GAP_ANALYSIS;
-  const recommendations = currentResult.top_matches || currentResult.top_recommendations || [];
-  const currentMajor = selectedMajor || recommendations[0];
+  }, [analysisResult, isAnalyzing, calculateMatchAction]);
 
   const handleGenerateRoadmap = async () => {
-    if (!currentMajor) return;
-    setGeneratingRoadmap(true);
+    if (!selectedMajor && !analysisResult?.top_matches?.[0]) return;
     try {
-      const gpa = profile?.cumulative_gpa || 3.42;
-      const res = await ApiService.generateRoadmap({
-        target_major_id: currentMajor.major_id || "CS_DATA_AI",
-        missing_skills: currentMajor.skill_gap?.missing_skills || currentResult.skill_breakdown?.missing_skills || [],
-        current_semester: 4,
-        cumulative_gpa: gpa
-      });
-      setRoadmap(res);
+      await generateRoadmapAction(4);
       router.push("/roadmap");
-    } catch {
-      console.error("Failed to generate roadmap");
-    } finally {
-      setGeneratingRoadmap(false);
+    } catch (err) {
+      console.error("Lỗi khi sinh lộ trình RAG LLM:", err);
     }
   };
+
+  if (isAnalyzing || !analysisResult) {
+    return (
+      <div className="min-h-[55vh] flex flex-col items-center justify-center p-6 text-center space-y-5">
+        <div className="relative">
+          <div className="w-20 h-20 rounded-3xl bg-indigo-50 dark:bg-indigo-600/10 border-2 border-indigo-500/30 flex items-center justify-center shadow-lg shadow-indigo-500/20 animate-pulse">
+            <Cpu className="w-10 h-10 text-indigo-600 dark:text-indigo-400" />
+          </div>
+          <Loader2 className="w-8 h-8 text-cyan-500 absolute -top-2 -right-2 animate-spin" />
+        </div>
+        <div className="space-y-2 max-w-md">
+          <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+            Đang Tính Toán Ma Trận Cosine Similarity
+          </h3>
+          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
+            Private HPC Compute Node đang vector hóa hồ sơ học tập và đối chiếu 6 trục năng lực với chuẩn ngành đào tạo...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const currentResult = analysisResult;
+  const recommendations = currentResult.top_matches || currentResult.top_recommendations || [];
+  const currentMajor = selectedMajor || recommendations[0];
 
   return (
     <div className="space-y-8 py-4">
