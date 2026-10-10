@@ -12,10 +12,10 @@ export default function ChatPage() {
           <Sparkles className="w-3.5 h-3.5" />
           <span>Server-Sent Events (SSE) Streaming</span>
         </div>
-        <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+        <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
           Cố vấn Học tập Trí tuệ Nhân tạo
         </h2>
-        <p className="text-xs sm:text-sm text-slate-400 mt-1">
+        <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-1">
           Hỏi đáp chuyên sâu về lộ trình đại học, môn học tiên quyết, và chiến lược xây dựng CV/Portfolio.
         </p>
       </div>

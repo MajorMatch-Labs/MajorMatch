@@ -49,7 +49,7 @@ export const Navbar: React.FC = () => {
   ];
 
   return (
-    <header className="sticky top-0 z-50 w-full glass-panel border-b border-slate-800/80 backdrop-blur-md">
+    <header className="sticky top-0 z-50 w-full glass-panel border-b border-slate-200/90 dark:border-slate-800/80 backdrop-blur-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2.5 group">
@@ -57,10 +57,10 @@ export const Navbar: React.FC = () => {
             <Compass className="w-5 h-5 text-white" />
           </div>
           <div className="flex flex-col">
-            <span className="text-lg font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-100 to-indigo-200">
+            <span className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">
               MajorMatch
             </span>
-            <span className="text-[10px] uppercase font-semibold tracking-wider text-indigo-400 -mt-1">
+            <span className="text-[10px] uppercase font-semibold tracking-wider text-indigo-600 dark:text-indigo-400 -mt-1">
               AI Skill Advisor Web 2.0
             </span>
           </div>
@@ -77,11 +77,11 @@ export const Navbar: React.FC = () => {
                 href={item.href}
                 className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium transition-all duration-150 ${
                   isActive
-                    ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 shadow-sm"
-                    : "text-slate-400 hover:text-slate-100 hover:bg-slate-800/50"
+                    ? "bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm dark:bg-indigo-600/20 dark:text-indigo-300 dark:border-indigo-500/30"
+                    : "text-slate-600 hover:text-slate-950 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-800/50"
                 }`}
               >
-                <Icon className={`w-4 h-4 ${isActive ? "text-indigo-400" : "text-slate-500"}`} />
+                <Icon className={`w-4 h-4 ${isActive ? "text-indigo-600 dark:text-indigo-400" : "text-slate-500"}`} />
                 {item.label}
               </Link>
             );
@@ -91,13 +91,13 @@ export const Navbar: React.FC = () => {
         {/* Right Section: Node Status & Github */}
         <div className="flex items-center gap-3">
           {health && (
-            <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/80 border border-slate-800 text-[11px]">
+            <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 text-[11px]">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
-              <span className="text-slate-300 font-medium">HPC Private Node</span>
-              <span className="text-emerald-400 font-mono text-[10px]">Ready</span>
+              <span className="text-slate-700 dark:text-slate-300 font-medium">HPC Private Node</span>
+              <span className="text-emerald-600 dark:text-emerald-400 font-mono text-[10px]">Ready</span>
             </div>
           )}
 

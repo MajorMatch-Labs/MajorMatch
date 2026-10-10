@@ -41,21 +41,21 @@ export default function UploadPage() {
     <div className="max-w-4xl mx-auto space-y-8 py-4">
       {/* Page Header */}
       <div>
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-600/10 border border-indigo-500/20 text-indigo-400 text-xs font-semibold mb-2">
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 dark:bg-indigo-600/10 dark:border-indigo-500/20 dark:text-indigo-400 text-xs font-semibold mb-2">
           <Sparkles className="w-3.5 h-3.5" />
           <span>Bước 1 / 3: Thu thập Hồ sơ & Sở thích</span>
         </div>
-        <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+        <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
           Tải Bảng điểm & Trắc nghiệm Thiên hướng
         </h2>
-        <p className="text-xs sm:text-sm text-slate-400 mt-1">
+        <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-1">
           Hệ thống sẽ kết hợp kết quả học tập thực tế và thiên hướng RIASEC để đề xuất Top ngành nghề tối ưu nhất.
         </p>
       </div>
 
-      {/* 1. File Upload Dropzone */}
+      {/* 1. File Dropzone */}
       <div className="space-y-3">
-        <h3 className="text-sm font-semibold text-slate-200">
+        <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-200">
           A. Tải lên bảng điểm hoặc CV (PDF)
         </h3>
         <FileDropzone />
@@ -63,17 +63,17 @@ export default function UploadPage() {
 
       {/* 2. Survey & Career Tag Selection */}
       <div className="space-y-3 pt-2">
-        <h3 className="text-sm font-semibold text-slate-200">
+        <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-200">
           B. Khảo sát thiên hướng & Định hướng nghề nghiệp
         </h3>
         <RiasecSurvey />
       </div>
 
       {/* 3. Action Submit Button */}
-      <div className="p-6 rounded-2xl glass-panel-glow border border-indigo-500/30 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div className="p-6 rounded-2xl glass-panel-glow border border-indigo-200 dark:border-indigo-500/30 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div>
-          <h4 className="text-sm font-bold text-white">Sẵn sàng phân tích định lượng?</h4>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <h4 className="text-sm font-bold text-slate-900 dark:text-white">Sẵn sàng phân tích định lượng?</h4>
+          <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
             Mô-đun Scikit-learn sẽ tính Cosine Similarity và sinh biểu đồ Radar 6 trục.
           </p>
         </div>

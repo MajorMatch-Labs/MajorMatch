@@ -58,14 +58,14 @@ export default function ResultPage() {
     <div className="space-y-8 py-4">
       {/* Page Header */}
       <div>
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-600/10 border border-cyan-500/20 text-cyan-400 text-xs font-semibold mb-2">
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-50 border border-cyan-200 text-cyan-700 dark:bg-cyan-600/10 dark:border-cyan-500/20 dark:text-cyan-400 text-xs font-semibold mb-2">
           <Sparkles className="w-3.5 h-3.5" />
           <span>Bước 2 / 3: Kết quả Định lượng & Radar Chart</span>
         </div>
-        <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+        <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
           Báo cáo Khoảng cách Kỹ năng (Skill Gap Analysis)
         </h2>
-        <p className="text-xs sm:text-sm text-slate-400 mt-1">
+        <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-1">
           Hệ thống xếp hạng Top 3 ngành nghề phù hợp nhất dựa trên điểm số Cosine Similarity và đối chiếu 6 trục năng lực.
         </p>
       </div>
@@ -74,7 +74,7 @@ export default function ResultPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Cột trái: Danh sách Top 3 ngành nghề (5 cols) */}
         <div className="lg:col-span-5 space-y-3">
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">
+          <span className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider block">
             Top 3 Chuyên ngành Phù hợp Nhất:
           </span>
           {recommendations.map((major) => (
@@ -88,18 +88,18 @@ export default function ResultPage() {
         </div>
 
         {/* Cột phải: Biểu đồ Radar đa tầng của ngành đang chọn (7 cols) */}
-        <div className="lg:col-span-7 p-6 rounded-2xl glass-panel border border-slate-800 flex flex-col justify-between">
+        <div className="lg:col-span-7 p-6 rounded-2xl glass-panel border border-slate-200 dark:border-slate-800 flex flex-col justify-between shadow-sm">
           <div>
             <div className="flex items-center justify-between gap-3 mb-1">
-              <h3 className="text-sm font-bold text-white tracking-tight">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">
                 Biểu đồ Radar Năng lực:{" "}
-                <span className="text-indigo-400">{currentMajor?.major_name}</span>
+                <span className="text-indigo-600 dark:text-indigo-400">{currentMajor?.major_name}</span>
               </h3>
-              <span className="px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/30 text-xs font-mono font-bold">
+              <span className="px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-300 dark:border-indigo-500/30 text-xs font-mono font-bold">
                 {currentMajor?.match_percentage || currentMajor?.match_score}% Match
               </span>
             </div>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-600 dark:text-slate-400">
               Đối chiếu 2 lớp: Năng lực hiện tại (Xanh Indigo) so với Chuẩn ngành yêu cầu (Viền Cam).
             </p>
           </div>
@@ -109,7 +109,7 @@ export default function ResultPage() {
             majorName={currentMajor?.major_name || "Chuyên ngành"}
           />
 
-          <div className="text-[11px] text-center text-slate-500 border-t border-slate-800/80 pt-3">
+          <div className="text-[11px] text-center text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800/80 pt-3">
             Tọa độ 6 trục được chuẩn hóa theo thang điểm 10 toán học.
           </div>
         </div>
