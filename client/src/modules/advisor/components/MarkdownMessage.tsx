@@ -19,14 +19,14 @@ export const MarkdownMessage: React.FC<MarkdownMessageProps> = ({ content }) => 
       // 1. Headers (###, ##, #)
       if (line.startsWith('### ')) {
         return (
-          <h4 key={lineIdx} className="text-sm font-bold text-indigo-300 mt-2.5 mb-1">
+          <h4 key={lineIdx} className="text-sm font-bold text-indigo-600 dark:text-indigo-400 mt-2.5 mb-1">
             {line.replace('### ', '')}
           </h4>
         );
       }
       if (line.startsWith('## ')) {
         return (
-          <h3 key={lineIdx} className="text-base font-bold text-white mt-3 mb-1.5 border-b border-slate-800 pb-1">
+          <h3 key={lineIdx} className="text-base font-bold text-slate-900 dark:text-white mt-3 mb-1.5 border-b border-slate-200 dark:border-slate-800 pb-1">
             {line.replace('## ', '')}
           </h3>
         );
@@ -36,7 +36,7 @@ export const MarkdownMessage: React.FC<MarkdownMessageProps> = ({ content }) => 
       if (line.startsWith('- ') || line.startsWith('* ')) {
         const itemContent = line.slice(2);
         return (
-          <li key={lineIdx} className="ml-4 list-disc text-slate-300 text-xs leading-relaxed my-0.5">
+          <li key={lineIdx} className="ml-4 list-disc text-slate-700 dark:text-slate-300 text-xs leading-relaxed my-0.5">
             {formatInlineText(itemContent)}
           </li>
         );
@@ -46,8 +46,8 @@ export const MarkdownMessage: React.FC<MarkdownMessageProps> = ({ content }) => 
       const numberedMatch = line.match(/^(\d+)\.\s+(.*)/);
       if (numberedMatch) {
         return (
-          <div key={lineIdx} className="flex items-start gap-1.5 text-xs text-slate-300 my-0.5 ml-2">
-            <span className="font-mono text-indigo-400 font-bold">{numberedMatch[1]}.</span>
+          <div key={lineIdx} className="flex items-start gap-1.5 text-xs text-slate-700 dark:text-slate-300 my-0.5 ml-2">
+            <span className="font-mono text-indigo-600 dark:text-indigo-400 font-bold">{numberedMatch[1]}.</span>
             <span>{formatInlineText(numberedMatch[2])}</span>
           </div>
         );
@@ -60,7 +60,7 @@ export const MarkdownMessage: React.FC<MarkdownMessageProps> = ({ content }) => 
 
       // 5. Doan van thong thuong
       return (
-        <p key={lineIdx} className="text-xs text-slate-200 leading-relaxed my-1">
+        <p key={lineIdx} className="text-xs text-slate-800 dark:text-slate-200 leading-relaxed my-1">
           {formatInlineText(line)}
         </p>
       );
@@ -79,7 +79,7 @@ export const MarkdownMessage: React.FC<MarkdownMessageProps> = ({ content }) => 
         return (
           <code
             key={idx}
-            className="px-1.5 py-0.5 rounded bg-slate-800 text-indigo-300 font-mono text-[11px] border border-slate-700/80 mx-0.5"
+            className="px-1.5 py-0.5 rounded bg-slate-100 text-indigo-700 dark:bg-slate-800 dark:text-indigo-300 font-mono text-[11px] border border-slate-200 dark:border-slate-700/80 mx-0.5"
           >
             {part.slice(1, -1)}
           </code>
@@ -88,7 +88,7 @@ export const MarkdownMessage: React.FC<MarkdownMessageProps> = ({ content }) => 
 
       if (part.startsWith('**') && part.endsWith('**')) {
         return (
-          <strong key={idx} className="font-bold text-white">
+          <strong key={idx} className="font-bold text-slate-950 dark:text-white">
             {part.slice(2, -2)}
           </strong>
         );
