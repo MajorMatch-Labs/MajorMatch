@@ -57,23 +57,23 @@ export const MilestoneTree: React.FC<MilestoneTreeProps> = ({ semesters, targetM
         </div>
       </div>
 
-      {/* 2. Cây phân bổ từng học kỳ (Milestones) */}
+      {/* 2. Cây phân bổ từng giai đoạn phát triển năng lực (Milestones) */}
       <div className="relative border-l-2 border-indigo-200 dark:border-indigo-500/30 ml-4 md:ml-6 pl-6 md:pl-8 space-y-10">
-        {semesters.map((sem, idx) => (
+        {(semesters || []).map((sem, idx) => (
           <div key={idx} className="relative">
             {/* Timeline Dot */}
             <div className="absolute -left-[31px] md:-left-[39px] top-1.5 w-6 h-6 rounded-full bg-white dark:bg-slate-950 border-2 border-indigo-500 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-md shadow-indigo-500/20">
               <GitCommit className="w-3.5 h-3.5" />
             </div>
 
-            {/* Semester Header */}
+            {/* Phase Header */}
             <div className="mb-4">
               <div className="flex items-center gap-2">
                 <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-600/20 dark:text-indigo-300 dark:border-indigo-500/30 font-mono">
                   GIAI ĐOẠN {idx + 1}
                 </span>
                 <h4 className="text-sm md:text-base font-bold text-slate-900 dark:text-white tracking-tight">
-                  {sem.semester_name}
+                  {sem.phase_title || sem.semester_name}
                 </h4>
               </div>
               <p className="text-xs text-indigo-700 dark:text-indigo-200/80 font-medium mt-1">
@@ -104,31 +104,33 @@ export const MilestoneTree: React.FC<MilestoneTreeProps> = ({ semesters, targetM
             {/* Content Groups */}
             <div className="space-y-3">
               {/* Môn học cốt lõi */}
-              <div className="space-y-2">
-                <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider block">
-                  Môn học đề xuất bù đắp kỹ năng:
-                </span>
-                {sem.recommended_courses.map((course) => (
-                  <InteractiveTask
-                    key={course.course_code}
-                    id={course.course_code}
-                    type="course"
-                    title={course.course_name}
-                    subtitle={course.course_code}
-                    credits={course.credits}
-                    skills={course.target_skills}
-                    rationale={course.rationale}
-                  />
-                ))}
-              </div>
+              {(sem.recommended_courses || []).length > 0 && (
+                <div className="space-y-2">
+                  <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider block">
+                    Môn học đề xuất bồi đắp kiến thức & năng lực:
+                  </span>
+                  {(sem.recommended_courses || []).map((course) => (
+                    <InteractiveTask
+                      key={course.course_code}
+                      id={course.course_code}
+                      type="course"
+                      title={course.course_name}
+                      subtitle={course.course_code}
+                      credits={course.credits}
+                      skills={course.target_skills}
+                      rationale={course.rationale}
+                    />
+                  ))}
+                </div>
+              )}
 
               {/* Đồ án thực chiến */}
-              {sem.practical_projects.length > 0 && (
+              {(sem.practical_projects || []).length > 0 && (
                 <div className="space-y-2 pt-2">
                   <span className="text-[11px] font-semibold text-cyan-700 dark:text-cyan-400 uppercase tracking-wider block">
                     Đồ án thực chiến cá nhân (Portfolio):
                   </span>
-                  {sem.practical_projects.map((proj, pIdx) => (
+                  {(sem.practical_projects || []).map((proj, pIdx) => (
                     <InteractiveTask
                       key={pIdx}
                       id={proj.project_title}
@@ -142,12 +144,12 @@ export const MilestoneTree: React.FC<MilestoneTreeProps> = ({ semesters, targetM
               )}
 
               {/* Chứng chỉ quốc tế */}
-              {sem.certifications && sem.certifications.length > 0 && (
+              {(sem.certifications || []).length > 0 && (
                 <div className="space-y-2 pt-2">
                   <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wider block">
                     Chứng chỉ đề xuất:
                   </span>
-                  {sem.certifications.map((cert, cIdx) => (
+                  {(sem.certifications || []).map((cert, cIdx) => (
                     <InteractiveTask
                       key={cIdx}
                       id={cert}
