@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useProfileStore } from "@/stores/useProfileStore";
 import { MajorCard } from "@/components/analysis/MajorCard";
@@ -18,14 +18,44 @@ export default function ResultPage() {
     setSelectedMajor,
     calculateMatchAction,
     generateRoadmapAction,
+    loadAndSyncAllDataAction,
+    hasHydrated,
+    profile
   } = useProfileStore();
 
-  // Tự động kích hoạt tính toán Cosine Similarity nếu người dùng vào thẳng trang /result
+  const [isInitialSyncing, setIsInitialSyncing] = useState(true);
+
+  // Tự động kiểm tra nạp và đồng bộ dữ liệu từ CSDL SQLite bền vững, ngăn reset khi F5
   useEffect(() => {
-    if (!analysisResult && !isAnalyzing) {
-      calculateMatchAction();
-    }
-  }, [analysisResult, isAnalyzing, calculateMatchAction]);
+    if (!hasHydrated) return;
+
+    let isMounted = true;
+    const studentId = profile?.student_id || "SV-2025001";
+
+    const syncData = async () => {
+      try {
+        // Chỉ nạp từ CSDL nếu chưa có kết quả phân tích trong bộ nhớ Zustand
+        if (!analysisResult) {
+          const hasDbData = await loadAndSyncAllDataAction(studentId);
+          if (!hasDbData && !isAnalyzing) {
+            await calculateMatchAction();
+          }
+        }
+      } catch (err) {
+        console.error("Lỗi đồng bộ dữ liệu:", err);
+      } finally {
+        if (isMounted) {
+          setIsInitialSyncing(false);
+        }
+      }
+    };
+
+    syncData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [hasHydrated, profile, loadAndSyncAllDataAction, calculateMatchAction]);
 
   const handleGenerateRoadmap = async () => {
     if (!selectedMajor && !analysisResult?.top_matches?.[0]) return;
@@ -37,7 +67,7 @@ export default function ResultPage() {
     }
   };
 
-  if (isAnalyzing || !analysisResult) {
+  if (isInitialSyncing || !hasHydrated || isAnalyzing || !analysisResult) {
     return (
       <div className="min-h-[55vh] flex flex-col items-center justify-center p-6 text-center space-y-5">
         <div className="relative">
@@ -48,10 +78,10 @@ export default function ResultPage() {
         </div>
         <div className="space-y-2 max-w-md">
           <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-            Đang Tính Toán Ma Trận Cosine Similarity
+            Đang Đồng Bộ Kết Quả & Năng Lực Từ CSDL
           </h3>
           <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
-            Private HPC Compute Node đang vector hóa hồ sơ học tập và đối chiếu 6 trục năng lực với chuẩn ngành đào tạo...
+            Hệ thống đang truy xuất dữ liệu lưu trữ bền vững và hòa trộn tiến độ lộ trình học tập cá nhân hóa...
           </p>
         </div>
       </div>

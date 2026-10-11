@@ -1,19 +1,27 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FileDropzone } from "@/components/upload/FileDropzone";
 import { RiasecSurvey } from "@/components/upload/RiasecSurvey";
 import { useProfileStore } from "@/stores/useProfileStore";
-import { ApiService } from "@/services/api";
-import { ArrowRight, Loader2, Sparkles } from "lucide-react";
+import { ArrowRight, Loader2, Sparkles, RefreshCw } from "lucide-react";
+
+export const dynamic = "force-dynamic";
 
 export default function UploadPage() {
   const router = useRouter();
   const {
     isAnalyzing,
     calculateMatchAction,
+    hasHydrated,
   } = useProfileStore();
+
+  const [isClientMounted, setIsClientMounted] = useState(false);
+
+  useEffect(() => {
+    setIsClientMounted(true);
+  }, []);
 
   const handleStartAnalysis = async () => {
     try {
@@ -23,6 +31,20 @@ export default function UploadPage() {
       console.error("Quá trình tính toán năng lực thất bại:", err);
     }
   };
+
+  // Tránh Hydration mismatch giữa SSR và Zustand Persist State trên Client
+  if (!isClientMounted || !hasHydrated) {
+    return (
+      <div className="max-w-4xl mx-auto space-y-8 py-16 flex flex-col items-center justify-center min-h-[50vh]">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 text-indigo-600 dark:text-indigo-400 animate-spin" />
+          <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
+            Đang khởi tạo môi trường trắc nghiệm & hồ sơ học tập...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 py-4">

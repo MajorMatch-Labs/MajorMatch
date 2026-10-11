@@ -52,3 +52,7 @@ CNTT2025*
 /root/.cloudflared/
 *.pem
 *.key
+
+# Archives and build cache
+*.tar.gz
+*.tsbuildinfo
