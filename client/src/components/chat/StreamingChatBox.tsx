@@ -36,23 +36,32 @@ export const StreamingChatBox: React.FC = () => {
 
   const isStreaming = streamStatus === "connecting" || streamStatus === "streaming";
 
-  // Khởi tạo controller, kiểm tra trạng thái HPC Node & nạp lịch sử hội thoại
+  // Khởi tạo controller, kiểm tra trạng thái HPC Node định kỳ & nạp lịch sử hội thoại
   useEffect(() => {
     controllerRef.current = new SseStreamController();
     let isMounted = true;
 
-    ApiService.checkHealth()
-      .then((h) => {
-        if (isMounted) {
-          const online =
-            h?.private_compute_node &&
-            (h.private_compute_node as any).status !== "offline";
-          setIsHpcOnline(!!online);
-        }
-      })
-      .catch(() => {
-        if (isMounted) setIsHpcOnline(false);
-      });
+    const checkNodeStatus = () => {
+      ApiService.checkHealth()
+        .then((h) => {
+          if (isMounted) {
+            const pNode = h?.private_compute_node as any;
+            const online =
+              pNode &&
+              (pNode.ollama_status === "online" ||
+                pNode.status === "online" ||
+                Boolean(pNode.gpu_status) ||
+                pNode.status !== "offline");
+            setIsHpcOnline(!!online);
+          }
+        })
+        .catch(() => {
+          if (isMounted) setIsHpcOnline(false);
+        });
+    };
+
+    checkNodeStatus();
+    const intervalId = setInterval(checkNodeStatus, 10000);
 
     ApiService.getChatHistory(studentId).then((history) => {
       if (isMounted && history && history.length > 0) {
@@ -62,6 +71,7 @@ export const StreamingChatBox: React.FC = () => {
 
     return () => {
       isMounted = false;
+      clearInterval(intervalId);
       controllerRef.current?.abort();
     };
   }, [studentId]);
@@ -125,12 +135,13 @@ export const StreamingChatBox: React.FC = () => {
         onToken: (token) => {
           currentAssistantTextRef.current += token;
           setMessages((prev) => {
+            if (prev.length === 0) return prev;
             const next = [...prev];
-            const currentAssistantMsg = next[assistantIndex];
-            if (currentAssistantMsg) {
-              next[assistantIndex] = {
-                ...currentAssistantMsg,
-                content: currentAssistantMsg.content + token,
+            const lastIdx = next.length - 1;
+            if (next[lastIdx]?.role === "assistant") {
+              next[lastIdx] = {
+                ...next[lastIdx],
+                content: next[lastIdx].content + token,
               };
             }
             return next;
@@ -147,11 +158,12 @@ export const StreamingChatBox: React.FC = () => {
         onError: (err) => {
           setStreamStatus("error");
           setMessages((prev) => {
+            if (prev.length === 0) return prev;
             const next = [...prev];
-            const currentAssistantMsg = next[assistantIndex];
-            if (currentAssistantMsg && !currentAssistantMsg.content) {
-              next[assistantIndex] = {
-                ...currentAssistantMsg,
+            const lastIdx = next.length - 1;
+            if (next[lastIdx]?.role === "assistant" && !next[lastIdx].content) {
+              next[lastIdx] = {
+                ...next[lastIdx],
                 content: `⚠️ Có lỗi kết nối tới AI Backend: ${err.message}. Đã kích hoạt phản hồi ngoại tuyến.`,
               };
             }
