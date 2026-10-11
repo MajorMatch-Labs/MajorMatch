@@ -138,16 +138,16 @@ export default function ResultPage() {
           Báo cáo Khoảng cách Kỹ năng (Skill Gap Analysis)
         </h2>
         <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-1">
-          Hệ thống xếp hạng Top 3 ngành nghề phù hợp nhất dựa trên điểm số Cosine Similarity và đối chiếu 6 trục năng lực.
+          Hệ thống xếp hạng các chuyên ngành đào tạo phù hợp dựa trên điểm số Cosine Similarity và đối chiếu 6 trục năng lực.
         </p>
       </div>
 
-      {/* Grid: Top 3 Cards + Radar Chart */}
+      {/* Grid: Danh sách các ngành + Radar Chart */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Cột trái: Danh sách Top 3 ngành nghề (5 cols) */}
+        {/* Cột trái: Danh sách các chuyên ngành đào tạo (5 cols) */}
         <div className="lg:col-span-5 space-y-3">
           <span className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider block">
-            Top 3 Chuyên ngành Phù hợp Nhất:
+            Bảng Xếp hạng Các Chuyên ngành Đào tạo:
           </span>
           {recommendations.map((major) => (
             <MajorCard
