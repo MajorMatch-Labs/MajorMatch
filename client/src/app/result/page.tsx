@@ -92,6 +92,40 @@ export default function ResultPage() {
   const recommendations = currentResult.top_matches || currentResult.top_recommendations || [];
   const currentMajor = selectedMajor || recommendations[0];
 
+  if (recommendations.length === 0 || !currentMajor) {
+    return (
+      <div className="min-h-[50vh] flex flex-col items-center justify-center p-6 text-center space-y-4">
+        <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-500">
+          <Sparkles className="w-8 h-8" />
+        </div>
+        <div className="space-y-1 max-w-md">
+          <h3 className="text-base font-bold text-slate-900 dark:text-white">
+            Chưa có dữ liệu phân tích chuyên ngành
+          </h3>
+          <p className="text-xs text-slate-600 dark:text-slate-400">
+            Hồ sơ học tập hoặc bài khảo sát của bạn đang được cập nhật. Vui lòng nhấn nút bên dưới để hệ thống tính toán ngay.
+          </p>
+        </div>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={() => calculateMatchAction()}
+            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md transition-all"
+          >
+            Tính toán lại ngay
+          </button>
+          <button
+            type="button"
+            onClick={() => router.push("/upload")}
+            className="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+          >
+            Làm bài khảo sát
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8 py-4">
       {/* Page Header */}

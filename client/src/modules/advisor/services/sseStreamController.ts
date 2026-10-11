@@ -15,7 +15,7 @@ export class SseStreamController {
   private abortController: AbortController | null = null;
   private idleTimer: NodeJS.Timeout | null = null;
   private parser: SseLineBufferParser = new SseLineBufferParser();
-  private static readonly DEFAULT_IDLE_TIMEOUT_MS = 15000; // 15 giay guard
+  private static readonly DEFAULT_IDLE_TIMEOUT_MS = 45000; // 45 giay guard cho LLM GPU
 
   /**
    * Khoi chay ket noi Streaming toi Backend HPC qua Server-Sent Events
