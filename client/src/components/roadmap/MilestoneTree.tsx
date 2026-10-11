@@ -125,23 +125,30 @@ export const MilestoneTree: React.FC<MilestoneTreeProps> = ({ semesters, targetM
               )}
 
               {/* Đồ án thực chiến */}
-              {(sem.practical_projects || []).length > 0 && (
-                <div className="space-y-2 pt-2">
-                  <span className="text-[11px] font-semibold text-cyan-700 dark:text-cyan-400 uppercase tracking-wider block">
-                    Đồ án thực chiến cá nhân (Portfolio):
-                  </span>
-                  {(sem.practical_projects || []).map((proj, pIdx) => (
-                    <InteractiveTask
-                      key={pIdx}
-                      id={proj.project_title}
-                      type="project"
-                      title={proj.project_title}
-                      skills={proj.target_skills}
-                      rationale={proj.description}
-                    />
-                  ))}
-                </div>
-              )}
+              {(() => {
+                const projectsList = [
+                  ...(sem.practical_projects || []),
+                  ...(sem.practical_project ? [sem.practical_project] : [])
+                ];
+                if (projectsList.length === 0) return null;
+                return (
+                  <div className="space-y-2 pt-2">
+                    <span className="text-[11px] font-semibold text-cyan-700 dark:text-cyan-400 uppercase tracking-wider block">
+                      Đồ án thực chiến cá nhân (Portfolio):
+                    </span>
+                    {projectsList.map((proj, pIdx) => (
+                      <InteractiveTask
+                        key={pIdx}
+                        id={proj.project_title}
+                        type="project"
+                        title={proj.project_title}
+                        skills={proj.target_skills}
+                        rationale={proj.description}
+                      />
+                    ))}
+                  </div>
+                );
+              })()}
 
               {/* Chứng chỉ quốc tế */}
               {(sem.certifications || []).length > 0 && (
