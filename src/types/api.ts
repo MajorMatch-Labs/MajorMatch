@@ -131,7 +131,9 @@ export interface PracticalProject {
   completed?: boolean;
 }
 
-export interface SemesterMilestone {
+export interface PhaseMilestone {
+  phase_number?: number;
+  phase_title?: string;
   semester_name: string;
   target_focus: string;
   milestone_skills?: string[];
@@ -140,19 +142,27 @@ export interface SemesterMilestone {
   certifications: string[];
 }
 
+export type SemesterMilestone = PhaseMilestone;
+
 export interface RoadmapGenerationRequest {
+  student_id?: string;
   target_major_id: string;
   missing_skills?: string[];
   completed_course_codes?: string[];
-  current_semester: number;
+  current_semester?: number;
   cumulative_gpa?: number;
 }
 
 export interface RoadmapGenerationResponse {
   status: string;
+  student_id?: string;
   target_major: string;
+  target_major_id?: string;
   readiness_score: number;
-  semesters: SemesterMilestone[];
+  job_readiness_percentage?: number;
+  semesters: PhaseMilestone[];
+  phases?: PhaseMilestone[];
+  completed_items?: Record<string, boolean>;
   total_milestones: number;
 }
 

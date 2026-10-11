@@ -123,7 +123,7 @@ export class ApiService {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(30000)
+      signal: AbortSignal.timeout(35000)
     });
 
     if (!res.ok) {
@@ -132,23 +132,113 @@ export class ApiService {
     }
 
     const data: any = await res.json();
-    const readiness = data.job_readiness_percentage ?? data.readiness_score ?? 70;
-    const semesters = (data.semesters || []).map((sem: any) => ({
-      semester_name: sem.semester_name || sem.semester_title || `Học kỳ ${sem.semester_number}`,
-      target_focus: sem.target_focus || sem.semester_title || "Phát triển năng lực chuyên môn",
-      milestone_skills: sem.milestone_skills || [],
-      recommended_courses: sem.recommended_courses || [],
-      certifications: sem.certifications || [],
-      practical_projects: sem.practical_projects || (sem.practical_project ? [sem.practical_project] : [])
-    }));
+    const readiness = data.job_readiness_percentage ?? data.readiness_score ?? 72.5;
+    const rawList = data.phases || data.semesters || [];
+    const phases = rawList.map((item: any, idx: number) => {
+      const phaseNum = item.phase_number || item.semester_number || (idx + 1);
+      const cleanTitle = (item.phase_title || item.semester_title || item.semester_name || `Giai đoạn ${phaseNum}`)
+        .replace(/Học kỳ \d+:?/gi, `Giai đoạn ${phaseNum}:`)
+        .replace(/Kỳ \d+:?/gi, `Giai đoạn ${phaseNum}:`);
+
+      return {
+        phase_number: phaseNum,
+        phase_title: cleanTitle,
+        semester_name: cleanTitle,
+        target_focus: item.target_focus || "Phát triển năng lực chuyên môn và đồ án thực chiến",
+        milestone_skills: item.milestone_skills || [],
+        recommended_courses: item.recommended_courses || [],
+        certifications: item.certifications || [],
+        practical_projects: item.practical_projects || (item.practical_project ? [item.practical_project] : [])
+      };
+    });
 
     return {
       status: "success",
+      student_id: data.student_id || payload.student_id,
       target_major: data.target_major,
+      target_major_id: data.target_major_id || payload.target_major_id,
       readiness_score: readiness,
-      total_milestones: semesters.length,
-      semesters
+      total_milestones: phases.length,
+      semesters: phases,
+      phases,
+      completed_items: data.completed_items || {}
     };
+  }
+
+  /**
+   * Truy vấn CSDL thật lấy lộ trình đã lưu của sinh viên
+   * Endpoint: GET /api/v1/roadmap/{student_id}
+   */
+  static async getSavedRoadmap(studentId: string = "SV-2025001"): Promise<RoadmapGenerationResponse | null> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/roadmap/${encodeURIComponent(studentId)}`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(6000)
+      });
+
+      if (!res.ok) return null;
+
+      const data: any = await res.json();
+      const rawList = data.phases || data.semesters || [];
+      const phases = rawList.map((item: any, idx: number) => {
+        const phaseNum = item.phase_number || item.semester_number || (idx + 1);
+        const cleanTitle = (item.phase_title || item.semester_title || item.semester_name || `Giai đoạn ${phaseNum}`)
+          .replace(/Học kỳ \d+:?/gi, `Giai đoạn ${phaseNum}:`)
+          .replace(/Kỳ \d+:?/gi, `Giai đoạn ${phaseNum}:`);
+
+        return {
+          phase_number: phaseNum,
+          phase_title: cleanTitle,
+          semester_name: cleanTitle,
+          target_focus: item.target_focus || "Phát triển năng lực chuyên môn và đồ án thực chiến",
+          milestone_skills: item.milestone_skills || [],
+          recommended_courses: item.recommended_courses || [],
+          certifications: item.certifications || [],
+          practical_projects: item.practical_projects || (item.practical_project ? [item.practical_project] : [])
+        };
+      });
+
+      return {
+        status: "success",
+        student_id: data.student_id,
+        target_major: data.target_major,
+        target_major_id: data.target_major_id,
+        readiness_score: data.readiness_score || data.job_readiness_percentage || 70,
+        total_milestones: phases.length,
+        semesters: phases,
+        phases,
+        completed_items: data.completed_items || {}
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Cập nhật tiến độ hoàn thành các checkbox môn học/đồ án vào CSDL thật
+   * Endpoint: POST /api/v1/roadmap/{student_id}/progress
+   */
+  static async saveRoadmapProgress(
+    studentId: string = "SV-2025001",
+    completedItems: Record<string, boolean>,
+    readinessScore: number
+  ): Promise<boolean> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/roadmap/${encodeURIComponent(studentId)}/progress`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          student_id: studentId,
+          completed_items: completedItems,
+          readiness_score: readinessScore
+        }),
+        signal: AbortSignal.timeout(5000)
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
   }
 
   /**

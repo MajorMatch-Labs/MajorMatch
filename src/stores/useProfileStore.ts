@@ -57,6 +57,7 @@ interface ProfileState {
   uploadTranscriptAction: (file: File) => Promise<void>;
   calculateMatchAction: () => Promise<void>;
   generateRoadmapAction: (semester?: number) => Promise<void>;
+  loadSavedRoadmapAction: (studentId?: string) => Promise<boolean>;
 }
 
 export const useProfileStore = create<ProfileState>()(
@@ -160,6 +161,10 @@ export const useProfileStore = create<ProfileState>()(
             };
           }
 
+          // Tự động lưu tiến độ vào CSDL thật tại Backend
+          const studentId = state.profile?.student_id || "SV-2025001";
+          ApiService.saveRoadmapProgress(studentId, newCompleted, calculatedScore);
+
           return {
             completedItems: newCompleted,
             dynamicReadinessScore: calculatedScore,
@@ -247,6 +252,7 @@ export const useProfileStore = create<ProfileState>()(
         set({ isGeneratingRoadmap: true });
         try {
           const state = get();
+          const studentId = state.profile?.student_id || "SV-2025001";
           const targetMajorId = state.selectedMajor?.major_id || "CS_DATA_AI";
           const missingSkills =
             state.selectedMajor?.skill_gap?.missing_skills ||
@@ -255,6 +261,7 @@ export const useProfileStore = create<ProfileState>()(
           const completedCodes = (state.profile?.courses || []).map((c) => c.course_code);
 
           const res = await ApiService.generateRoadmap({
+            student_id: studentId,
             target_major_id: targetMajorId,
             missing_skills: missingSkills,
             completed_course_codes: completedCodes,
@@ -264,13 +271,31 @@ export const useProfileStore = create<ProfileState>()(
 
           set({
             roadmap: res,
-            dynamicReadinessScore: res.readiness_score,
+            dynamicReadinessScore: res.readiness_score || res.job_readiness_percentage || 72.5,
             isGeneratingRoadmap: false,
-            completedItems: {}
+            completedItems: res.completed_items || {}
           });
         } catch (err) {
           console.error("generateRoadmapAction error:", err);
           set({ isGeneratingRoadmap: false });
+        }
+      },
+
+      loadSavedRoadmapAction: async (studentId: string = "SV-2025001") => {
+        try {
+          const saved = await ApiService.getSavedRoadmap(studentId);
+          if (saved && saved.semesters && saved.semesters.length > 0) {
+            set({
+              roadmap: saved,
+              dynamicReadinessScore: saved.readiness_score || saved.job_readiness_percentage || 72.5,
+              completedItems: saved.completed_items || {},
+              isGeneratingRoadmap: false
+            });
+            return true;
+          }
+          return false;
+        } catch {
+          return false;
         }
       }
     }),
