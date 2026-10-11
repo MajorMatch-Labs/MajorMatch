@@ -28,11 +28,21 @@ export const Navbar: React.FC = () => {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
 
   useEffect(() => {
-    ApiService.checkHealth().then(setHealth);
+    const updateHealth = () => {
+      ApiService.checkHealth().then(setHealth);
+    };
+    updateHealth();
     checkAuthSession();
     const isDarkTheme = document.documentElement.classList.contains("dark");
     setIsDark(isDarkTheme);
+
+    const intervalId = setInterval(updateHealth, 15000);
+    return () => clearInterval(intervalId);
   }, [checkAuthSession]);
+
+  const isHpcOnline =
+    health?.private_compute_node &&
+    (health.private_compute_node as any).status !== "offline";
 
   const toggleTheme = () => {
     const nextDark = !isDark;
@@ -97,13 +107,40 @@ export const Navbar: React.FC = () => {
         {/* Right Section: Node Status, Theme & Auth */}
         <div className="flex items-center gap-2.5">
           {health && (
-            <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 text-[11px]">
+            <div
+              className={`hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] border transition-all ${
+                isHpcOnline
+                  ? "bg-slate-100 dark:bg-slate-900/80 border-slate-200 dark:border-slate-800"
+                  : "bg-amber-500/10 border-amber-500/30 text-amber-800 dark:text-amber-300"
+              }`}
+              title={
+                isHpcOnline
+                  ? "Private HPC GPU Node đang kết nối và sẵn sàng xử lý tác vụ AI nặng."
+                  : "Private HPC GPU Node đang ngoại tuyến. Hệ thống đang bảo toàn và phục vụ 100% dữ liệu từ AWS Cloud DB."
+              }
+            >
               <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                {isHpcOnline ? (
+                  <>
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </>
+                ) : (
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                )}
               </span>
-              <span className="text-slate-700 dark:text-slate-300 font-medium">HPC Private Node</span>
-              <span className="text-emerald-600 dark:text-emerald-400 font-mono text-[10px]">Ready</span>
+              <span className="font-medium text-slate-700 dark:text-slate-300">
+                HPC Node
+              </span>
+              <span
+                className={`font-mono text-[10px] font-semibold ${
+                  isHpcOnline
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : "text-amber-600 dark:text-amber-400"
+                }`}
+              >
+                {isHpcOnline ? "Ready" : "Offline (Cloud DB)"}
+              </span>
             </div>
           )}
 

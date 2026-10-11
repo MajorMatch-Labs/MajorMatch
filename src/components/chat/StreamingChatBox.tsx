@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Bot, User, Sparkles, Loader2, Square, ArrowDown } from "lucide-react";
+import { Send, Bot, User, Sparkles, Loader2, Square, ArrowDown, AlertTriangle } from "lucide-react";
 import { useProfileStore } from "@/stores/useProfileStore";
 import { SseStreamController } from "@/modules/advisor/services/sseStreamController";
 import { SseConnectionStatus } from "@/modules/advisor/types/sseTypes";
@@ -27,6 +27,7 @@ export const StreamingChatBox: React.FC = () => {
   const [input, setInput] = useState("");
   const [streamStatus, setStreamStatus] = useState<SseConnectionStatus>("idle");
   const [userScrolledUp, setUserScrolledUp] = useState(false);
+  const [isHpcOnline, setIsHpcOnline] = useState<boolean | null>(null);
 
   const controllerRef = useRef<SseStreamController | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -35,10 +36,23 @@ export const StreamingChatBox: React.FC = () => {
 
   const isStreaming = streamStatus === "connecting" || streamStatus === "streaming";
 
-  // Khởi tạo controller & Nạp lịch sử hội thoại từ CSDL SQLite
+  // Khởi tạo controller, kiểm tra trạng thái HPC Node & nạp lịch sử hội thoại
   useEffect(() => {
     controllerRef.current = new SseStreamController();
     let isMounted = true;
+
+    ApiService.checkHealth()
+      .then((h) => {
+        if (isMounted) {
+          const online =
+            h?.private_compute_node &&
+            (h.private_compute_node as any).status !== "offline";
+          setIsHpcOnline(!!online);
+        }
+      })
+      .catch(() => {
+        if (isMounted) setIsHpcOnline(false);
+      });
 
     ApiService.getChatHistory(studentId).then((history) => {
       if (isMounted && history && history.length > 0) {
@@ -165,9 +179,15 @@ export const StreamingChatBox: React.FC = () => {
           <div>
             <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
               MajorMatch AI Streaming Assistant
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-500/20 dark:text-indigo-300 dark:border-indigo-500/30 font-medium">
-                Qwen 2.5 Local LLM
-              </span>
+              {isHpcOnline === false ? (
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/30 font-medium">
+                  Cloud DB Fallback
+                </span>
+              ) : (
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-500/20 dark:text-indigo-300 dark:border-indigo-500/30 font-medium">
+                  Qwen 2.5 Local LLM
+                </span>
+              )}
             </h3>
             <p className="text-[11px] text-slate-600 dark:text-slate-400">
               Định hướng bám sát chuyên ngành: <span className="text-indigo-600 dark:text-indigo-300 font-semibold">{targetMajor}</span>
@@ -206,6 +226,19 @@ export const StreamingChatBox: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* HPC Offline Fast Warning Banner */}
+      {isHpcOnline === false && (
+        <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 flex items-center justify-between text-[11px] text-amber-800 dark:text-amber-300">
+          <span className="flex items-center gap-1.5 font-medium">
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+            Private HPC GPU Node đang ngoại tuyến. Trợ lý AI đang tư vấn dựa trên hồ sơ CSDL đám mây (Cloud DB Mode).
+          </span>
+          <span className="text-[10px] bg-amber-500/20 text-amber-900 dark:text-amber-200 px-2 py-0.5 rounded-full font-mono font-medium shrink-0">
+            Cloud DB Active
+          </span>
+        </div>
+      )}
 
       {/* Message History */}
       <div
