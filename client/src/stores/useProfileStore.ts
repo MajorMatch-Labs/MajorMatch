@@ -195,24 +195,45 @@ export const useProfileStore = create<ProfileState>()(
               [];
             const rawMastered = updatedSelectedMajor.skill_gap?.mastered_skills || [];
 
-            // Chuyển kỹ năng từ missing sang mastered nếu đã tích chọn
-            const newMastered = Array.from(
-              new Set([
-                ...rawMastered,
-                ...rawMissing.filter((s) => masteredSkillsSet.has(s.toLowerCase().trim()))
-              ])
-            );
-            const newMissing = rawMissing.filter(
-              (s) => !masteredSkillsSet.has(s.toLowerCase().trim())
-            );
+            let newMastered: string[] = [];
+            let newMissing: string[] = [];
 
-            // Cập nhật Radar Data đa trục
+            if (completedCount >= totalItemsCount && totalItemsCount > 0) {
+              // Khi hoàn thành 100% lộ trình: 100% kỹ năng thiếu được chuyển sang làm chủ (Missing = 0)!
+              const combinedAll = [...rawMastered, ...rawMissing];
+              newMastered = Array.from(new Set(combinedAll));
+              newMissing = [];
+            } else {
+              const progressFraction = totalItemsCount > 0 ? completedCount / totalItemsCount : 0;
+              const masteredSkillsList = Array.from(masteredSkillsSet);
+              const directCovered = rawMissing.filter((s) => {
+                const sLower = s.toLowerCase().trim();
+                for (let i = 0; i < masteredSkillsList.length; i++) {
+                  const itemSkill = masteredSkillsList[i];
+                  if (itemSkill.includes(sLower) || sLower.includes(itemSkill)) return true;
+                }
+                return false;
+              });
+
+              // Bù đắp tỷ lệ kỹ năng tương ứng với tỷ lệ phần trăm môn học đã hoàn thành
+              const minSkillsResolved = Math.round(progressFraction * rawMissing.length);
+              const extraCovered = rawMissing.slice(0, minSkillsResolved);
+              const allCoveredList = Array.from(new Set([...directCovered, ...extraCovered]));
+              const coveredMap: Record<string, boolean> = {};
+              allCoveredList.forEach((s) => { coveredMap[s] = true; });
+
+              newMastered = Array.from(new Set([...rawMastered, ...allCoveredList]));
+              newMissing = rawMissing.filter((s) => !coveredMap[s]);
+            }
+
+            // Cập nhật Radar Data đa trục tiệm cận và vượt benchmark khi hoàn thành
             const newRadarData = (updatedSelectedMajor.radar_data || []).map((axis) => {
-              const bonus = (completedCount / totalItemsCount) * 2.5;
-              const originalScore = axis.user_score <= 4 ? 3.0 : axis.user_score;
+              const progressFraction = totalItemsCount > 0 ? completedCount / totalItemsCount : 0;
+              const baseAxisScore = axis.user_score <= 4 ? 3.5 : axis.user_score;
+              const bonus = progressFraction * (axis.benchmark_score - baseAxisScore + 0.5);
               return {
                 ...axis,
-                user_score: Math.min(10, Math.round((originalScore + bonus) * 10) / 10)
+                user_score: Math.min(10, Math.round((baseAxisScore + Math.max(0, bonus)) * 10) / 10)
               };
             });
 
