@@ -133,13 +133,38 @@ export const useProfileStore = create<ProfileState>()(
             [itemId]: !isCurrentlyCompleted
           };
 
-          const totalItemsCount =
-            state.roadmap?.semesters.reduce(
-              (acc, sem) => acc + sem.recommended_courses.length + (sem.practical_projects?.length || 0),
-              0
-            ) || 1;
+          // 1. Thu thập toàn bộ ID có thể tích chọn và Map kỹ năng tương ứng
+          const allInteractiveIds: string[] = [];
+          const itemSkillsMap: Record<string, string[]> = {};
 
-          const completedCount = Object.values(newCompleted).filter(Boolean).length;
+          (state.roadmap?.semesters || []).forEach((sem) => {
+            // Môn học
+            (sem.recommended_courses || []).forEach((c) => {
+              allInteractiveIds.push(c.course_code);
+              itemSkillsMap[c.course_code] = c.target_skills || [c.course_name];
+            });
+            // Đồ án
+            if (sem.practical_project) {
+              allInteractiveIds.push(sem.practical_project.project_title);
+              itemSkillsMap[sem.practical_project.project_title] = sem.practical_project.target_skills || [];
+            }
+            if (sem.practical_projects) {
+              sem.practical_projects.forEach((p) => {
+                allInteractiveIds.push(p.project_title);
+                itemSkillsMap[p.project_title] = p.target_skills || [];
+              });
+            }
+            // Chứng chỉ
+            (sem.certifications || []).forEach((cert) => {
+              allInteractiveIds.push(cert);
+              itemSkillsMap[cert] = [cert];
+            });
+          });
+
+          const totalItemsCount = Math.max(allInteractiveIds.length, 1);
+          const completedCount = allInteractiveIds.filter((id) => !!newCompleted[id]).length;
+
+          // 2. Điểm xuất phát chuẩn từ lộ trình hoặc chuyên ngành đang chọn
           const baseScore =
             state.roadmap?.readiness_score ||
             state.roadmap?.job_readiness_percentage ||
@@ -147,32 +172,95 @@ export const useProfileStore = create<ProfileState>()(
             45.6;
           const remainingPotential = 100 - baseScore;
 
+          // 3. Tiến độ tăng mượt mà theo đúng tỷ lệ đầu việc của cả 3 giai đoạn
           const addedProgress = (completedCount / totalItemsCount) * remainingPotential;
           const calculatedScore = Math.min(100, Math.round((baseScore + addedProgress) * 10) / 10);
 
+          // 4. Thu thập toàn bộ kỹ năng đã tích lũy từ các đầu việc đã hoàn thành
+          const masteredSkillsSet = new Set<string>();
+          Object.keys(newCompleted).forEach((id) => {
+            if (newCompleted[id] && itemSkillsMap[id]) {
+              itemSkillsMap[id].forEach((s) => masteredSkillsSet.add(s.toLowerCase().trim()));
+            }
+          });
+
+          // 5. Đồng bộ ngược sang SelectedMajor và AnalysisResult
           let updatedSelectedMajor = state.selectedMajor;
-          if (updatedSelectedMajor && updatedSelectedMajor.radar_data) {
-            const bonusFactor = !isCurrentlyCompleted ? 0.3 : -0.3;
-            const newRadarData = updatedSelectedMajor.radar_data.map((axis) => ({
-              ...axis,
-              user_score: Math.min(10, Math.max(0, Math.round((axis.user_score + bonusFactor) * 10) / 10))
-            }));
+          let updatedAnalysisResult = state.analysisResult;
+
+          if (updatedSelectedMajor) {
+            const rawMissing =
+              updatedSelectedMajor.skill_gap?.missing_skills ||
+              state.analysisResult?.skill_breakdown?.missing_skills ||
+              [];
+            const rawMastered = updatedSelectedMajor.skill_gap?.mastered_skills || [];
+
+            // Chuyển kỹ năng từ missing sang mastered nếu đã tích chọn
+            const newMastered = Array.from(
+              new Set([
+                ...rawMastered,
+                ...rawMissing.filter((s) => masteredSkillsSet.has(s.toLowerCase().trim()))
+              ])
+            );
+            const newMissing = rawMissing.filter(
+              (s) => !masteredSkillsSet.has(s.toLowerCase().trim())
+            );
+
+            // Cập nhật Radar Data đa trục
+            const newRadarData = (updatedSelectedMajor.radar_data || []).map((axis) => {
+              const bonus = (completedCount / totalItemsCount) * 2.5;
+              const originalScore = axis.user_score <= 4 ? 3.0 : axis.user_score;
+              return {
+                ...axis,
+                user_score: Math.min(10, Math.round((originalScore + bonus) * 10) / 10)
+              };
+            });
+
             updatedSelectedMajor = {
               ...updatedSelectedMajor,
+              match_percentage: calculatedScore,
+              match_score: calculatedScore,
               radar_data: newRadarData,
-              match_percentage: Math.min(100, Math.round((updatedSelectedMajor.match_percentage + bonusFactor * 2) * 10) / 10),
-              match_score: Math.min(100, Math.round(((updatedSelectedMajor.match_score || updatedSelectedMajor.match_percentage) + bonusFactor * 2) * 10) / 10)
+              skill_gap: {
+                mastered_skills: newMastered,
+                developing_skills: updatedSelectedMajor.skill_gap?.developing_skills || [],
+                missing_skills: newMissing
+              }
             };
+
+            // Cập nhật thẻ chuyên ngành trong danh sách top_matches
+            if (updatedAnalysisResult) {
+              const updatedTopMatches = (updatedAnalysisResult.top_matches || []).map((m) =>
+                m.major_id === updatedSelectedMajor?.major_id
+                  ? {
+                      ...m,
+                      match_percentage: calculatedScore,
+                      match_score: calculatedScore,
+                      radar_data: newRadarData,
+                      skill_gap: updatedSelectedMajor?.skill_gap
+                    }
+                  : m
+              );
+
+              updatedAnalysisResult = {
+                ...updatedAnalysisResult,
+                top_matches: updatedTopMatches,
+                top_recommendations: updatedTopMatches,
+                skill_breakdown: updatedSelectedMajor.skill_gap || updatedAnalysisResult.skill_breakdown,
+                radar_chart_data: newRadarData
+              };
+            }
           }
 
-          // Tự động lưu tiến độ vào CSDL thật tại Backend
+          // 6. Lưu vĩnh viễn tiến độ vào CSDL Backend
           const studentId = state.profile?.student_id || "SV-2025001";
           ApiService.saveRoadmapProgress(studentId, newCompleted, calculatedScore);
 
           return {
             completedItems: newCompleted,
             dynamicReadinessScore: calculatedScore,
-            selectedMajor: updatedSelectedMajor
+            selectedMajor: updatedSelectedMajor,
+            analysisResult: updatedAnalysisResult
           };
         }),
 

@@ -138,7 +138,8 @@ export interface PhaseMilestone {
   target_focus: string;
   milestone_skills?: string[];
   recommended_courses: RecommendedCourse[];
-  practical_projects: PracticalProject[];
+  practical_projects?: PracticalProject[];
+  practical_project?: PracticalProject;
   certifications: string[];
 }
 
