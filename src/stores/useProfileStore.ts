@@ -140,7 +140,11 @@ export const useProfileStore = create<ProfileState>()(
             ) || 1;
 
           const completedCount = Object.values(newCompleted).filter(Boolean).length;
-          const baseScore = state.roadmap?.readiness_score || 60;
+          const baseScore =
+            state.roadmap?.readiness_score ||
+            state.roadmap?.job_readiness_percentage ||
+            state.selectedMajor?.match_percentage ||
+            45.6;
           const remainingPotential = 100 - baseScore;
 
           const addedProgress = (completedCount / totalItemsCount) * remainingPotential;
@@ -253,12 +257,16 @@ export const useProfileStore = create<ProfileState>()(
         try {
           const state = get();
           const studentId = state.profile?.student_id || "SV-2025001";
-          const targetMajorId = state.selectedMajor?.major_id || "CS_DATA_AI";
+          const targetMajorId = state.selectedMajor?.major_id || "DEVOPS_CLOUD";
           const missingSkills =
             state.selectedMajor?.skill_gap?.missing_skills ||
             state.analysisResult?.skill_breakdown?.missing_skills ||
             [];
           const completedCodes = (state.profile?.courses || []).map((c) => c.course_code);
+          const initialReadiness =
+            state.selectedMajor?.match_percentage ||
+            state.selectedMajor?.match_score ||
+            45.6;
 
           const res = await ApiService.generateRoadmap({
             student_id: studentId,
@@ -266,12 +274,15 @@ export const useProfileStore = create<ProfileState>()(
             missing_skills: missingSkills,
             completed_course_codes: completedCodes,
             current_semester: semester,
-            cumulative_gpa: state.profile?.cumulative_gpa || 3.2
+            cumulative_gpa: state.profile?.cumulative_gpa || 3.2,
+            initial_readiness_score: initialReadiness
           });
+
+          const startingScore = res.readiness_score || res.job_readiness_percentage || initialReadiness;
 
           set({
             roadmap: res,
-            dynamicReadinessScore: res.readiness_score || res.job_readiness_percentage || 72.5,
+            dynamicReadinessScore: startingScore,
             isGeneratingRoadmap: false,
             completedItems: res.completed_items || {}
           });
@@ -285,9 +296,16 @@ export const useProfileStore = create<ProfileState>()(
         try {
           const saved = await ApiService.getSavedRoadmap(studentId);
           if (saved && saved.semesters && saved.semesters.length > 0) {
+            const state = get();
+            const currentScore =
+              saved.readiness_score ||
+              saved.job_readiness_percentage ||
+              state.selectedMajor?.match_percentage ||
+              45.6;
+
             set({
               roadmap: saved,
-              dynamicReadinessScore: saved.readiness_score || saved.job_readiness_percentage || 72.5,
+              dynamicReadinessScore: currentScore,
               completedItems: saved.completed_items || {},
               isGeneratingRoadmap: false
             });

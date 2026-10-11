@@ -151,6 +151,7 @@ export interface RoadmapGenerationRequest {
   completed_course_codes?: string[];
   current_semester?: number;
   cumulative_gpa?: number;
+  initial_readiness_score?: number;
 }
 
 export interface RoadmapGenerationResponse {
