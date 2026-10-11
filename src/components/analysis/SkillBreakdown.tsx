@@ -7,16 +7,23 @@ import { SkillGapItem } from "@/types/api";
 type FilterTab = "all" | "mastered" | "developing" | "missing";
 
 interface SkillBreakdownProps {
-  skillGap: SkillGapItem;
+  skillGap?: SkillGapItem | null;
 }
 
 export const SkillBreakdown: React.FC<SkillBreakdownProps> = ({ skillGap }) => {
   const [activeFilter, setActiveFilter] = useState<FilterTab>("all");
 
-  const total =
-    (skillGap.mastered_skills?.length || 0) +
-    (skillGap.developing_skills?.length || 0) +
-    (skillGap.missing_skills?.length || 0);
+  const safeSkillGap = skillGap || {
+    mastered_skills: [],
+    developing_skills: [],
+    missing_skills: []
+  };
+
+  const mastered = safeSkillGap.mastered_skills || [];
+  const developing = safeSkillGap.developing_skills || [];
+  const missing = safeSkillGap.missing_skills || [];
+
+  const total = mastered.length + developing.length + missing.length;
 
   const showMastered = activeFilter === "all" || activeFilter === "mastered";
   const showDeveloping = activeFilter === "all" || activeFilter === "developing";
@@ -51,7 +58,7 @@ export const SkillBreakdown: React.FC<SkillBreakdownProps> = ({ skillGap }) => {
                 : "text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-300"
             }`}
           >
-            Đạt ({skillGap.mastered_skills?.length || 0})
+            Đạt ({mastered.length})
           </button>
           <button
             type="button"
@@ -62,7 +69,7 @@ export const SkillBreakdown: React.FC<SkillBreakdownProps> = ({ skillGap }) => {
                 : "text-slate-600 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-300"
             }`}
           >
-            Đang học ({skillGap.developing_skills?.length || 0})
+            Đang học ({developing.length})
           </button>
           <button
             type="button"
@@ -73,7 +80,7 @@ export const SkillBreakdown: React.FC<SkillBreakdownProps> = ({ skillGap }) => {
                 : "text-slate-600 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-300"
             }`}
           >
-            Thiếu ({skillGap.missing_skills?.length || 0})
+            Thiếu ({missing.length})
           </button>
         </div>
       </div>
@@ -87,14 +94,14 @@ export const SkillBreakdown: React.FC<SkillBreakdownProps> = ({ skillGap }) => {
             <div className="flex items-center gap-2 mb-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               <h4 className="text-xs font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider">
-                Mastered Skills ({skillGap.mastered_skills?.length || 0})
+                Mastered Skills ({mastered.length})
               </h4>
             </div>
             <p className="text-[11px] text-slate-600 dark:text-slate-400 mb-3">
               Điểm môn học từ 3.0/4.0 trở lên hoặc có đồ án minh chứng trong hồ sơ:
             </p>
             <div className="flex flex-wrap gap-1.5">
-              {skillGap.mastered_skills?.map((s, idx) => (
+              {mastered.map((s, idx) => (
                 <span
                   key={idx}
                   className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-white text-emerald-700 border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/30 shadow-xs"
@@ -114,14 +121,14 @@ export const SkillBreakdown: React.FC<SkillBreakdownProps> = ({ skillGap }) => {
             <div className="flex items-center gap-2 mb-2">
               <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400" />
               <h4 className="text-xs font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wider">
-                Developing Skills ({skillGap.developing_skills?.length || 0})
+                Developing Skills ({developing.length})
               </h4>
             </div>
             <p className="text-[11px] text-slate-600 dark:text-slate-400 mb-3">
               Đã tiếp cận ở mức cơ sở (Điểm từ 2.0 đến dưới 3.0):
             </p>
             <div className="flex flex-wrap gap-1.5">
-              {skillGap.developing_skills?.map((s, idx) => (
+              {developing.map((s, idx) => (
                 <span
                   key={idx}
                   className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-white text-amber-700 border border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/30 shadow-xs"
@@ -141,14 +148,14 @@ export const SkillBreakdown: React.FC<SkillBreakdownProps> = ({ skillGap }) => {
             <div className="flex items-center gap-2 mb-2">
               <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400" />
               <h4 className="text-xs font-bold text-rose-700 dark:text-rose-300 uppercase tracking-wider">
-                Missing Skills ({skillGap.missing_skills?.length || 0})
+                Missing Skills ({missing.length})
               </h4>
             </div>
             <p className="text-[11px] text-slate-600 dark:text-slate-400 mb-3">
               Kỹ năng bắt buộc của ngành mà bạn chưa từng tích lũy:
             </p>
             <div className="flex flex-wrap gap-1.5">
-              {skillGap.missing_skills?.map((s, idx) => (
+              {missing.map((s, idx) => (
                 <span
                   key={idx}
                   className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-white text-rose-700 border border-rose-200 dark:bg-rose-500/10 dark:text-rose-300 dark:border-rose-500/30 shadow-xs"
