@@ -91,6 +91,51 @@ export class ApiService {
   }
 
   /**
+   * Truy vấn CSDL thật lấy kết quả đánh giá kỹ năng đã lưu của sinh viên
+   * Endpoint: GET /api/v1/assessment/{student_id}
+   */
+  static async getSavedAssessment(studentId: string = "SV-2025001"): Promise<CalculateMatchResponse | null> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/assessment/${encodeURIComponent(studentId)}`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(6000)
+      });
+
+      if (!res.ok) return null;
+
+      const data: CalculateMatchResponse = await res.json();
+      return {
+        ...data,
+        top_recommendations: data.top_matches
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Lưu hoặc cập nhật kết quả đánh giá kỹ năng vào CSDL SQLite
+   * Endpoint: POST /api/v1/assessment/{student_id}
+   */
+  static async saveAssessment(
+    studentId: string = "SV-2025001",
+    assessmentData: any
+  ): Promise<boolean> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/assessment/${encodeURIComponent(studentId)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(assessmentData),
+        signal: AbortSignal.timeout(6000)
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * Alias tương thích ngược cho analyzeSkillGap
    */
   static async analyzeSkillGap(
@@ -329,4 +374,45 @@ export class ApiService {
       onComplete();
     }
   }
+
+  /**
+   * Lấy lịch sử đoạn chat từ CSDL SQLite
+   * Endpoint: GET /api/v1/chat/history/{student_id}
+   */
+  static async getChatHistory(studentId: string = "SV-2025001"): Promise<Array<{ role: "user" | "assistant"; content: string }>> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/chat/history/${encodeURIComponent(studentId)}`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(5000)
+      });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return (data.messages || []).map((m: any) => ({
+        role: m.role as "user" | "assistant",
+        content: m.content
+      }));
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Lưu tin nhắn vào CSDL SQLite
+   * Endpoint: POST /api/v1/chat/history/{student_id}
+   */
+  static async saveChatMessage(studentId: string = "SV-2025001", role: "user" | "assistant", content: string): Promise<boolean> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/chat/history/${encodeURIComponent(studentId)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role, content }),
+        signal: AbortSignal.timeout(5000)
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }
 }
+

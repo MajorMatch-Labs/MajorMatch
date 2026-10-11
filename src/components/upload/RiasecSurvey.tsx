@@ -50,25 +50,42 @@ export const RiasecSurvey: React.FC = () => {
     setRiasecScore('c', calcAvg(cScores));
   };
 
-  // Tinh toan ma Holland noi troi tu diem so hien tai
+  // Tinh toan ma Holland noi troi tu diem so hien tai voi Fallback an toan tuyet doi
   const dominantInfo = useMemo(() => {
+    const safeScores = riasecScores || {};
     const rawScores = {
-      r: riasecScores.r || riasecScores.R || 3.0,
-      i: riasecScores.i || riasecScores.I || 3.0,
-      a: riasecScores.a || riasecScores.A || 3.0,
-      s: riasecScores.s || riasecScores.S || 3.0,
-      e: riasecScores.e || riasecScores.E || 3.0,
-      c: riasecScores.c || riasecScores.C || 3.0,
+      r: Number(safeScores.r ?? safeScores.R ?? 3.0) || 3.0,
+      i: Number(safeScores.i ?? safeScores.I ?? 3.0) || 3.0,
+      a: Number(safeScores.a ?? safeScores.A ?? 3.0) || 3.0,
+      s: Number(safeScores.s ?? safeScores.S ?? 3.0) || 3.0,
+      e: Number(safeScores.e ?? safeScores.E ?? 3.0) || 3.0,
+      c: Number(safeScores.c ?? safeScores.C ?? 3.0) || 3.0,
     };
     const ranked = rankRiasecTraits(rawScores);
     const dominant = getDominantHollandCode(rawScores);
+
+    const defaultTrait = RIASEC_TRAIT_DEFINITIONS.I || {
+      key: 'I',
+      codeName: 'Investigative',
+      vietnameseName: 'Nghiên cứu & Khám phá',
+      summary: '',
+      color: '#3B82F6',
+      badgeBg: 'rgba(59, 130, 246, 0.15)',
+      typicalCareers: [],
+    };
+
+    const primaryMeta = RIASEC_TRAIT_DEFINITIONS[dominant.primary] || defaultTrait;
+    const secondaryMeta = RIASEC_TRAIT_DEFINITIONS[dominant.secondary] || RIASEC_TRAIT_DEFINITIONS.R || defaultTrait;
+
     return {
-      code: dominant.code,
-      primaryMeta: RIASEC_TRAIT_DEFINITIONS[dominant.primary],
-      secondaryMeta: RIASEC_TRAIT_DEFINITIONS[dominant.secondary],
+      code: dominant.code || "IR",
+      primaryMeta,
+      secondaryMeta,
       topTwo: ranked.slice(0, 2),
     };
   }, [riasecScores]);
+
+  const safeCareerTags = Array.isArray(selectedCareerTags) ? selectedCareerTags : [];
 
   return (
     <div className="space-y-6">
@@ -86,7 +103,7 @@ export const RiasecSurvey: React.FC = () => {
 
         <div className="flex flex-wrap gap-2">
           {AVAILABLE_CAREER_TAGS.map((tag) => {
-            const isSelected = selectedCareerTags.includes(tag.id);
+            const isSelected = safeCareerTags.includes(tag.id);
             return (
               <button
                 key={tag.id}
@@ -125,23 +142,26 @@ export const RiasecSurvey: React.FC = () => {
             <span className="text-xs text-slate-700 dark:text-slate-300">
               Thiên hướng nhận diện:{" "}
               <strong className="text-indigo-700 dark:text-indigo-300 font-mono text-sm">{dominantInfo.code}</strong>{" "}
-              ({dominantInfo.primaryMeta.codeName} & {dominantInfo.secondaryMeta.codeName})
+              ({dominantInfo.primaryMeta?.codeName || 'Chưa xác định'} & {dominantInfo.secondaryMeta?.codeName || 'Chưa xác định'})
             </span>
           </div>
           <div className="flex gap-1.5">
-            {dominantInfo.topTwo.map((trait) => (
-              <span
-                key={trait.key}
-                className="text-[10px] font-mono px-2 py-0.5 rounded border"
-                style={{
-                  color: RIASEC_TRAIT_DEFINITIONS[trait.key].color,
-                  backgroundColor: RIASEC_TRAIT_DEFINITIONS[trait.key].badgeBg,
-                  borderColor: `${RIASEC_TRAIT_DEFINITIONS[trait.key].color}40`,
-                }}
-              >
-                {trait.key}: {trait.percentage}%
-              </span>
-            ))}
+            {dominantInfo.topTwo.map((trait) => {
+              const meta = RIASEC_TRAIT_DEFINITIONS[trait.key] || RIASEC_TRAIT_DEFINITIONS.I;
+              return (
+                <span
+                  key={trait.key}
+                  className="text-[10px] font-mono px-2 py-0.5 rounded border"
+                  style={{
+                    color: meta?.color || '#3B82F6',
+                    backgroundColor: meta?.badgeBg || 'rgba(59, 130, 246, 0.15)',
+                    borderColor: `${meta?.color || '#3B82F6'}40`,
+                  }}
+                >
+                  {trait.key}: {trait.percentage}%
+                </span>
+              );
+            })}
           </div>
         </div>
 
@@ -152,7 +172,7 @@ export const RiasecSurvey: React.FC = () => {
         <div className="space-y-4">
           {RIASEC_QUESTIONS_DATASET.map((q) => {
             const currentScore = questionAnswers[q.id] ?? 3;
-            const traitMeta = RIASEC_TRAIT_DEFINITIONS[q.category];
+            const traitMeta = RIASEC_TRAIT_DEFINITIONS[q.category] || RIASEC_TRAIT_DEFINITIONS.I;
 
             return (
               <div
@@ -166,7 +186,7 @@ export const RiasecSurvey: React.FC = () => {
                     <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1.5">
                       <span
                         className="inline-block w-1.5 h-1.5 rounded-full"
-                        style={{ backgroundColor: traitMeta.color }}
+                        style={{ backgroundColor: traitMeta?.color || '#3B82F6' }}
                       />
                       <span>{q.scenarioHint}</span>
                     </div>

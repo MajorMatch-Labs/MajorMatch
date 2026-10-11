@@ -79,7 +79,7 @@ export const FileDropzone: React.FC = () => {
               </div>
               <span className="text-sm font-semibold text-slate-900 dark:text-white">{uploadedFileName}</span>
               <span className="text-xs text-emerald-600 dark:text-emerald-400 font-mono font-medium">
-                Bóc tách thành công: GPA {profile.cumulative_gpa} | {profile.courses.length} Môn học
+                Bóc tách thành công: GPA {profile.cumulative_gpa ?? "N/A"} | {profile.courses?.length ?? 0} Môn học
               </span>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 max-w-md mt-1">
                 Nhấp hoặc kéo thả tệp khác để thay thế bảng điểm
@@ -133,25 +133,25 @@ export const FileDropzone: React.FC = () => {
           <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80">
             <span className="text-[11px] text-slate-600 dark:text-slate-400 uppercase font-medium">GPA Tích lũy</span>
             <div className="text-lg font-bold text-indigo-600 dark:text-indigo-300 mt-0.5 font-mono">
-              {profile.cumulative_gpa} / 4.0
+              {profile.cumulative_gpa ?? "N/A"} / 4.0
             </div>
           </div>
           <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80">
             <span className="text-[11px] text-slate-600 dark:text-slate-400 uppercase font-medium">Số tín chỉ</span>
             <div className="text-lg font-bold text-cyan-600 dark:text-cyan-300 mt-0.5 font-mono">
-              {profile.total_credits} tín chỉ
+              {profile.total_credits ?? 0} tín chỉ
             </div>
           </div>
           <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80">
             <span className="text-[11px] text-slate-600 dark:text-slate-400 uppercase font-medium">Môn đã hoàn thành</span>
             <div className="text-lg font-bold text-emerald-600 dark:text-emerald-300 mt-0.5 font-mono">
-              {profile.courses.length} môn
+              {profile.courses?.length ?? 0} môn
             </div>
           </div>
           <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80">
             <span className="text-[11px] text-slate-600 dark:text-slate-400 uppercase font-medium">Kỹ năng phát hiện</span>
             <div className="text-lg font-bold text-amber-600 dark:text-amber-300 mt-0.5 font-mono">
-              {profile.detected_skills.length} kỹ năng
+              {profile.detected_skills?.length ?? 0} kỹ năng
             </div>
           </div>
         </div>

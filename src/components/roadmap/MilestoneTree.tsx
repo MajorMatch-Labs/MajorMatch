@@ -1,11 +1,12 @@
 "use client";
 
 import React from "react";
-import { GitCommit, Sparkles, Trophy, Calendar, CheckCircle2, ArrowRight } from "lucide-react";
+import { GitCommit, Sparkles } from "lucide-react";
 import { SemesterMilestone } from "@/types/api";
 import { InteractiveTask } from "./InteractiveTask";
 import { useProfileStore } from "@/stores/useProfileStore";
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 
 interface MilestoneTreeProps {
   semesters: SemesterMilestone[];
@@ -16,6 +17,7 @@ export const MilestoneTree: React.FC<MilestoneTreeProps> = ({ semesters, targetM
   const { dynamicReadinessScore, completedItems } = useProfileStore();
 
   const totalCompleted = Object.values(completedItems).filter(Boolean).length;
+  const hasSemesters = Array.isArray(semesters) && semesters.length > 0;
 
   return (
     <div className="space-y-8">
@@ -58,118 +60,124 @@ export const MilestoneTree: React.FC<MilestoneTreeProps> = ({ semesters, targetM
       </div>
 
       {/* 2. Cây phân bổ từng giai đoạn phát triển năng lực (Milestones) */}
-      <div className="relative border-l-2 border-indigo-200 dark:border-indigo-500/30 ml-4 md:ml-6 pl-6 md:pl-8 space-y-10">
-        {(semesters || []).map((sem, idx) => (
-          <div key={idx} className="relative">
-            {/* Timeline Dot */}
-            <div className="absolute -left-[31px] md:-left-[39px] top-1.5 w-6 h-6 rounded-full bg-white dark:bg-slate-950 border-2 border-indigo-500 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-md shadow-indigo-500/20">
-              <GitCommit className="w-3.5 h-3.5" />
-            </div>
-
-            {/* Phase Header */}
-            <div className="mb-4">
-              <div className="flex items-center gap-2">
-                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-600/20 dark:text-indigo-300 dark:border-indigo-500/30 font-mono">
-                  GIAI ĐOẠN {idx + 1}
-                </span>
-                <h4 className="text-sm md:text-base font-bold text-slate-900 dark:text-white tracking-tight">
-                  {sem.phase_title || sem.semester_name}
-                </h4>
+      {!hasSemesters ? (
+        <div className="p-8 text-center border border-dashed border-slate-300 dark:border-slate-800 rounded-2xl">
+          <p className="text-xs text-slate-500">Chưa có giai đoạn học tập nào được thiết lập cho lộ trình này.</p>
+        </div>
+      ) : (
+        <div className="relative border-l-2 border-indigo-200 dark:border-indigo-500/30 ml-4 md:ml-6 pl-6 md:pl-8 space-y-10">
+          {semesters.map((sem, idx) => (
+            <div key={idx} className="relative">
+              {/* Timeline Dot */}
+              <div className="absolute -left-[31px] md:-left-[39px] top-1.5 w-6 h-6 rounded-full bg-white dark:bg-slate-950 border-2 border-indigo-500 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-md shadow-indigo-500/20">
+                <GitCommit className="w-3.5 h-3.5" />
               </div>
-              <p className="text-xs text-indigo-700 dark:text-indigo-200/80 font-medium mt-1">
-                Trọng tâm: {sem.target_focus}
-              </p>
 
-              {/* Dải kỹ năng chuẩn đầu ra của giai đoạn */}
-              {sem.milestone_skills && sem.milestone_skills.length > 0 && (
-                <div className="mt-2.5 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80">
-                  <div className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wider mb-1.5">
-                    <Sparkles className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
-                    <span>Kỹ năng chuẩn đầu ra giai đoạn {idx + 1}:</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {sem.milestone_skills.map((skill, sIdx) => (
-                      <span
-                        key={sIdx}
-                        className="text-[9px] font-mono px-2 py-0.5 rounded-md bg-white dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700/60 shadow-xs"
-                      >
-                        #{skill}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Content Groups */}
-            <div className="space-y-3">
-              {/* Môn học cốt lõi */}
-              {(sem.recommended_courses || []).length > 0 && (
-                <div className="space-y-2">
-                  <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider block">
-                    Môn học đề xuất bồi đắp kiến thức & năng lực:
+              {/* Phase Header */}
+              <div className="mb-4">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-600/20 dark:text-indigo-300 dark:border-indigo-500/30 font-mono">
+                    GIAI ĐOẠN {idx + 1}
                   </span>
-                  {(sem.recommended_courses || []).map((course) => (
-                    <InteractiveTask
-                      key={course.course_code}
-                      id={course.course_code}
-                      type="course"
-                      title={course.course_name}
-                      subtitle={course.course_code}
-                      credits={course.credits}
-                      skills={course.target_skills}
-                      rationale={course.rationale}
-                    />
-                  ))}
+                  <h4 className="text-sm md:text-base font-bold text-slate-900 dark:text-white tracking-tight">
+                    {sem.phase_title || sem.semester_name}
+                  </h4>
                 </div>
-              )}
+                <p className="text-xs text-indigo-700 dark:text-indigo-200/80 font-medium mt-1">
+                  Trọng tâm: {sem.target_focus}
+                </p>
 
-              {/* Đồ án thực chiến */}
-              {(() => {
-                const projectsList = [
-                  ...(sem.practical_projects || []),
-                  ...(sem.practical_project ? [sem.practical_project] : [])
-                ];
-                if (projectsList.length === 0) return null;
-                return (
-                  <div className="space-y-2 pt-2">
-                    <span className="text-[11px] font-semibold text-cyan-700 dark:text-cyan-400 uppercase tracking-wider block">
-                      Đồ án thực chiến cá nhân (Portfolio):
+                {/* Dải kỹ năng chuẩn đầu ra của giai đoạn */}
+                {sem.milestone_skills && sem.milestone_skills.length > 0 && (
+                  <div className="mt-2.5 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80">
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wider mb-1.5">
+                      <Sparkles className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
+                      <span>Kỹ năng chuẩn đầu ra giai đoạn {idx + 1}:</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {sem.milestone_skills.map((skill, sIdx) => (
+                        <span
+                          key={sIdx}
+                          className="text-[9px] font-mono px-2 py-0.5 rounded-md bg-white dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700/60 shadow-xs"
+                        >
+                          #{skill}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Content Groups */}
+              <div className="space-y-3">
+                {/* Môn học cốt lõi */}
+                {(sem.recommended_courses || []).length > 0 && (
+                  <div className="space-y-2">
+                    <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider block">
+                      Môn học đề xuất bồi đắp kiến thức & năng lực:
                     </span>
-                    {projectsList.map((proj, pIdx) => (
+                    {(sem.recommended_courses || []).map((course) => (
                       <InteractiveTask
-                        key={pIdx}
-                        id={proj.project_title}
-                        type="project"
-                        title={proj.project_title}
-                        skills={proj.target_skills}
-                        rationale={proj.description}
+                        key={course.course_code}
+                        id={course.course_code}
+                        type="course"
+                        title={course.course_name}
+                        subtitle={course.course_code}
+                        credits={course.credits}
+                        skills={course.target_skills}
+                        rationale={course.rationale}
                       />
                     ))}
                   </div>
-                );
-              })()}
+                )}
 
-              {/* Chứng chỉ quốc tế */}
-              {(sem.certifications || []).length > 0 && (
-                <div className="space-y-2 pt-2">
-                  <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wider block">
-                    Chứng chỉ đề xuất:
-                  </span>
-                  {(sem.certifications || []).map((cert, cIdx) => (
-                    <InteractiveTask
-                      key={cIdx}
-                      id={cert}
-                      type="cert"
-                      title={cert}
-                    />
-                  ))}
-                </div>
-              )}
+                {/* Đồ án thực chiến */}
+                {(() => {
+                  const projectsList = [
+                    ...(sem.practical_projects || []),
+                    ...(sem.practical_project ? [sem.practical_project] : [])
+                  ];
+                  if (projectsList.length === 0) return null;
+                  return (
+                    <div className="space-y-2 pt-2">
+                      <span className="text-[11px] font-semibold text-cyan-700 dark:text-cyan-400 uppercase tracking-wider block">
+                        Đồ án thực chiến cá nhân (Portfolio):
+                      </span>
+                      {projectsList.map((proj, pIdx) => (
+                        <InteractiveTask
+                          key={pIdx}
+                          id={proj.project_title}
+                          type="project"
+                          title={proj.project_title}
+                          skills={proj.target_skills}
+                          rationale={proj.description}
+                        />
+                      ))}
+                    </div>
+                  );
+                })()}
+
+                {/* Chứng chỉ quốc tế */}
+                {(sem.certifications || []).length > 0 && (
+                  <div className="space-y-2 pt-2">
+                    <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wider block">
+                      Chứng chỉ đề xuất:
+                    </span>
+                    {(sem.certifications || []).map((cert, cIdx) => (
+                      <InteractiveTask
+                        key={cIdx}
+                        id={cert}
+                        type="cert"
+                        title={cert}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* CTA: Hỏi trợ lý ảo */}
       <div className="p-4 rounded-xl glass-panel border border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-sm">

@@ -6,6 +6,7 @@ import { useProfileStore } from "@/stores/useProfileStore";
 import { SseStreamController } from "@/modules/advisor/services/sseStreamController";
 import { SseConnectionStatus } from "@/modules/advisor/types/sseTypes";
 import { MarkdownMessage } from "@/modules/advisor/components/MarkdownMessage";
+import { ApiService } from "@/services/api";
 
 interface Message {
   role: "user" | "assistant";
@@ -15,6 +16,7 @@ interface Message {
 export const StreamingChatBox: React.FC = () => {
   const { selectedMajor, profile } = useProfileStore();
   const targetMajor = selectedMajor?.major_name || "AI & Data Science Specialist";
+  const studentId = profile?.student_id || "SV-2025001";
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -29,16 +31,26 @@ export const StreamingChatBox: React.FC = () => {
   const controllerRef = useRef<SseStreamController | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const currentAssistantTextRef = useRef<string>("");
 
   const isStreaming = streamStatus === "connecting" || streamStatus === "streaming";
 
-  // Khoi tao controller
+  // Khởi tạo controller & Nạp lịch sử hội thoại từ CSDL SQLite
   useEffect(() => {
     controllerRef.current = new SseStreamController();
+    let isMounted = true;
+
+    ApiService.getChatHistory(studentId).then((history) => {
+      if (isMounted && history && history.length > 0) {
+        setMessages(history);
+      }
+    });
+
     return () => {
+      isMounted = false;
       controllerRef.current?.abort();
     };
-  }, []);
+  }, [studentId]);
 
   // Xu ly cuon thong minh (Smart Auto-Scroll)
   const scrollToBottom = useCallback((force = false) => {
@@ -73,9 +85,13 @@ export const StreamingChatBox: React.FC = () => {
     const userMsg: Message = { role: "user", content: query };
     setMessages((prev) => [...prev, userMsg]);
 
+    // Lưu tin nhắn của người dùng vào CSDL SQLite
+    ApiService.saveChatMessage(studentId, "user", query);
+
     // Tạo tin nhắn trợ lý rỗng ban đầu để nhận stream
     const assistantIndex = messages.length + 1;
     setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
+    currentAssistantTextRef.current = "";
 
     const apiBaseUrl = typeof window !== "undefined" ? "" : (process.env.NEXT_PUBLIC_API_URL || "");
     const endpoint = `${apiBaseUrl}/api/v1/chat/stream`;
@@ -93,6 +109,7 @@ export const StreamingChatBox: React.FC = () => {
       },
       {
         onToken: (token) => {
+          currentAssistantTextRef.current += token;
           setMessages((prev) => {
             const next = [...prev];
             const currentAssistantMsg = next[assistantIndex];
@@ -106,7 +123,13 @@ export const StreamingChatBox: React.FC = () => {
           });
         },
         onStatusChange: (status) => setStreamStatus(status),
-        onComplete: () => setStreamStatus("completed"),
+        onComplete: () => {
+          setStreamStatus("completed");
+          // Lưu câu trả lời của trợ lý AI vào CSDL SQLite
+          if (currentAssistantTextRef.current) {
+            ApiService.saveChatMessage(studentId, "assistant", currentAssistantTextRef.current);
+          }
+        },
         onError: (err) => {
           setStreamStatus("error");
           setMessages((prev) => {
