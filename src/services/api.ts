@@ -414,5 +414,74 @@ export class ApiService {
       return false;
     }
   }
+
+  /**
+   * Lấy số liệu thống kê tổng quan CSDL cho Admin Dashboard
+   * Endpoint: GET /api/v1/admin/stats
+   */
+  static async getAdminStats(): Promise<any> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/admin/stats`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(6000)
+      });
+      if (!res.ok) throw new Error("Fetch admin stats failed");
+      return await res.json();
+    } catch (err) {
+      console.warn("getAdminStats failed:", err);
+      return null;
+    }
+  }
+
+  /**
+   * Lấy danh sách bản ghi theo bảng kèm tìm kiếm và phân trang
+   * Endpoint: GET /api/v1/admin/table/{table_name}
+   */
+  static async getAdminTableRecords(
+    tableName: string,
+    search?: string,
+    limit: number = 50,
+    offset: number = 0
+  ): Promise<any> {
+    try {
+      const queryParams = new URLSearchParams({
+        limit: String(limit),
+        offset: String(offset)
+      });
+      if (search && search.trim()) {
+        queryParams.set("search", search.trim());
+      }
+      const res = await fetch(`${API_BASE_URL}/api/v1/admin/table/${encodeURIComponent(tableName)}?${queryParams.toString()}`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(8000)
+      });
+      if (!res.ok) throw new Error(`Fetch table ${tableName} failed`);
+      return await res.json();
+    } catch (err) {
+      console.warn(`getAdminTableRecords for ${tableName} failed:`, err);
+      return { status: "error", table: tableName, total: 0, records: [], columns: [] };
+    }
+  }
+
+  /**
+   * Xóa một bản ghi cụ thể theo khóa chính
+   * Endpoint: DELETE /api/v1/admin/table/{table_name}/{record_id}
+   */
+  static async deleteAdminRecord(tableName: string, recordId: string): Promise<boolean> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/admin/table/${encodeURIComponent(tableName)}/${encodeURIComponent(recordId)}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(6000)
+      });
+      return res.ok;
+    } catch (err) {
+      console.error(`deleteAdminRecord for ${tableName}/${recordId} failed:`, err);
+      return false;
+    }
+  }
 }
+
 
