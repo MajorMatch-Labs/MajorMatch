@@ -96,6 +96,159 @@ def init_db():
 
 init_db()
 
+ADMIN_ALLOWED_TABLES = ["user_profiles", "roadmaps", "assessments", "chat_history"]
+
+# =============================================================================
+# ENDPOINT NHÓM ADMIN: QUẢN TRỊ & THAO TÁC CƠ SỞ DỮ LIỆU
+# =============================================================================
+
+@app.get("/api/v1/admin/stats")
+async def get_admin_db_stats():
+    """Tổng quan dung lượng, trạng thái WAL và số lượng bản ghi của CSDL SQLite trên Cloud."""
+    db_size_kb = 0
+    wal_size_kb = 0
+    if os.path.exists(DB_PATH):
+        db_size_kb = round(os.path.getsize(DB_PATH) / 1024, 1)
+    wal_path = f"{DB_PATH}-wal"
+    if os.path.exists(wal_path):
+        wal_size_kb = round(os.path.getsize(wal_path) / 1024, 1)
+
+    table_counts = {}
+    conn = get_db()
+    cursor = conn.cursor()
+    for tbl in ADMIN_ALLOWED_TABLES:
+        try:
+            cursor.execute(f"SELECT COUNT(*) FROM {tbl}")
+            table_counts[tbl] = cursor.fetchone()[0]
+        except Exception:
+            table_counts[tbl] = 0
+    conn.close()
+
+    # Kiểm tra thời gian backup gần nhất
+    backup_dir = os.path.expanduser("~/data/backups")
+    latest_backup = "Chưa có bản backup"
+    if os.path.exists(backup_dir):
+        files = [os.path.join(backup_dir, f) for f in os.listdir(backup_dir) if f.endswith(".db")]
+        if files:
+            newest = max(files, key=os.path.getmtime)
+            latest_backup = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(os.path.getmtime(newest)))
+
+    return {
+        "status": "success",
+        "engine": "SQLite WAL Mode",
+        "db_path": DB_PATH,
+        "db_size_kb": db_size_kb,
+        "wal_size_kb": wal_size_kb,
+        "total_records": sum(table_counts.values()),
+        "table_counts": table_counts,
+        "latest_backup": latest_backup,
+        "server_time": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
+    }
+
+
+@app.get("/api/v1/admin/table/{table_name}")
+async def get_admin_table_records(
+    table_name: str,
+    search: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0
+):
+    """Truy xuất danh sách bản ghi theo bảng kèm tìm kiếm và phân trang an toàn."""
+    if table_name not in ADMIN_ALLOWED_TABLES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Bảng '{table_name}' không hợp lệ hoặc bị hạn chế truy cập. Các bảng hợp lệ: {ADMIN_ALLOWED_TABLES}"
+        )
+
+    limit = max(1, min(limit, 200))
+    offset = max(0, offset)
+
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # Lấy thông tin cấu trúc cột
+    cursor.execute(f"PRAGMA table_info({table_name});")
+    columns_info = [{"name": r["name"], "type": r["type"], "pk": bool(r["pk"])} for r in cursor.fetchall()]
+
+    query = f"SELECT * FROM {table_name}"
+    count_query = f"SELECT COUNT(*) FROM {table_name}"
+    params = []
+
+    # Xử lý tìm kiếm an toàn nếu có từ khóa
+    if search and search.strip():
+        search_term = f"%{search.strip()}%"
+        if table_name == "user_profiles":
+            filter_clause = " WHERE student_id LIKE ? OR full_name LIKE ? OR detected_skills LIKE ?"
+            params.extend([search_term, search_term, search_term])
+        elif table_name == "roadmaps":
+            filter_clause = " WHERE student_id LIKE ? OR target_major_name LIKE ?"
+            params.extend([search_term, search_term])
+        elif table_name == "assessments":
+            filter_clause = " WHERE student_id LIKE ? OR target_career LIKE ?"
+            params.extend([search_term, search_term])
+        elif table_name == "chat_history":
+            filter_clause = " WHERE student_id LIKE ? OR content LIKE ?"
+            params.extend([search_term, search_term])
+        else:
+            filter_clause = ""
+        query += filter_clause
+        count_query += filter_clause
+
+    cursor.execute(count_query, params)
+    total = cursor.fetchone()[0]
+
+    # Phân trang và sắp xếp mặc định theo trường thời gian/ID
+    order_clause = " ORDER BY id DESC" if table_name == "chat_history" else " ORDER BY updated_at DESC" if "updated_at" in [c["name"] for c in columns_info] else ""
+    query += f"{order_clause} LIMIT ? OFFSET ?"
+    params.extend([limit, offset])
+
+    cursor.execute(query, params)
+    rows = cursor.fetchall()
+    conn.close()
+
+    records = [dict(r) for r in rows]
+
+    return {
+        "status": "success",
+        "table": table_name,
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+        "columns": columns_info,
+        "records": records
+    }
+
+
+@app.delete("/api/v1/admin/table/{table_name}/{record_id}")
+async def delete_admin_table_record(table_name: str, record_id: str):
+    """Xóa an toàn một bản ghi khỏi bảng chỉ định theo khóa chính."""
+    if table_name not in ADMIN_ALLOWED_TABLES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Bảng '{table_name}' không hợp lệ."
+        )
+
+    conn = get_db()
+    cursor = conn.cursor()
+
+    pk_field = "id" if table_name == "chat_history" else "student_id"
+    cursor.execute(f"DELETE FROM {table_name} WHERE {pk_field} = ?", (record_id,))
+    deleted = cursor.rowcount
+    conn.commit()
+    conn.close()
+
+    if deleted == 0:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Không tìm thấy bản ghi có {pk_field}='{record_id}' trong bảng '{table_name}'."
+        )
+
+    return {
+        "status": "success",
+        "message": f"Đã xóa thành công bản ghi '{record_id}' khỏi bảng '{table_name}'.",
+        "deleted_count": deleted
+    }
+
 
 # =============================================================================
 # ENDPOINT NHÓM 1: TRUY VẤN & CẬP NHẬT TRỰC TIẾP TỪ CSDL CLOUD (OFFLINE-RESILIENT)

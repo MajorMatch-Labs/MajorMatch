@@ -14,7 +14,8 @@ import {
   Sun,
   Moon,
   User,
-  LogOut
+  LogOut,
+  Database
 } from "lucide-react";
 import { ApiService } from "@/services/api";
 import { HealthCheckResponse } from "@/types/api";
@@ -62,6 +63,7 @@ export const Navbar: React.FC = () => {
     { href: "/result", label: "Khoảng cách Kỹ năng", icon: Radar },
     { href: "/roadmap", label: "Lộ trình Tương tác", icon: GitFork },
     { href: "/chat", label: "Trợ lý AI Streaming", icon: MessageSquare },
+    { href: "/admin", label: "Admin CSDL", icon: Database },
   ];
 
   return (
