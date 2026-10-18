@@ -482,6 +482,115 @@ export class ApiService {
       return false;
     }
   }
+
+  /**
+   * Lưu kết quả và từng câu trả lời trắc nghiệm RIASEC vào CSDL Cloud
+   * Endpoint: POST /api/v1/survey/riasec
+   */
+  static async saveRiasecSurvey(
+    studentId: string = "SV-2025001",
+    answers: Record<number, number>,
+    scores: Record<string, number>,
+    dominantCode: string = "I"
+  ): Promise<boolean> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/survey/riasec`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          student_id: studentId,
+          answers,
+          scores,
+          dominant_code: dominantCode
+        }),
+        signal: AbortSignal.timeout(6000)
+      });
+      return res.ok;
+    } catch (err) {
+      console.warn("saveRiasecSurvey failed:", err);
+      return false;
+    }
+  }
+
+  /**
+   * Lấy câu trả lời và kết quả khảo sát RIASEC đã lưu của sinh viên
+   * Endpoint: GET /api/v1/survey/riasec/{student_id}
+   */
+  static async getRiasecSurvey(studentId: string = "SV-2025001"): Promise<any | null> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/survey/riasec/${encodeURIComponent(studentId)}`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(6000)
+      });
+      if (!res.ok) return null;
+      return await res.json();
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Lấy danh sách tổng hợp tất cả sinh viên cho Site Admin
+   * Endpoint: GET /api/v1/admin/students
+   */
+  static async getAdminStudents(): Promise<any[]> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/admin/students`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(8000)
+      });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.students || [];
+    } catch (err) {
+      console.warn("getAdminStudents failed:", err);
+      return [];
+    }
+  }
+
+  /**
+   * Tải về file xuất dữ liệu CSV hoặc JSON toàn hệ thống
+   * Endpoint: GET /api/v1/admin/export?format={csv|json}
+   */
+  static async exportAdminData(format: "csv" | "json" = "csv", table?: string): Promise<void> {
+    try {
+      const query = new URLSearchParams({ format });
+      if (table) query.set("table", table);
+      const url = `${API_BASE_URL}/api/v1/admin/export?${query.toString()}`;
+
+      if (format === "csv") {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("Xuất dữ liệu CSV thất bại");
+        const blob = await res.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = downloadUrl;
+        a.download = table ? `majormatch_${table}_export.csv` : "majormatch_all_students_export.csv";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(downloadUrl);
+      } else {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("Xuất dữ liệu JSON thất bại");
+        const json = await res.json();
+        const blob = new Blob([JSON.stringify(json, null, 2)], { type: "application/json" });
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = downloadUrl;
+        a.download = table ? `majormatch_${table}_export.json` : "majormatch_all_students_export.json";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(downloadUrl);
+      }
+    } catch (err) {
+      console.error("exportAdminData error:", err);
+      throw err;
+    }
+  }
 }
 
 
