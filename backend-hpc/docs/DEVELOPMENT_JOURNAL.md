@@ -73,3 +73,8 @@
 - **Tương thích Client-Backend**:
   - Đảm bảo tính nhất quán dữ liệu giữa FastAPI Backend và Next.js Client khi render cây lộ trình `MilestoneTree.tsx`, phục vụ đợt đánh giá tiến độ chuyên đề và đề cương đồ án.
 
+### Ngày 18/10/2026 - Gateway EC2 CI/CD
+- Bổ sung GitHub Actions kiểm tra cú pháp, kiểm thử API với SQLite tạm, và triển khai gateway sau khi merge vào `main`.
+- Triển khai trên EC2 có snapshot SQLite, bản sao mã cũ, kiểm tra health và khôi phục mã khi khởi động thất bại.
+- Sửa lỗi cú pháp trong gateway; bỏ mật khẩu admin mặc định và loại bảng `users` khỏi API duyệt bảng quản trị chưa có kiểm soát truy cập.
+

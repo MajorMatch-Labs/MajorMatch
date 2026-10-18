@@ -1,0 +1,86 @@
+name: Deploy Backend Gateway to AWS EC2
+
+on:
+  pull_request:
+    paths:
+      - backend-hpc/cloud_gateway.py
+      - backend-hpc/requirements-gateway.txt
+      - backend-hpc/tests/gateway_smoke.py
+      - backend-hpc/scripts/deploy_gateway_ec2.sh
+      - .github/workflows/deploy-gateway-ec2.yml
+  push:
+    branches:
+      - main
+    paths:
+      - backend-hpc/cloud_gateway.py
+      - backend-hpc/requirements-gateway.txt
+      - backend-hpc/tests/gateway_smoke.py
+      - backend-hpc/scripts/deploy_gateway_ec2.sh
+      - .github/workflows/deploy-gateway-ec2.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ec2-gateway-main
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install gateway dependencies
+        run: python -m pip install -r backend-hpc/requirements-gateway.txt
+      - name: Check syntax and isolated API flow
+        run: |
+          python -m py_compile backend-hpc/cloud_gateway.py
+          python backend-hpc/tests/gateway_smoke.py
+      - name: Check deployment script syntax
+        run: bash -n backend-hpc/scripts/deploy_gateway_ec2.sh
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Package gateway release
+        run: |
+          tar -czf gateway-release.tar.gz -C backend-hpc \
+            cloud_gateway.py requirements-gateway.txt \
+            tests/gateway_smoke.py scripts/deploy_gateway_ec2.sh
+      - name: Deploy over SSH
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_SSH_HOST_KEY: ${{ secrets.EC2_SSH_HOST_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$EC2_HOST"
+          test -n "$EC2_USER"
+          test -n "$EC2_SSH_KEY"
+          test -n "$EC2_SSH_HOST_KEY"
+          mkdir -p "$HOME/.ssh"
+          chmod 700 "$HOME/.ssh"
+          printf '%s\n' "$EC2_SSH_KEY" > "$HOME/.ssh/majormatch_ec2_key"
+          chmod 600 "$HOME/.ssh/majormatch_ec2_key"
+          printf '%s\n' "$EC2_SSH_HOST_KEY" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/known_hosts"
+          target="$EC2_USER@$EC2_HOST"
+          ssh_options=(-i "$HOME/.ssh/majormatch_ec2_key" -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15)
+          scp "${ssh_options[@]}" gateway-release.tar.gz "$target:/home/ubuntu/gateway-release-$GITHUB_SHA.tar.gz"
+          ssh "${ssh_options[@]}" "$target" "bash -s -- '$GITHUB_SHA'" <<'REMOTE'
+          set -euo pipefail
+          commit_sha="$1"
+          archive="/home/ubuntu/gateway-release-$commit_sha.tar.gz"
+          stage_dir="$(mktemp -d /home/ubuntu/gateway-deploy.XXXXXX)"
+          trap 'rm -rf "$stage_dir" "$archive"' EXIT
+          tar -xzf "$archive" -C "$stage_dir"
+          bash "$stage_dir/scripts/deploy_gateway_ec2.sh" "$stage_dir" "$commit_sha"
+          REMOTE

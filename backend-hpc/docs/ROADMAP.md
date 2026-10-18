@@ -71,3 +71,9 @@ Lộ trình triển khai Backend HPC được chia thành 6 bước tuần tự,
 - [ ] **Bước 5**: Tầng Local Model & RAG Fallback
 - [ ] **Bước 6**: Khởi chạy Server, Swagger Test & Đồng bộ Git
 
+## EC2 Gateway Delivery (18/10/2026)
+- [x] CI kiểm tra cú pháp và luồng API trên cơ sở dữ liệu tạm.
+- [x] Workflow deploy gateway trên EC2 sau khi merge vào `main`, có backup và health check.
+- [ ] Bảo vệ các API quản trị và hồ sơ bằng xác thực phía server trước khi dùng dữ liệu sinh viên thật.
+- [ ] Giám sát dung lượng ổ đĩa, chính sách giữ bản backup và kiểm thử khôi phục dữ liệu định kỳ.
+
