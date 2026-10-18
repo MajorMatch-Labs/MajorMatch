@@ -128,8 +128,9 @@ def init_db():
             pass
         try:
             r = conn.execute("SELECT student_id FROM users WHERE student_id = 'admin';").fetchone()
-            if not r:
-                admin_pwd = hash_password("admin123")
+            admin_password = os.getenv("MAJORMATCH_ADMIN_PASSWORD")
+            if not r and admin_password:
+                admin_pwd = hash_password(admin_password)
                 now_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
                 conn.execute("""
                 INSERT INTO users (student_id, email, password_hash, full_name, university, major, cohort, role, created_at, updated_at)
@@ -139,9 +140,7 @@ def init_db():
             pass
     conn.close()
 
-init_db()
-
-ADMIN_ALLOWED_TABLES = ["users", "user_profiles", "roadmaps", "assessments", "chat_history", "riasec_surveys"]
+ADMIN_ALLOWED_TABLES = ["user_profiles", "roadmaps", "assessments", "chat_history", "riasec_surveys"]
 
 # =============================================================================
 # ENDPOINT NHÓM ADMIN: QUẢN TRỊ & THAO TÁC CƠ SỞ DỮ LIỆU
@@ -317,6 +316,9 @@ def verify_password(password: str, stored_hash: str) -> bool:
     salt, hashed = stored_hash.split("$", 1)
     test_hash = hashlib.sha256((salt + password).encode("utf-8")).hexdigest()
     return secrets.compare_digest(hashed, test_hash)
+
+
+init_db()
 
 
 # =============================================================================
@@ -1352,6 +1354,7 @@ def compute_skill_assessment_locally(body_data: Dict[str, Any]) -> Dict[str, Any
             "skill_gap": sg,
             "radar_data": radar_copy,
             "xai_explanation": xai_expl
+        }
         top_matches.append(item)
 
         if idx == 0:
