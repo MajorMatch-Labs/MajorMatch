@@ -576,7 +576,7 @@ export default function AdminDatabasePage() {
         {viewMode === "students" && (
           <div className="space-y-4">
             {/* Visual Distribution Dashboard (Thống kê Trực quan Toàn trường) */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {!studentsUnavailable && <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Card 1: Phân bố Chuyên ngành */}
               <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-3">
                 <div className="flex items-center justify-between">
@@ -661,7 +661,7 @@ export default function AdminDatabasePage() {
                   </div>
                 </div>
               </div>
-            </div>
+            </div>}
 
             {/* Bảng điều khiển sinh viên */}
             <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 sm:p-5 space-y-4 shadow-xs">
