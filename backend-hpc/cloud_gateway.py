@@ -15,11 +15,13 @@ from typing import Dict, Any, Optional, List
 
 from fastapi import FastAPI, Request, HTTPException, status, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, StreamingResponse
 import httpx
 from pydantic import BaseModel
 
 HPC_BASE_URL = os.getenv("HPC_BASE_URL", "http://127.0.0.1:8000")
 DB_PATH = os.path.expanduser("~/data/majormatch.db")
+os.makedirs(os.path.dirname(os.path.abspath(DB_PATH)), exist_ok=True)
 
 app = FastAPI(
     title="MajorMatch Cloud Gateway Persistence Engine",
