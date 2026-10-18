@@ -376,12 +376,18 @@ export class ApiService {
   }
 
   /**
-   * Lấy lịch sử đoạn chat từ CSDL SQLite
-   * Endpoint: GET /api/v1/chat/history/{student_id}
+   * Lấy lịch sử đoạn chat từ CSDL SQLite theo session_id
+   * Endpoint: GET /api/v1/chat/history/{student_id}?session_id={session_id}
    */
-  static async getChatHistory(studentId: string = "SV-2025001"): Promise<Array<{ role: "user" | "assistant"; content: string }>> {
+  static async getChatHistory(
+    studentId: string = "SV-2025001",
+    sessionId?: string
+  ): Promise<Array<{ role: "user" | "assistant"; content: string; session_id?: string }>> {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/chat/history/${encodeURIComponent(studentId)}`, {
+      const url = sessionId
+        ? `${API_BASE_URL}/api/v1/chat/history/${encodeURIComponent(studentId)}?session_id=${encodeURIComponent(sessionId)}`
+        : `${API_BASE_URL}/api/v1/chat/history/${encodeURIComponent(studentId)}`;
+      const res = await fetch(url, {
         method: "GET",
         headers: { "Content-Type": "application/json" },
         signal: AbortSignal.timeout(5000)
@@ -390,7 +396,8 @@ export class ApiService {
       const data = await res.json();
       return (data.messages || []).map((m: any) => ({
         role: m.role as "user" | "assistant",
-        content: m.content
+        content: m.content,
+        session_id: m.session_id
       }));
     } catch {
       return [];
@@ -398,20 +405,44 @@ export class ApiService {
   }
 
   /**
-   * Lưu tin nhắn vào CSDL SQLite
+   * Lưu tin nhắn vào CSDL SQLite kèm session_id
    * Endpoint: POST /api/v1/chat/history/{student_id}
    */
-  static async saveChatMessage(studentId: string = "SV-2025001", role: "user" | "assistant", content: string): Promise<boolean> {
+  static async saveChatMessage(
+    studentId: string = "SV-2025001",
+    role: "user" | "assistant",
+    content: string,
+    sessionId: string = "default"
+  ): Promise<boolean> {
     try {
       const res = await fetch(`${API_BASE_URL}/api/v1/chat/history/${encodeURIComponent(studentId)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role, content }),
+        body: JSON.stringify({ role, content, session_id: sessionId }),
         signal: AbortSignal.timeout(5000)
       });
       return res.ok;
     } catch {
       return false;
+    }
+  }
+
+  /**
+   * Lấy danh sách các phiên tư vấn AI của sinh viên
+   * Endpoint: GET /api/v1/chat/sessions/{student_id}
+   */
+  static async getChatSessions(studentId: string = "SV-2025001"): Promise<any[]> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/chat/sessions/${encodeURIComponent(studentId)}`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(5000)
+      });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.sessions || [];
+    } catch {
+      return [];
     }
   }
 

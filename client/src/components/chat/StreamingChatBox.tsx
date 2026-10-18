@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Bot, User, Sparkles, Loader2, Square, ArrowDown, AlertTriangle } from "lucide-react";
+import { Send, Bot, User, Sparkles, Loader2, Square, ArrowDown, AlertTriangle, History, Plus, Clock, MessageSquareQuote, X } from "lucide-react";
 import { useProfileStore } from "@/stores/useProfileStore";
 import { SseStreamController } from "@/modules/advisor/services/sseStreamController";
 import { SseConnectionStatus } from "@/modules/advisor/types/sseTypes";
@@ -13,10 +13,21 @@ interface Message {
   content: string;
 }
 
+interface ChatSession {
+  session_id: string;
+  message_count: number;
+  last_message: string;
+  updated_at: string;
+}
+
 export const StreamingChatBox: React.FC = () => {
   const { selectedMajor, profile } = useProfileStore();
   const targetMajor = selectedMajor?.major_name || "AI & Data Science Specialist";
   const studentId = profile?.student_id || "SV-2025001";
+
+  const [currentSessionId, setCurrentSessionId] = useState<string>("default");
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -35,6 +46,12 @@ export const StreamingChatBox: React.FC = () => {
   const currentAssistantTextRef = useRef<string>("");
 
   const isStreaming = streamStatus === "connecting" || streamStatus === "streaming";
+
+  const loadSessions = useCallback(() => {
+    ApiService.getChatSessions(studentId).then((sess) => {
+      setSessions(sess || []);
+    });
+  }, [studentId]);
 
   // Khởi tạo controller, kiểm tra trạng thái HPC Node định kỳ & nạp lịch sử hội thoại
   useEffect(() => {
@@ -61,9 +78,10 @@ export const StreamingChatBox: React.FC = () => {
     };
 
     checkNodeStatus();
+    loadSessions();
     const intervalId = setInterval(checkNodeStatus, 10000);
 
-    ApiService.getChatHistory(studentId).then((history) => {
+    ApiService.getChatHistory(studentId, currentSessionId).then((history) => {
       if (isMounted && history && history.length > 0) {
         setMessages(history);
       }
@@ -74,7 +92,35 @@ export const StreamingChatBox: React.FC = () => {
       clearInterval(intervalId);
       controllerRef.current?.abort();
     };
-  }, [studentId]);
+  }, [studentId, currentSessionId, loadSessions]);
+
+  const switchSession = async (sid: string) => {
+    setCurrentSessionId(sid);
+    setIsDrawerOpen(false);
+    const hist = await ApiService.getChatHistory(studentId, sid);
+    if (hist && hist.length > 0) {
+      setMessages(hist);
+    } else {
+      setMessages([
+        {
+          role: "assistant",
+          content: `Đã chuyển sang phiên tư vấn **${sid}**. Tôi sẵn sàng giải đáp thắc mắc của bạn về chuyên ngành **${targetMajor}**!`,
+        },
+      ]);
+    }
+  };
+
+  const createNewSession = () => {
+    const newSid = `session-${Date.now().toString(36)}`;
+    setCurrentSessionId(newSid);
+    setIsDrawerOpen(false);
+    setMessages([
+      {
+        role: "assistant",
+        content: `Đã khởi tạo phiên tư vấn mới. Tôi là Cố vấn AI MajorMatch. Hãy đặt bất kỳ câu hỏi nào về môn học, đồ án hay kỹ năng!`,
+      },
+    ]);
+  };
 
   // Xu ly cuon thong minh (Smart Auto-Scroll)
   const scrollToBottom = useCallback((force = false) => {
@@ -109,8 +155,8 @@ export const StreamingChatBox: React.FC = () => {
     const userMsg: Message = { role: "user", content: query };
     setMessages((prev) => [...prev, userMsg]);
 
-    // Lưu tin nhắn của người dùng vào CSDL SQLite
-    ApiService.saveChatMessage(studentId, "user", query);
+    // Lưu tin nhắn của người dùng vào CSDL SQLite kèm session_id
+    ApiService.saveChatMessage(studentId, "user", query, currentSessionId);
 
     // Tạo tin nhắn trợ lý rỗng ban đầu để nhận stream
     const assistantIndex = messages.length + 1;
@@ -150,9 +196,10 @@ export const StreamingChatBox: React.FC = () => {
         onStatusChange: (status) => setStreamStatus(status),
         onComplete: () => {
           setStreamStatus("completed");
-          // Lưu câu trả lời của trợ lý AI vào CSDL SQLite
+          // Lưu câu trả lời của trợ lý AI vào CSDL SQLite kèm session_id
           if (currentAssistantTextRef.current) {
-            ApiService.saveChatMessage(studentId, "assistant", currentAssistantTextRef.current);
+            ApiService.saveChatMessage(studentId, "assistant", currentAssistantTextRef.current, currentSessionId);
+            loadSessions();
           }
         },
         onError: (err) => {
@@ -182,6 +229,76 @@ export const StreamingChatBox: React.FC = () => {
 
   return (
     <div className="flex flex-col h-[650px] rounded-2xl glass-panel border border-slate-200 dark:border-slate-800 overflow-hidden relative shadow-lg shadow-slate-200/50 dark:shadow-none transition-all">
+      {/* Session Drawer Overlay */}
+      {isDrawerOpen && (
+        <div className="absolute inset-0 z-30 bg-black/40 backdrop-blur-xs flex">
+          <div className="w-full sm:w-80 h-full bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 p-4 flex flex-col shadow-2xl animate-in slide-in-from-left duration-200">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+              <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <History className="w-4 h-4 text-indigo-600" />
+                Lịch sử phiên tư vấn ({sessions.length})
+              </h4>
+              <button
+                onClick={() => setIsDrawerOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="pt-3 pb-2">
+              <button
+                onClick={createNewSession}
+                className="w-full py-2 px-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Bắt đầu phiên tư vấn mới</span>
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-2 py-2">
+              {sessions.length === 0 ? (
+                <div className="p-4 text-center text-xs text-slate-400">
+                  Chưa có lịch sử phiên tư vấn nào được lưu.
+                </div>
+              ) : (
+                sessions.map((s) => {
+                  const isSelected = currentSessionId === s.session_id;
+                  return (
+                    <div
+                      key={s.session_id}
+                      onClick={() => switchSession(s.session_id)}
+                      className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                        isSelected
+                          ? "bg-indigo-50/80 dark:bg-indigo-950/50 border-indigo-300 dark:border-indigo-700 shadow-xs"
+                          : "bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between text-[11px] mb-1">
+                        <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                          {s.session_id}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-mono">
+                          {s.message_count} tin
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-600 dark:text-slate-300 line-clamp-2">
+                        {s.last_message || "Chưa có tin nhắn"}
+                      </p>
+                      <div className="mt-1 text-[9px] text-slate-400 flex items-center gap-1 font-mono">
+                        <Clock className="w-2.5 h-2.5" />
+                        {s.updated_at ? s.updated_at.replace("T", " ").replace("Z", "") : "Gần đây"}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+          <div className="flex-1 cursor-pointer" onClick={() => setIsDrawerOpen(false)} />
+        </div>
+      )}
+
       {/* Header */}
       <div className="p-4 border-b border-slate-200 dark:border-slate-800/80 bg-white/80 dark:bg-slate-900/60 backdrop-blur-md flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -202,26 +319,49 @@ export const StreamingChatBox: React.FC = () => {
               )}
             </h3>
             <p className="text-[11px] text-slate-600 dark:text-slate-400">
-              Định hướng bám sát chuyên ngành: <span className="text-indigo-600 dark:text-indigo-300 font-semibold">{targetMajor}</span>
+              Định hướng: <span className="text-indigo-600 dark:text-indigo-300 font-semibold">{targetMajor}</span> • Phiên: <span className="font-mono text-indigo-500">{currentSessionId}</span>
             </p>
           </div>
         </div>
 
-        {/* Status Indicator */}
-        <div className="flex items-center gap-1.5">
+        {/* Action Controls & Status */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setIsDrawerOpen(!isDrawerOpen)}
+            className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-indigo-600 text-xs font-medium flex items-center gap-1.5 transition-colors shadow-xs"
+            title="Xem các phiên tư vấn trước đây"
+          >
+            <History className="w-3.5 h-3.5 text-indigo-500" />
+            <span className="hidden sm:inline">Lịch sử phiên</span>
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-bold">
+              {sessions.length || 1}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={createNewSession}
+            className="px-2.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium flex items-center gap-1 shadow-sm transition-all"
+            title="Khởi tạo phiên tư vấn mới"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Phiên mới</span>
+          </button>
+
           {streamStatus === "streaming" && (
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/30 animate-pulse">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400" /> Đang nhận stream...
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400" /> Stream...
             </span>
           )}
           {streamStatus === "connecting" && (
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-300 dark:border-indigo-500/30">
-              <Loader2 className="w-3 h-3 animate-spin" /> Đang kết nối...
+              <Loader2 className="w-3 h-3 animate-spin" /> Kết nối...
             </span>
           )}
           {streamStatus === "interrupted" && (
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/30">
-              Đã dừng phản hồi
+              Đã dừng
             </span>
           )}
           {streamStatus === "error" && (
@@ -233,7 +373,7 @@ export const StreamingChatBox: React.FC = () => {
               }}
               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 dark:bg-rose-500/10 dark:text-rose-300 dark:border-rose-500/30 dark:hover:bg-rose-500/20 transition-colors"
             >
-              Lỗi kết nối - Thử lại
+              Thử lại
             </button>
           )}
         </div>
