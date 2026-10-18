@@ -14,6 +14,7 @@ def main() -> None:
         temp_home = Path(temp_dir)
         (temp_home / "data").mkdir()
         os.environ["MAJORMATCH_DB_PATH"] = str(temp_home / "data" / "majormatch.db")
+        os.environ["MAJORMATCH_BACKUP_DIR"] = str(temp_home / "data" / "backups")
         os.environ["HPC_BASE_URL"] = "http://127.0.0.1:1"
         os.environ.pop("MAJORMATCH_ADMIN_PASSWORD", None)
         sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -33,6 +34,8 @@ def main() -> None:
             assert client.get("/api/v1/admin/stats").status_code == 401
             assert client.get("/api/v1/admin/students").status_code == 401
             assert client.get("/api/v1/admin/export").status_code == 401
+            assert client.get("/api/v1/admin/audit").status_code == 401
+            assert client.post("/api/v1/admin/backup").status_code == 401
             assert client.delete("/api/v1/admin/table/user_profiles/SMOKE-001").status_code == 401
 
             user = {
@@ -74,6 +77,7 @@ def main() -> None:
             assert students.json()["total"] == 1
             smoke_student = next(item for item in students.json()["students"] if item["student_id"] == user["student_id"])
             assert smoke_student["full_name"] == user["full_name"]
+            assert smoke_student["has_account"] is True
             assert smoke_student["has_profile"] is False
             assert smoke_student["has_assessment"] is False
             assert smoke_student["cumulative_gpa"] is None
@@ -87,6 +91,20 @@ def main() -> None:
             users_csv = client.get("/api/v1/admin/export?format=csv&table=users", headers=admin_headers)
             assert users_csv.status_code == 200, users_csv.text
             assert "password_hash" not in users_csv.text
+            backup = client.post("/api/v1/admin/backup", headers=admin_headers)
+            assert backup.status_code == 200, backup.text
+            backup_path = temp_home / "data" / "backups" / backup.json()["filename"]
+            assert backup_path.is_file()
+            snapshot = sqlite3.connect(backup_path)
+            try:
+                assert snapshot.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 2
+            finally:
+                snapshot.close()
+            assert client.get("/api/v1/admin/stats", headers=admin_headers).json()["backup_count"] == 1
+            audit = client.get("/api/v1/admin/audit", headers=admin_headers)
+            assert audit.status_code == 200, audit.text
+            assert {entry["action"] for entry in audit.json()["events"]} >= {"login", "export", "backup"}
+            assert "password_hash" not in str(audit.json())
             assert client.delete("/api/v1/admin/table/users/admin", headers=admin_headers).status_code == 400
             with sqlite3.connect(cloud_gateway.DB_PATH) as database:
                 database.execute(
