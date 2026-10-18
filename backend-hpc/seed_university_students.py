@@ -39,7 +39,7 @@ STUDENTS = [
         "university": "Trường ĐH Công nghệ Thông tin & Truyền thông Việt - Hàn",
         "major": "Kỹ thuật Đám mây & Trí tuệ Nhân tạo",
         "cohort": "K22 (2022 - 2026)",
-        "gpa": 3.65,
+        "gpa": 2.89,
         "completed_credits": 78,
         "skills": ["Linux", "Docker", "AWS", "CI/CD", "Git", "Python", "Kubernetes", "PyTorch"],
         "target_major": "Kỹ thuật Đám mây & Vận hành Hệ thống",
