@@ -3,11 +3,10 @@
 import React, { useMemo, useEffect, useState } from "react";
 import { AVAILABLE_CAREER_TAGS } from "@/types/survey";
 import { useProfileStore } from "@/stores/useProfileStore";
-import { Sparkles, Compass, Check, Award, BrainCircuit, Cloud, Loader2, Save } from "lucide-react";
+import { Sparkles, Compass, Check, BrainCircuit, Cloud, Loader2, Save } from "lucide-react";
 import { RIASEC_QUESTIONS_DATASET } from "@/modules/ingestion/constants/riasecQuestions";
 import {
   RIASEC_TRAIT_DEFINITIONS,
-  RiasecTraitKey,
 } from "@/modules/ingestion/constants/riasecConstants";
 import {
   calculateHollandScores,
@@ -17,23 +16,27 @@ import {
 import { ApiService } from "@/services/api";
 import { useAuthStore } from "@/stores/useAuthStore";
 
+const EMPTY_ANSWERS: Record<number, number> = {};
+
 export const RiasecSurvey: React.FC = () => {
   const {
     profile,
-    riasecScores,
+    riasecAnswers,
     selectedCareerTags,
     setRiasecScore,
+    setRiasecAnswers,
     toggleCareerTag,
   } = useProfileStore();
   const { user, isAuthenticated, openAuthModal } = useAuthStore();
 
-  const studentId = isAuthenticated ? (user?.studentId || profile?.student_id || "23IT196") : null;
+  const studentId = isAuthenticated ? (user?.studentId || profile?.student_id) : null;
 
   // State độc lập cho từng câu hỏi từ 1 đến 10
-  const [questionAnswers, setQuestionAnswers] = useState<Record<number, number>>({
-    1: 3, 2: 4, 3: 3, 4: 3, 5: 4, 6: 4, 7: 3, 8: 3, 9: 3, 10: 4
-  });
+  const questionAnswers = isAuthenticated ? riasecAnswers || EMPTY_ANSWERS : EMPTY_ANSWERS;
+  const answeredCount = RIASEC_QUESTIONS_DATASET.filter((q) => Number.isInteger(questionAnswers[q.id]) && questionAnswers[q.id] >= 1 && questionAnswers[q.id] <= 5).length;
+  const surveyComplete = answeredCount === RIASEC_QUESTIONS_DATASET.length;
   const [syncStatus, setSyncStatus] = useState<"idle" | "loading" | "saved" | "saving">("idle");
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Nạp câu trả lời cũ từ Cloud CSDL khi mở trang (chỉ khi đã đăng nhập)
   useEffect(() => {
@@ -51,11 +54,9 @@ export const RiasecSurvey: React.FC = () => {
           Object.entries(saved.answers).forEach(([k, v]) => {
             parsed[Number(k)] = Number(v);
           });
-          setQuestionAnswers(parsed);
-          if (saved.scores) {
-            Object.entries(saved.scores).forEach(([grp, sc]) => {
-              setRiasecScore(grp.toLowerCase(), Number(sc));
-            });
+          useProfileStore.setState({ riasecAnswers: parsed });
+          if (Object.keys(parsed).length === RIASEC_QUESTIONS_DATASET.length) {
+            Object.entries(calculateHollandScores(parsed)).forEach(([grp, sc]) => setRiasecScore(grp, sc));
           }
           setSyncStatus("saved");
         } else if (isMounted) {
@@ -71,76 +72,53 @@ export const RiasecSurvey: React.FC = () => {
 
   const handleScoreChange = (qId: number, val: number) => {
     const nextAnswers = { ...questionAnswers, [qId]: val };
-    setQuestionAnswers(nextAnswers);
-
-    // Tính điểm trung bình theo chuẩn từng nhóm RIASEC
-    const rScores = [nextAnswers[1] || 3, nextAnswers[8] || 3];
-    const iScores = [nextAnswers[2] || 3, nextAnswers[7] || 3];
-    const aScores = [nextAnswers[3] || 3, nextAnswers[9] || 3];
-    const sScores = [nextAnswers[4] || 3];
-    const eScores = [nextAnswers[5] || 3, nextAnswers[10] || 3];
-    const cScores = [nextAnswers[6] || 3];
-
-    const calcAvg = (arr: number[]) => Math.round((arr.reduce((a, b) => a + b, 0) / arr.length) * 10) / 10;
-
-    const r = calcAvg(rScores);
-    const i = calcAvg(iScores);
-    const a = calcAvg(aScores);
-    const s = calcAvg(sScores);
-    const e = calcAvg(eScores);
-    const c = calcAvg(cScores);
-
-    setRiasecScore('r', r);
-    setRiasecScore('i', i);
-    setRiasecScore('a', a);
-    setRiasecScore('s', s);
-    setRiasecScore('e', e);
-    setRiasecScore('c', c);
+    setRiasecAnswers(nextAnswers);
+    setSaveError(null);
+    if (Object.keys(nextAnswers).length !== RIASEC_QUESTIONS_DATASET.length) {
+      setSyncStatus("idle");
+      return;
+    }
+    const rawScores = calculateHollandScores(nextAnswers);
+    Object.entries(rawScores).forEach(([group, score]) => setRiasecScore(group, score));
 
     // Chỉ tự động lưu ngầm vào Cloud nếu đã đăng nhập tài khoản
     if (isAuthenticated && studentId) {
       setSyncStatus("saving");
-      const rawScores = { r, i, a, s, e, c };
       const dominant = getDominantHollandCode(rawScores);
-      ApiService.saveRiasecSurvey(studentId, nextAnswers, rawScores, dominant.code || "I")
+      ApiService.saveRiasecSurvey(studentId, nextAnswers, { ...rawScores }, dominant.code)
         .then(() => setSyncStatus("saved"))
-        .catch(() => setSyncStatus("idle"));
+        .catch(() => { setSyncStatus("idle"); setSaveError("Chưa lưu được khảo sát. Vui lòng thử lại."); });
     } else {
       setSyncStatus("idle");
     }
   };
 
   const handleManualSave = async () => {
+    if (!surveyComplete) {
+      setSaveError("Vui lòng trả lời đủ 10 câu hỏi trước khi lưu.");
+      return;
+    }
     if (!isAuthenticated || !studentId) {
       openAuthModal("login");
       return;
     }
     setSyncStatus("saving");
-    const safeScores = riasecScores || {};
-    const rawScores = {
-      r: Number(safeScores.r ?? safeScores.R ?? 3.0) || 3.0,
-      i: Number(safeScores.i ?? safeScores.I ?? 3.0) || 3.0,
-      a: Number(safeScores.a ?? safeScores.A ?? 3.0) || 3.0,
-      s: Number(safeScores.s ?? safeScores.S ?? 3.0) || 3.0,
-      e: Number(safeScores.e ?? safeScores.E ?? 3.0) || 3.0,
-      c: Number(safeScores.c ?? safeScores.C ?? 3.0) || 3.0,
-    };
+    const rawScores = calculateHollandScores(questionAnswers);
     const dominant = getDominantHollandCode(rawScores);
-    await ApiService.saveRiasecSurvey(studentId, questionAnswers, rawScores, dominant.code || "I");
-    setSyncStatus("saved");
+    try {
+      await ApiService.saveRiasecSurvey(studentId, questionAnswers, { ...rawScores }, dominant.code);
+      setSyncStatus("saved");
+      setSaveError(null);
+    } catch {
+      setSyncStatus("idle");
+      setSaveError("Chưa lưu được khảo sát. Vui lòng thử lại.");
+    }
   };
 
   // Tinh toan ma Holland noi troi tu diem so hien tai voi Fallback an toan tuyet doi
   const dominantInfo = useMemo(() => {
-    const safeScores = riasecScores || {};
-    const rawScores = {
-      r: Number(safeScores.r ?? safeScores.R ?? 3.0) || 3.0,
-      i: Number(safeScores.i ?? safeScores.I ?? 3.0) || 3.0,
-      a: Number(safeScores.a ?? safeScores.A ?? 3.0) || 3.0,
-      s: Number(safeScores.s ?? safeScores.S ?? 3.0) || 3.0,
-      e: Number(safeScores.e ?? safeScores.E ?? 3.0) || 3.0,
-      c: Number(safeScores.c ?? safeScores.C ?? 3.0) || 3.0,
-    };
+    if (!surveyComplete) return null;
+    const rawScores = calculateHollandScores(questionAnswers);
     const ranked = rankRiasecTraits(rawScores);
     const dominant = getDominantHollandCode(rawScores);
 
@@ -163,9 +141,9 @@ export const RiasecSurvey: React.FC = () => {
       secondaryMeta,
       topTwo: ranked.slice(0, 2),
     };
-  }, [riasecScores]);
+  }, [questionAnswers, surveyComplete]);
 
-  const safeCareerTags = Array.isArray(selectedCareerTags) ? selectedCareerTags : [];
+  const safeCareerTags = isAuthenticated && Array.isArray(selectedCareerTags) ? selectedCareerTags : [];
 
   return (
     <div className="space-y-6">
@@ -178,7 +156,7 @@ export const RiasecSurvey: React.FC = () => {
           </h3>
         </div>
         <p className="text-xs text-slate-600 dark:text-slate-400 mb-3">
-          Chọn các nhóm chuyên môn bạn mong muốn được hệ thống định lượng khoảng cách kỹ năng:
+          Chọn ít nhất một lĩnh vực bạn muốn tìm hiểu. Bạn có thể chọn tối đa năm lĩnh vực.
         </p>
 
         <div className="flex flex-wrap gap-2">
@@ -188,8 +166,10 @@ export const RiasecSurvey: React.FC = () => {
               <button
                 key={tag.id}
                 type="button"
+                aria-pressed={isSelected}
+                disabled={!isAuthenticated}
                 onClick={() => toggleCareerTag(tag.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                className={`flex min-h-11 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:cursor-not-allowed disabled:opacity-60 ${
                   isSelected
                     ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/20 border border-indigo-400"
                     : "bg-white dark:bg-slate-900/80 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:border-indigo-300 hover:text-indigo-600 dark:hover:text-white shadow-xs"
@@ -214,8 +194,8 @@ export const RiasecSurvey: React.FC = () => {
           </div>
           <div className="flex items-center gap-2">
             {!isAuthenticated && (
-              <span className="text-[11px] text-slate-500 dark:text-slate-400 font-mono bg-slate-100 dark:bg-slate-800/80 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700/60">
-                Chế độ Khách (Chưa lưu Cloud)
+              <span className="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded border border-slate-200 dark:border-slate-700">
+                Đăng nhập để chọn câu trả lời và lưu khảo sát
               </span>
             )}
             {isAuthenticated && syncStatus === "loading" && (
@@ -236,13 +216,13 @@ export const RiasecSurvey: React.FC = () => {
             <button
               type="button"
               onClick={handleManualSave}
-              className="flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-md bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950/80 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 transition-colors"
+              className="flex min-h-11 items-center gap-1 rounded-md border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 transition-colors hover:bg-indigo-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:border-indigo-800 dark:bg-indigo-950 dark:text-indigo-300"
               title={isAuthenticated ? "Lưu bài khảo sát vào CSDL Cloud" : "Đăng nhập để lưu tiến trình vào Cloud"}
             >
               <Save className="w-3 h-3" />
               <span>Lưu tiến trình</span>
             </button>
-            <span className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">10 Câu hỏi</span>
+            <span className="text-sm font-medium text-slate-600 dark:text-slate-300" aria-live="polite">{answeredCount}/10 đã trả lời</span>
           </div>
         </div>
 
@@ -251,13 +231,13 @@ export const RiasecSurvey: React.FC = () => {
           <div className="flex items-center gap-2.5">
             <BrainCircuit className="w-4 h-4 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
             <span className="text-xs text-slate-700 dark:text-slate-300">
-              Thiên hướng nhận diện:{" "}
-              <strong className="text-indigo-700 dark:text-indigo-300 font-mono text-sm">{dominantInfo.code}</strong>{" "}
-              ({dominantInfo.primaryMeta?.codeName || 'Chưa xác định'} & {dominantInfo.secondaryMeta?.codeName || 'Chưa xác định'})
+              {dominantInfo ? <>
+                Thiên hướng tham khảo: <strong className="text-indigo-700 dark:text-indigo-300 text-sm">{dominantInfo.code}</strong> ({dominantInfo.primaryMeta?.vietnameseName} và {dominantInfo.secondaryMeta?.vietnameseName})
+              </> : "Trả lời đủ 10 câu để xem thiên hướng của bạn."}
             </span>
           </div>
           <div className="flex gap-1.5">
-            {dominantInfo.topTwo.map((trait) => {
+            {dominantInfo?.topTwo.map((trait) => {
               const meta = RIASEC_TRAIT_DEFINITIONS[trait.key] || RIASEC_TRAIT_DEFINITIONS.I;
               return (
                 <span
@@ -277,12 +257,13 @@ export const RiasecSurvey: React.FC = () => {
         </div>
 
         <p className="text-xs text-slate-600 dark:text-slate-400 mb-4">
-          Kéo thanh trượt từ 1 (Rất không thích) đến 5 (Rất đam mê) để hệ thống nhận diện thiên hướng tự nhiên của bạn:
+          Chọn một mức từ 1 (Rất không thích) đến 5 (Rất thích) cho từng câu. Không có câu trả lời đúng hay sai.
         </p>
 
         <div className="space-y-4">
           {RIASEC_QUESTIONS_DATASET.map((q) => {
-            const currentScore = questionAnswers[q.id] ?? 3;
+            const hasAnswer = questionAnswers[q.id] !== undefined;
+            const currentScore = questionAnswers[q.id];
             const traitMeta = RIASEC_TRAIT_DEFINITIONS[q.category] || RIASEC_TRAIT_DEFINITIONS.I;
 
             return (
@@ -303,27 +284,20 @@ export const RiasecSurvey: React.FC = () => {
                     </div>
                   </div>
                   <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/80 dark:text-indigo-300 dark:border-indigo-800/50 flex-shrink-0 font-semibold">
-                    {currentScore}/5
+                    {hasAnswer ? `${currentScore}/5` : "Chưa trả lời"}
                   </span>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <span className="text-[10px] text-slate-400">1</span>
-                  <input
-                    type="range"
-                    min="1"
-                    max="5"
-                    step="1"
-                    value={currentScore}
-                    onChange={(e) => handleScoreChange(q.id, parseInt(e.target.value))}
-                    className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-600 focus:outline-none"
-                  />
-                  <span className="text-[10px] text-slate-400">5</span>
+                <div role="group" aria-label={`Câu ${q.id}: ${q.questionText}`} className="grid grid-cols-5 gap-2">
+                  {[1, 2, 3, 4, 5].map((score) => (
+                    <button key={score} type="button" aria-pressed={currentScore === score} aria-label={`Mức ${score} trên 5`} disabled={!isAuthenticated} onClick={() => handleScoreChange(q.id, score)} className={`min-h-11 rounded-lg border text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:cursor-not-allowed disabled:opacity-60 ${currentScore === score ? "border-indigo-600 bg-indigo-600 text-white" : "border-slate-300 bg-white text-slate-700 hover:border-indigo-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"}`}>{score}</button>
+                  ))}
                 </div>
               </div>
             );
           })}
         </div>
+        {saveError && <p role="alert" className="mt-4 text-sm text-rose-600 dark:text-rose-400">{saveError}</p>}
       </div>
     </div>
   );
