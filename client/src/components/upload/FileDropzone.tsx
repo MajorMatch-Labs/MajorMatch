@@ -62,10 +62,14 @@ export const FileDropzone: React.FC = () => {
         onDragLeave={() => setIsDragOver(false)}
         onDrop={onDrop}
         onClick={handleClickDropzone}
+        onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); handleClickDropzone(); } }}
+        role="button"
+        tabIndex={0}
+        aria-label={uploadedFileName ? "Thay tệp PDF đã tải" : "Chọn tệp PDF để tải lên"}
         className={`relative cursor-pointer rounded-2xl border-2 border-dashed p-8 text-center transition-all duration-200 ${
           isDragOver
             ? "border-indigo-400 bg-indigo-500/10 scale-[1.01]"
-            : profile
+            : isAuthenticated && profile && uploadedFileName
             ? "border-emerald-500/40 bg-emerald-500/5"
             : "border-slate-300 dark:border-slate-800 bg-white/80 dark:bg-slate-900/40 hover:border-indigo-400 hover:bg-slate-50 dark:hover:bg-slate-900/70 shadow-sm"
         }`}
@@ -87,10 +91,10 @@ export const FileDropzone: React.FC = () => {
             <div className="flex flex-col items-center gap-2 py-4">
               <Loader2 className="w-10 h-10 text-indigo-600 dark:text-indigo-400 animate-spin" />
               <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                Đang khử định danh PII & Bóc tách bảng điểm PDF...
+                Đang đọc và xử lý tệp PDF...
               </span>
             </div>
-          ) : profile ? (
+          ) : isAuthenticated && profile && uploadedFileName ? (
             <div className="flex flex-col items-center gap-2">
               <div className="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-500/30">
                 <CheckCircle2 className="w-6 h-6" />
@@ -113,12 +117,12 @@ export const FileDropzone: React.FC = () => {
                   Kéo thả Bảng điểm / CV định dạng PDF vào đây
                 </p>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  Hỗ trợ tệp .PDF dung lượng tối đa 10MB (Khử định danh tự động 100%)
+                  Hỗ trợ tệp PDF dung lượng tối đa 10 MB.
                 </p>
                 {!isAuthenticated && (
                   <p className="text-[11px] font-medium text-amber-600 dark:text-amber-400 mt-2 flex items-center justify-center gap-1">
                     <Lock className="w-3.5 h-3.5" />
-                    <span>Yêu cầu đăng nhập tài khoản sinh viên VKU để tải hồ sơ & xem phân tích</span>
+                    <span>Đăng nhập để tải và lưu hồ sơ của bạn.</span>
                   </p>
                 )}
               </div>
@@ -137,7 +141,7 @@ export const FileDropzone: React.FC = () => {
       )}
 
       {/* Hiển thị chi tiết sau khi trích xuất */}
-      {profile && (
+      {isAuthenticated && profile && uploadedFileName && (
         <div className="mt-4 p-4 rounded-xl glass-panel border border-slate-200 dark:border-slate-800 grid grid-cols-2 sm:grid-cols-4 gap-3 text-center shadow-sm">
           <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80">
             <span className="text-[11px] text-slate-600 dark:text-slate-400 uppercase font-medium">GPA Tích lũy</span>

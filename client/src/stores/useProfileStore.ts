@@ -25,10 +25,12 @@ interface ProfileState {
 
   // Trắc nghiệm Holland RIASEC & Định hướng nghề nghiệp
   riasecScores: Record<string, number>;
+  riasecAnswers: Record<number, number>;
   selectedCareerTags: string[];
 
   // Kết quả phân tích Skill Gap & Ngành đề xuất
   analysisResult: CalculateMatchResponse | null;
+  analysisStudentId: string | null;
   selectedMajor: MajorMatchRankItem | null;
   isAnalyzing: boolean;
 
@@ -44,6 +46,7 @@ interface ProfileState {
   setProfile: (profile: ProfileData, fileName: string) => void;
   setUploading: (val: boolean) => void;
   setRiasecScore: (group: string, score: number) => void;
+  setRiasecAnswers: (answers: Record<number, number>) => void;
   toggleCareerTag: (tagId: string) => void;
   setAnalysisResult: (res: CalculateMatchResponse) => void;
   setSelectedMajor: (major: MajorMatchRankItem) => void;
@@ -75,10 +78,12 @@ export const useProfileStore = create<ProfileState>()(
       uploadedFileName: null,
       isUploading: false,
 
-      riasecScores: { R: 3, I: 4, A: 3, S: 3, E: 4, C: 4 },
-      selectedCareerTags: ["ai_engineer"],
+      riasecScores: {},
+      riasecAnswers: {},
+      selectedCareerTags: [],
 
       analysisResult: null,
+      analysisStudentId: null,
       selectedMajor: null,
       isAnalyzing: false,
 
@@ -86,11 +91,11 @@ export const useProfileStore = create<ProfileState>()(
       roadmapsByMajor: {},
       isGeneratingRoadmap: false,
       completedItems: {},
-      dynamicReadinessScore: 64.5,
+      dynamicReadinessScore: 0,
       hasHydrated: false,
 
       setHasHydrated: (hasHydrated) => set({ hasHydrated }),
-      setProfile: (profile, fileName) => set({ profile, uploadedFileName: fileName }),
+      setProfile: (profile, fileName) => set({ profile, uploadedFileName: fileName, analysisResult: null, analysisStudentId: null, selectedMajor: null, roadmap: null, roadmapsByMajor: {}, completedItems: {}, dynamicReadinessScore: 0 }),
       setUploading: (isUploading) => set({ isUploading }),
 
       setRiasecScore: (group, score) =>
@@ -98,28 +103,36 @@ export const useProfileStore = create<ProfileState>()(
           riasecScores: { ...state.riasecScores, [group]: score }
         })),
 
+      setRiasecAnswers: (answers) => set({
+        riasecAnswers: answers,
+        analysisResult: null,
+        analysisStudentId: null,
+        selectedMajor: null,
+        roadmap: null,
+        roadmapsByMajor: {},
+        completedItems: {},
+        dynamicReadinessScore: 0
+      }),
+
       toggleCareerTag: (tagId) =>
         set((state) => {
           const exists = state.selectedCareerTags.includes(tagId);
           if (exists) {
-            return { selectedCareerTags: state.selectedCareerTags.filter((t) => t !== tagId) };
+            return { selectedCareerTags: state.selectedCareerTags.filter((t) => t !== tagId), analysisResult: null, analysisStudentId: null, selectedMajor: null, roadmap: null, roadmapsByMajor: {}, completedItems: {}, dynamicReadinessScore: 0 };
           }
           if (state.selectedCareerTags.length >= 5) return state; // Giới hạn 5 thẻ
-          return { selectedCareerTags: [...state.selectedCareerTags, tagId] };
+          return { selectedCareerTags: [...state.selectedCareerTags, tagId], analysisResult: null, analysisStudentId: null, selectedMajor: null, roadmap: null, roadmapsByMajor: {}, completedItems: {}, dynamicReadinessScore: 0 };
         }),
 
       setAnalysisResult: (res) => {
-        const enrichedMatches = (res.top_matches || res.top_recommendations || []).map((m) => ({
-          ...m,
-          radar_data: m.radar_data || res.radar_chart_data,
-          skill_gap: m.skill_gap || res.skill_breakdown
-        }));
+        const enrichedMatches = res.top_matches || res.top_recommendations || [];
         set({
           analysisResult: {
             ...res,
             top_matches: enrichedMatches,
             top_recommendations: enrichedMatches
           },
+          analysisStudentId: get().profile?.student_id || null,
           selectedMajor: enrichedMatches[0] || null
         });
       },
@@ -346,6 +359,7 @@ export const useProfileStore = create<ProfileState>()(
           profile: null,
           uploadedFileName: null,
           analysisResult: null,
+          analysisStudentId: null,
           selectedMajor: null,
           roadmap: null,
           roadmapsByMajor: {},
@@ -354,7 +368,8 @@ export const useProfileStore = create<ProfileState>()(
           isAnalyzing: false,
           isGeneratingRoadmap: false,
           isUploading: false,
-          riasecScores: { r: 0, i: 0, a: 0, s: 0, e: 0, c: 0 },
+          riasecScores: {},
+          riasecAnswers: {},
           selectedCareerTags: []
         });
       },
@@ -362,7 +377,8 @@ export const useProfileStore = create<ProfileState>()(
       uploadTranscriptAction: async (file: File) => {
         set({ isUploading: true });
         try {
-          const studentId = get().profile?.student_id || "SV-2025001";
+          const studentId = get().profile?.student_id;
+          if (!studentId) throw new Error("Vui lòng đăng nhập trước khi tải bảng điểm.");
           const res = await ApiService.parseTranscript(file, studentId);
           const profileData = res.profile_data || res.profile;
 
@@ -375,51 +391,59 @@ export const useProfileStore = create<ProfileState>()(
           set({
             profile: profileData,
             uploadedFileName: file.name,
-            isUploading: false
+            isUploading: false,
+            analysisResult: null,
+            analysisStudentId: null,
+            selectedMajor: null,
+            roadmap: null,
+            roadmapsByMajor: {},
+            completedItems: {},
+            dynamicReadinessScore: 0
           });
-          await get().calculateMatchAction();
         } catch (err) {
           console.error("uploadTranscriptAction error:", err);
           set({ isUploading: false });
+          throw err;
         }
       },
 
       calculateMatchAction: async () => {
+        const state = get();
+        if (!state.profile?.student_id) throw new Error("Vui lòng đăng nhập trước khi phân tích.");
+        if (Object.keys(state.riasecAnswers || {}).length !== 10) throw new Error("Vui lòng trả lời đủ 10 câu hỏi khảo sát.");
+        if (state.selectedCareerTags.length === 0) throw new Error("Vui lòng chọn ít nhất một lĩnh vực quan tâm.");
         set({ isAnalyzing: true });
         try {
-          const state = get();
           const s = state.riasecScores || {};
           const hollandScores: HollandScores = {
-            realistic: Number(s.r ?? s.R ?? 3.0) || 3.0,
-            investigative: Number(s.i ?? s.I ?? 3.0) || 3.0,
-            artistic: Number(s.a ?? s.A ?? 3.0) || 3.0,
-            social: Number(s.s ?? s.S ?? 3.0) || 3.0,
-            enterprising: Number(s.e ?? s.E ?? 3.0) || 3.0,
-            conventional: Number(s.c ?? s.C ?? 3.0) || 3.0
+            realistic: Number(s.r ?? s.R),
+            investigative: Number(s.i ?? s.I),
+            artistic: Number(s.a ?? s.A),
+            social: Number(s.s ?? s.S),
+            enterprising: Number(s.e ?? s.E),
+            conventional: Number(s.c ?? s.C)
           };
+          if (Object.values(hollandScores).some((score) => !Number.isFinite(score))) throw new Error("Điểm khảo sát chưa hợp lệ. Vui lòng kiểm tra câu trả lời.");
 
-          const coursesInput: CourseInputAssessment[] = (state.profile?.courses || []).map((c) => ({
-            course_code: c.course_code,
-            grade_point: c.grade_point || c.point_grade || 3.0
-          }));
+          const coursesInput: CourseInputAssessment[] = (state.profile?.courses || [])
+            .filter((course) => Number.isFinite(course.grade_point ?? course.point_grade))
+            .map((course) => ({
+              course_code: course.course_code,
+              grade_point: Number(course.grade_point ?? course.point_grade)
+            }));
 
-          const studentId = state.profile?.student_id || "SV-2025001";
+          const studentId = state.profile.student_id;
 
           const payload: CalculateMatchRequest & { student_id?: string; detected_skills?: string[] } = {
             student_id: studentId,
             holland_scores: hollandScores,
-            target_career_tags: state.selectedCareerTags.length > 0 ? state.selectedCareerTags : ["ai_engineer"],
+            target_career_tags: state.selectedCareerTags,
             courses: coursesInput,
             detected_skills: state.profile?.detected_skills || []
           };
 
           const res = await ApiService.calculateMatch(payload);
-          const enrichedMatches = (res.top_matches || res.top_recommendations || []).map((m) => ({
-            ...m,
-            radar_data: m.radar_data || res.radar_chart_data,
-            skill_gap: m.skill_gap || res.skill_breakdown,
-            xai_explanation: m.xai_explanation
-          }));
+          const enrichedMatches = res.top_matches || res.top_recommendations || [];
 
           const enrichedResult: CalculateMatchResponse = {
             ...res,
@@ -430,29 +454,33 @@ export const useProfileStore = create<ProfileState>()(
           const topMajor = enrichedMatches[0] || null;
 
           // Lưu vĩnh viễn kết quả phân tích mới vào CSDL SQLite
-          ApiService.saveAssessment(studentId, enrichedResult);
+          await ApiService.saveAssessment(studentId, enrichedResult);
 
           set({
             analysisResult: enrichedResult,
+            analysisStudentId: studentId,
             selectedMajor: topMajor,
             roadmap: null,
             roadmapsByMajor: {},
             completedItems: {},
-            dynamicReadinessScore: topMajor?.match_percentage || 45.0,
+            dynamicReadinessScore: topMajor?.match_percentage ?? 0,
             isAnalyzing: false
           });
         } catch (err) {
           console.error("calculateMatchAction error:", err);
           set({ isAnalyzing: false });
+          throw err;
         }
       },
 
       generateRoadmapAction: async (semester: number = 4) => {
+        const currentState = get();
+        if (!currentState.profile?.student_id || !currentState.selectedMajor) throw new Error("Vui lòng chọn chuyên ngành từ kết quả của bạn trước.");
         set({ isGeneratingRoadmap: true });
         try {
           const state = get();
-          const studentId = state.profile?.student_id || "SV-2025001";
-          const targetMajorId = state.selectedMajor?.major_id || "DEVOPS_CLOUD";
+          const studentId = state.profile!.student_id;
+          const targetMajorId = state.selectedMajor!.major_id;
           const missingSkills =
             state.selectedMajor?.skill_gap?.missing_skills ||
             state.analysisResult?.skill_breakdown?.missing_skills ||
@@ -490,6 +518,7 @@ export const useProfileStore = create<ProfileState>()(
         } catch (err) {
           console.error("generateRoadmapAction error:", err);
           set({ isGeneratingRoadmap: false });
+          throw err;
         }
       },
 
@@ -541,11 +570,7 @@ export const useProfileStore = create<ProfileState>()(
         try {
           const saved = await ApiService.getSavedAssessment(studentId);
           if (saved && (saved.top_matches || saved.top_recommendations)) {
-            const enrichedMatches = (saved.top_matches || saved.top_recommendations || []).map((m) => ({
-              ...m,
-              radar_data: m.radar_data || saved.radar_chart_data,
-              skill_gap: m.skill_gap || saved.skill_breakdown
-            }));
+            const enrichedMatches = saved.top_matches || saved.top_recommendations || [];
 
             const enrichedResult: CalculateMatchResponse = {
               ...saved,
@@ -555,6 +580,7 @@ export const useProfileStore = create<ProfileState>()(
 
             set((state) => ({
               analysisResult: enrichedResult,
+              analysisStudentId: studentId,
               selectedMajor: state.selectedMajor || enrichedMatches[0] || null,
               isAnalyzing: false
             }));
@@ -578,7 +604,7 @@ export const useProfileStore = create<ProfileState>()(
           if (savedProfile && savedProfile.profile) {
             set({
               profile: savedProfile.profile,
-              uploadedFileName: `Học bạ_${studentId}.pdf`
+              uploadedFileName: get().profile?.student_id === studentId ? get().uploadedFileName : null
             });
           }
 
@@ -590,6 +616,7 @@ export const useProfileStore = create<ProfileState>()(
           if (!currentAssessment) {
             set({
               analysisResult: null,
+              analysisStudentId: null,
               selectedMajor: null,
               roadmap: currentRoadmap || null,
               completedItems: currentCompleted,
@@ -601,12 +628,7 @@ export const useProfileStore = create<ProfileState>()(
           }
 
           if (currentAssessment && (currentAssessment.top_matches || currentAssessment.top_recommendations)) {
-            const enrichedMatches = (currentAssessment.top_matches || currentAssessment.top_recommendations || []).map((m) => ({
-              ...m,
-              radar_data: m.radar_data || currentAssessment?.radar_chart_data,
-              skill_gap: m.skill_gap || currentAssessment?.skill_breakdown,
-              xai_explanation: m.xai_explanation
-            }));
+            const enrichedMatches = currentAssessment.top_matches || currentAssessment.top_recommendations || [];
 
             currentAssessment = {
               ...currentAssessment,
@@ -737,6 +759,7 @@ export const useProfileStore = create<ProfileState>()(
             set({
               roadmap: currentRoadmap || null,
               analysisResult: currentAssessment || null,
+              analysisStudentId: currentAssessment ? studentId : null,
               selectedMajor: updatedTargetMajor || currentAssessment?.top_matches?.[0] || null,
               completedItems: currentCompleted,
               dynamicReadinessScore: syncScore,
@@ -755,6 +778,7 @@ export const useProfileStore = create<ProfileState>()(
             set({
               roadmap: currentRoadmap || null,
               analysisResult: currentAssessment || null,
+              analysisStudentId: currentAssessment ? studentId : null,
               selectedMajor: currentAssessment?.top_matches?.[0] || null,
               completedItems: currentCompleted,
               dynamicReadinessScore: currentRoadmap?.readiness_score || 0,
@@ -779,8 +803,10 @@ export const useProfileStore = create<ProfileState>()(
         profile: state.profile,
         uploadedFileName: state.uploadedFileName,
         riasecScores: state.riasecScores,
+        riasecAnswers: state.riasecAnswers,
         selectedCareerTags: state.selectedCareerTags,
         analysisResult: state.analysisResult,
+        analysisStudentId: state.analysisStudentId,
         selectedMajor: state.selectedMajor,
         roadmap: state.roadmap,
         roadmapsByMajor: state.roadmapsByMajor,

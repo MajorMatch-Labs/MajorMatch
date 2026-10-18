@@ -5,18 +5,22 @@ import { useProfileStore } from "@/stores/useProfileStore";
 import { MilestoneTree } from "@/components/roadmap/MilestoneTree";
 import { Sparkles, MessageSquare, ArrowLeft, Loader2, GitBranch, RefreshCw, CheckCircle2, CircleDashed } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 export const dynamic = "force-dynamic";
 
 export default function RoadmapPage() {
+  const router = useRouter();
+  const { user, isAuthenticated } = useAuthStore();
   const {
     roadmap,
     roadmapsByMajor,
     selectedMajor,
     analysisResult,
+    analysisStudentId,
     profile,
     isGeneratingRoadmap,
-    generateRoadmapAction,
     loadSavedRoadmapAction,
     setSelectedMajor,
     hasHydrated,
@@ -27,8 +31,9 @@ export default function RoadmapPage() {
   // Tự động kiểm tra và nạp lộ trình đã lưu trong CSDL
   useEffect(() => {
     if (!hasHydrated) return;
+    if (!isAuthenticated || !user?.studentId) { setIsInitialSyncing(false); return; }
     let isMounted = true;
-    const studentId = profile?.student_id || "SV-2025001";
+    const studentId = user.studentId;
 
     loadSavedRoadmapAction(studentId)
       .finally(() => {
@@ -38,7 +43,7 @@ export default function RoadmapPage() {
     return () => {
       isMounted = false;
     };
-  }, [hasHydrated, profile, loadSavedRoadmapAction]);
+  }, [hasHydrated, isAuthenticated, user?.studentId, loadSavedRoadmapAction]);
 
   // Danh sách Top 5 chuyên ngành từ phân tích năng lực
   const availableMajors =
@@ -71,8 +76,8 @@ export default function RoadmapPage() {
     activeRoadmap.semesters.length > 0
   );
 
-  const handleGenerateForActiveMajor = async () => {
-    await generateRoadmapAction(4);
+  const handleGenerateForActiveMajor = () => {
+    router.push("/result");
   };
 
   if (isInitialSyncing || !hasHydrated) {
@@ -94,6 +99,10 @@ export default function RoadmapPage() {
         </div>
       </div>
     );
+  }
+
+  if (!isAuthenticated || !user?.studentId || analysisStudentId !== user.studentId || !analysisResult || !selectedMajor) {
+    return <div className="mx-auto flex min-h-[50vh] max-w-lg flex-col items-center justify-center gap-4 p-6 text-center"><h1 className="text-2xl font-bold text-slate-900 dark:text-white">Chưa có lộ trình của bạn</h1><p className="text-sm leading-6 text-slate-600 dark:text-slate-300">Hoàn thành khảo sát, xem kết quả và chọn chuyên ngành trước khi tạo lộ trình.</p><Link href="/upload" className="inline-flex min-h-11 items-center rounded-xl bg-indigo-600 px-5 py-2 font-semibold text-white">Bắt đầu khảo sát</Link></div>;
   }
 
   return (
@@ -120,10 +129,10 @@ export default function RoadmapPage() {
               disabled={isGeneratingRoadmap}
               onClick={handleGenerateForActiveMajor}
               className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 dark:bg-slate-900/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white text-xs font-medium shadow-sm transition-colors disabled:opacity-50"
-              title="Kích hoạt mô hình AI suy luận và tái tạo lộ trình mới"
+              title="Chọn học kỳ hiện tại trên trang kết quả trước khi tạo lại"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isGeneratingRoadmap ? "animate-spin" : ""}`} />
-              <span>Tạo lại với AI</span>
+              <span>Chọn học kỳ để tạo lại</span>
             </button>
           )}
           <Link
@@ -268,7 +277,7 @@ export default function RoadmapPage() {
               ) : (
                 <>
                   <Sparkles className="w-4 h-4" />
-                  <span>Tạo Lộ trình cho ngành này với AI</span>
+                  <span>Chọn học kỳ để tạo lộ trình</span>
                 </>
               )}
             </button>

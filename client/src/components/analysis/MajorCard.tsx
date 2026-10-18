@@ -1,7 +1,6 @@
 "use client";
 
-import React from "react";
-import { Trophy, ArrowRight, CheckCircle } from "lucide-react";
+import { ArrowRight, CheckCircle2 } from "lucide-react";
 import { MajorRecommendationItem } from "@/types/api";
 
 interface MajorCardProps {
@@ -10,88 +9,28 @@ interface MajorCardProps {
   onSelect: (major: MajorRecommendationItem) => void;
 }
 
-export const MajorCard: React.FC<MajorCardProps> = ({ major, isSelected, onSelect }) => {
-  const rankColors = [
-    "from-amber-400 to-yellow-600 border-amber-500/40 text-amber-300 shadow-amber-500/20",
-    "from-slate-300 to-slate-500 border-slate-400/40 text-slate-200 shadow-slate-500/20",
-    "from-amber-700 to-amber-900 border-amber-700/40 text-amber-500 shadow-amber-700/20",
-  ];
+export function MajorCard({ major, isSelected, onSelect }: MajorCardProps) {
+  const score = major.match_percentage ?? major.match_score;
+  const boundedScore = typeof score === "number" && Number.isFinite(score) ? Math.max(0, Math.min(100, score)) : null;
+  const missingCount = major.skill_gap?.missing_skills?.length;
 
   return (
-    <div
+    <button
+      type="button"
+      aria-pressed={isSelected}
       onClick={() => onSelect(major)}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onSelect(major);
-        }
-      }}
-      className={`relative cursor-pointer rounded-xl p-4 transition-all duration-300 ease-out border outline-none ${
-        isSelected
-          ? "glass-panel-glow border-indigo-500/80 bg-indigo-50/70 dark:bg-indigo-950/30 scale-[1.015] shadow-lg shadow-indigo-500/15"
-          : "glass-panel border-slate-200 dark:border-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700 bg-white/80 dark:bg-slate-900/40 hover:bg-slate-50 dark:hover:bg-slate-900/60 hover:scale-[1.005] shadow-sm"
-      }`}
+      className={`w-full rounded-xl border p-4 text-left shadow-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 ${isSelected ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-950" : "border-slate-200 bg-white hover:border-indigo-300 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-indigo-700"}`}
     >
-      <div className="flex items-start justify-between gap-3 mb-2">
-        <div className="flex items-center gap-2">
-          <span
-            className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold bg-gradient-to-br text-white shadow-xs ${
-              rankColors[major.rank - 1] || "from-indigo-500 to-indigo-700"
-            }`}
-          >
-            #{major.rank}
-          </span>
-          <h4 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">{major.major_name}</h4>
-        </div>
-
-        <div className="text-right">
-          <span className="text-sm font-extrabold text-indigo-600 dark:text-indigo-300 font-mono">
-            {major.match_percentage || major.match_score || 0}%
-          </span>
-          <div className="text-[10px] uppercase font-semibold -mt-0.5">
-            {(major.match_percentage || major.match_score || 0) >= 80 ? (
-              <span className="text-emerald-600 dark:text-emerald-400">Rất phù hợp</span>
-            ) : (major.match_percentage || major.match_score || 0) >= 65 ? (
-              <span className="text-indigo-600 dark:text-indigo-400">Phù hợp</span>
-            ) : (
-              <span className="text-amber-600 dark:text-amber-400">Tiềm năng</span>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 mb-3">{major.description}</p>
-
-      {/* Progress Bar với hiệu ứng chuyển động mượt mà */}
-      <div className="w-full bg-slate-100 dark:bg-slate-800/80 rounded-full h-1.5 overflow-hidden mb-3">
-        <div
-          className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-sky-400 to-emerald-400 transition-all duration-700 ease-out"
-          style={{ width: `${major.match_percentage || major.match_score || 0}%` }}
-        />
-      </div>
-
-      <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-200 dark:border-slate-800/60">
-        <span className="text-slate-500 dark:text-slate-400 text-[11px]">
-          {major.skill_gap?.missing_skills?.length ?? 4} kỹ năng cần bù đắp
-        </span>
-        <span
-          className={`flex items-center gap-1 font-semibold text-[11px] ${
-            isSelected ? "text-indigo-600 dark:text-indigo-400" : "text-slate-500 dark:text-slate-400"
-          }`}
-        >
-          {isSelected ? (
-            <>
-              <CheckCircle className="w-3.5 h-3.5" /> Đang chọn
-            </>
-          ) : (
-            <>
-              Xem chi tiết <ArrowRight className="w-3 h-3" />
-            </>
-          )}
-        </span>
-      </div>
-    </div>
+      <span className="flex items-start justify-between gap-3">
+        <span className="text-base font-bold text-slate-900 dark:text-white">{major.major_name}</span>
+        {boundedScore !== null && <span className="shrink-0 text-sm font-bold text-indigo-700 dark:text-indigo-300">{boundedScore}%</span>}
+      </span>
+      {major.description && <span className="mt-2 block text-sm leading-6 text-slate-600 dark:text-slate-300">{major.description}</span>}
+      {boundedScore !== null && <span className="mt-3 block h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700" aria-hidden="true"><span className="block h-full rounded-full bg-indigo-600" style={{ width: `${boundedScore}%` }} /></span>}
+      <span className="mt-3 flex items-center justify-between gap-3 border-t border-slate-200 pt-3 text-sm dark:border-slate-700">
+        <span className="text-slate-600 dark:text-slate-300">{missingCount === undefined ? "Chưa có dữ liệu kỹ năng" : `${missingCount} kỹ năng cần bổ sung`}</span>
+        <span className="inline-flex items-center gap-1 font-semibold text-indigo-700 dark:text-indigo-300">{isSelected ? <><CheckCircle2 className="h-4 w-4" />Đang xem</> : <>Xem chi tiết<ArrowRight className="h-4 w-4" /></>}</span>
+      </span>
+    </button>
   );
-};
+}

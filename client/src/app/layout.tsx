@@ -5,9 +5,9 @@ import { Footer } from "@/components/common/Footer";
 import { AuthModal } from "@/components/auth/AuthModal";
 
 export const metadata: Metadata = {
-  title: "MajorMatch - Hệ thống Định hướng & Phân tích Kỹ năng Học tập Web 2.0",
+  title: "MajorMatch - Khám phá chuyên ngành và lộ trình học",
   description:
-    "Nền tảng cố vấn học tập và cá nhân hóa lộ trình đại học với Cosine Similarity, Recharts Radar đa tầng và Trợ lý AI Qwen 2.5",
+    "Khám phá chuyên ngành từ bảng điểm và khảo sát sở thích. So sánh kỹ năng và lên kế hoạch học tập cùng MajorMatch.",
 };
 
 export default function RootLayout({
