@@ -743,6 +743,7 @@ export class ApiService {
       return await res.json();
     } catch {
       return null;
+    }
   }
 
   /**
