@@ -519,6 +519,8 @@ async def chat_stream_proxy(request: Request):
     except Exception:
         pass
     user_query = req_json.get("message", "Chào bạn")
+    student_id = req_json.get("student_id") or "SV-2025001"
+    session_id = req_json.get("session_id") or "default"
     target_major = req_json.get("target_major", "Kỹ thuật Đám mây & Vận hành Hệ thống")
 
     async def stream_generator():
@@ -544,20 +546,29 @@ async def chat_stream_proxy(request: Request):
         if not connected_to_hpc:
             # Cloud Database-Only Fallback: Phục vụ trực tiếp từ CSDL trên AWS EC2
             conn = get_db()
-            p_row = conn.execute("SELECT detected_skills, cumulative_gpa FROM user_profiles WHERE student_id = 'SV-2025001'").fetchone()
+            p_row = conn.execute("SELECT full_name, detected_skills, cumulative_gpa FROM user_profiles WHERE student_id = ?", (student_id,)).fetchone()
+            r_row = conn.execute("SELECT target_major_name, job_readiness_percentage, completed_items FROM roadmaps WHERE student_id = ?", (student_id,)).fetchone()
             conn.close()
-            gpa = p_row["cumulative_gpa"] if p_row else 3.25
+
+            student_name = p_row["full_name"] if p_row and p_row["full_name"] else "Sinh viên"
+            gpa = p_row["cumulative_gpa"] if p_row and p_row["cumulative_gpa"] else 3.25
             skills = json.loads(p_row["detected_skills"]) if p_row and p_row["detected_skills"] else ["Linux", "Git", "Python"]
+            major_display = r_row["target_major_name"] if r_row and r_row["target_major_name"] else target_major
+            readiness = r_row["job_readiness_percentage"] if r_row and r_row["job_readiness_percentage"] else 64.5
+            completed_dict = json.loads(r_row["completed_items"]) if r_row and r_row["completed_items"] else {}
+            completed_count = len([k for k, v in completed_dict.items() if v])
 
             fallback_text = (
                 f"⚡ **[Chế độ Đám mây Ngoại tuyến - Cloud Database Mode]**\n\n"
-                f"Cố vấn AI MajorMatch đã tiếp nhận câu hỏi: *\"{user_query}\"*.\n"
+                f"Chào bạn **{student_name}** (MSSV: `{student_id}`)! Cố vấn AI MajorMatch đã tiếp nhận câu hỏi: *\"{user_query}\"*.\n"
                 f"*(Nút tính toán Private GPU Node hiện đang tắt hoặc đường truyền mạng gián đoạn. Toàn bộ dữ liệu được truy xuất trực tiếp từ CSDL AWS EC2)*\n\n"
-                f"📊 **Dữ liệu hồ sơ trích xuất từ AWS Database**:\n"
-                f"- Định hướng chuyên ngành: **{target_major}**\n"
+                f"📊 **Hồ sơ Cá nhân hóa trích xuất từ AWS Database**:\n"
+                f"- Định hướng chuyên ngành: **{major_display}**\n"
                 f"- Điểm GPA tích lũy: **{gpa}/4.0**\n"
+                f"- Điểm sẵn sàng nghề nghiệp hiện tại: **{readiness}%**\n"
+                f"- Tiến trình lộ trình: Đã hoàn thành **{completed_count}** đầu việc\n"
                 f"- Kỹ năng đã ghi nhận: **{', '.join(skills[:5])}**\n\n"
-                f"💡 **Tư vấn học tập theo lộ trình đã lưu**:\n"
+                f"💡 **Tư vấn học tập theo lộ trình cá nhân hóa**:\n"
                 f"1. **Bám sát mục tiêu chuyên môn**: Hãy tiếp tục hoàn thành các môn học và chứng chỉ đã được thiết lập tại mục \"Lộ trình Tương tác\".\n"
                 f"2. **Tương tác tiến độ**: Bạn có thể tích chọn hoàn thành các môn học/đồ án, hệ thống sẽ tự động cập nhật và lưu vĩnh viễn điểm sẵn sàng nghề nghiệp vào CSDL AWS.\n"
                 f"3. **Kích hoạt GPU**: Để trò chuyện trực tiếp với mô hình Qwen 2.5 7B, bạn chỉ cần khởi động backend trên máy tính cá nhân và kết nối Joy 3."
@@ -569,8 +580,12 @@ async def chat_stream_proxy(request: Request):
                 conn_save = get_db()
                 with conn_save:
                     conn_save.execute(
-                        "INSERT INTO chat_history (student_id, role, content, created_at) VALUES (?, ?, ?, ?)",
-                        ("SV-2025001", "assistant", fallback_text, now_str)
+                        "INSERT INTO chat_history (student_id, role, content, session_id, created_at) VALUES (?, ?, ?, ?, ?)",
+                        (student_id, "user", user_query, session_id, now_str)
+                    )
+                    conn_save.execute(
+                        "INSERT INTO chat_history (student_id, role, content, session_id, created_at) VALUES (?, ?, ?, ?, ?)",
+                        (student_id, "assistant", fallback_text, session_id, now_str)
                     )
                 conn_save.close()
             except Exception:

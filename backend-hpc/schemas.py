@@ -196,6 +196,8 @@ class ChatStreamRequest(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     conversation_id: Optional[str] = Field(default_factory=lambda: "conv-default", description="ID phiên trò chuyện")
+    student_id: Optional[str] = Field(default="SV-2025001", description="Mã số sinh viên định danh")
+    session_id: Optional[str] = Field(default="default", description="ID phiên hội thoại cố vấn")
     message: str = Field(..., min_length=1, description="Nội dung câu hỏi của người dùng")
     context: Optional[ChatContext] = None
     major_focus: Optional[str] = None
