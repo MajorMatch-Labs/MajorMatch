@@ -6,7 +6,7 @@ import { Sparkles, Bot, ShieldCheck } from "lucide-react";
 
 export default function ChatPage() {
   return (
-    <div className="w-full h-[calc(100vh-4.5rem)] max-w-7xl mx-auto py-2 sm:py-3 px-2 sm:px-4 flex flex-col">
+    <div className="fixed inset-x-0 top-16 bottom-0 z-20 bg-slate-50 dark:bg-slate-950 flex flex-col overflow-hidden">
       <StreamingChatBox />
     </div>
   );

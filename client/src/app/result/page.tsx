@@ -20,7 +20,9 @@ export default function ResultPage() {
     generateRoadmapAction,
     loadAndSyncAllDataAction,
     hasHydrated,
-    profile
+    profile,
+    roadmap,
+    roadmapsByMajor
   } = useProfileStore();
 
   const [isInitialSyncing, setIsInitialSyncing] = useState(true);
@@ -195,37 +197,63 @@ export default function ResultPage() {
         <SkillBreakdown skillGap={currentMajor?.skill_gap || currentResult.skill_breakdown} />
       </div>
 
-      {/* CTA Button: Sinh lộ trình học tập với AI */}
-      <div className="p-6 rounded-2xl glass-panel-glow border border-indigo-500/30 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div>
-          <h4 className="text-sm font-bold text-white flex items-center gap-2">
-            <GitBranch className="w-4 h-4 text-indigo-400" />
-            Sẵn sàng xây dựng lộ trình học tập cá nhân hóa?
-          </h4>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Ollama Qwen 2.5 và ChromaDB RAG sẽ đề xuất các môn tiên quyết để bù đắp các Missing Skills.
-          </p>
-        </div>
+      {/* CTA Button: Xem hoặc Sinh lộ trình học tập với AI */}
+      {(() => {
+        const currentMajorId = currentMajor?.major_id;
+        const currentMajorName = currentMajor?.major_name;
+        const hasExistingRoadmap = Boolean(
+          (roadmap && (roadmap.target_major_id === currentMajorId || roadmap.target_major === currentMajorName)) ||
+          (currentMajorId && roadmapsByMajor && roadmapsByMajor[currentMajorId])
+        );
 
-        <button
-          type="button"
-          disabled={isGeneratingRoadmap}
-          onClick={handleGenerateRoadmap}
-          className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-semibold text-xs sm:text-sm shadow-lg shadow-indigo-600/30 transition-all hover:scale-105 duration-150"
-        >
-          {isGeneratingRoadmap ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              <span>Đang truy vấn RAG & Ollama LLM...</span>
-            </>
-          ) : (
-            <>
-              <span>Sinh Lộ trình Học tập (Roadmap)</span>
-              <ArrowRight className="w-4 h-4" />
-            </>
-          )}
-        </button>
-      </div>
+        return (
+          <div className="p-6 rounded-2xl glass-panel-glow border border-indigo-500/30 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div>
+              <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                <GitBranch className="w-4 h-4 text-indigo-400" />
+                {hasExistingRoadmap
+                  ? "Lộ trình học tập chuyên ngành này đã sẵn sàng"
+                  : "Sẵn sàng xây dựng lộ trình học tập cá nhân hóa?"}
+              </h4>
+              <p className="text-xs text-slate-400 mt-0.5">
+                {hasExistingRoadmap
+                  ? "Hệ thống đã lưu trữ lộ trình phân kỳ môn học & đồ án. Nhấn để tiếp tục theo dõi tiến độ."
+                  : "Ollama Qwen 2.5 và ChromaDB RAG sẽ đề xuất các môn tiên quyết để bù đắp các Missing Skills."}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              disabled={isGeneratingRoadmap}
+              onClick={() => {
+                if (hasExistingRoadmap) {
+                  router.push("/roadmap");
+                } else {
+                  handleGenerateRoadmap();
+                }
+              }}
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-semibold text-xs sm:text-sm shadow-lg shadow-indigo-600/30 transition-all hover:scale-105 duration-150"
+            >
+              {isGeneratingRoadmap ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Đang truy vấn RAG & Ollama LLM...</span>
+                </>
+              ) : hasExistingRoadmap ? (
+                <>
+                  <span>Xem Lộ trình Học tập (Roadmap)</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              ) : (
+                <>
+                  <span>Sinh Lộ trình Học tập (Roadmap)</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+          </div>
+        );
+      })()}
     </div>
   );
 }
