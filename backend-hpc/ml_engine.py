@@ -57,6 +57,7 @@ DIMENSION: int = len(CORE_SKILLS)
 # =============================================================================
 # ÁNH XẠ MÔN HỌC ĐẠI HỌC VÀO TRỌNG SỐ KỸ NĂNG THÀNH PHẦN
 # =============================================================================
+COURSE_SKILL_MAPPING: Dict[str, Dict[str, float]] = {
     "CS101": {"Python": 0.8, "Algorithms": 0.6, "Problem Solving": 0.7, "Data Structures": 0.5},
     "CS102": {"Data Structures": 1.0, "Algorithms": 0.9, "C++": 0.8, "Problem Solving": 0.9, "Complexity Theory": 0.7},
     "MTH100": {"Calculus": 1.0, "Optimization": 0.6, "Linear Algebra": 0.8},
