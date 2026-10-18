@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { FileDropzone } from "@/components/upload/FileDropzone";
 import { RiasecSurvey } from "@/components/upload/RiasecSurvey";
 import { useProfileStore } from "@/stores/useProfileStore";
-import { ArrowRight, Loader2, Sparkles, RefreshCw } from "lucide-react";
+import { useAuthStore } from "@/stores/useAuthStore";
+import { ArrowRight, Loader2, Sparkles, RefreshCw, Lock } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,7 @@ export default function UploadPage() {
     calculateMatchAction,
     hasHydrated,
   } = useProfileStore();
+  const { isAuthenticated, openAuthModal } = useAuthStore();
 
   const [isClientMounted, setIsClientMounted] = useState(false);
 
@@ -24,6 +26,10 @@ export default function UploadPage() {
   }, []);
 
   const handleStartAnalysis = async () => {
+    if (!isAuthenticated) {
+      openAuthModal("login");
+      return;
+    }
     try {
       await calculateMatchAction();
       router.push("/result");

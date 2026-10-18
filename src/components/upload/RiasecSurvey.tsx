@@ -25,9 +25,9 @@ export const RiasecSurvey: React.FC = () => {
     setRiasecScore,
     toggleCareerTag,
   } = useProfileStore();
-  const { user } = useAuthStore();
+  const { user, isAuthenticated, openAuthModal } = useAuthStore();
 
-  const studentId = user?.studentId || profile?.student_id || "SV-2025001";
+  const studentId = isAuthenticated ? (user?.studentId || profile?.student_id || "23IT196") : null;
 
   // State độc lập cho từng câu hỏi từ 1 đến 10
   const [questionAnswers, setQuestionAnswers] = useState<Record<number, number>>({
@@ -35,8 +35,12 @@ export const RiasecSurvey: React.FC = () => {
   });
   const [syncStatus, setSyncStatus] = useState<"idle" | "loading" | "saved" | "saving">("idle");
 
-  // Nạp câu trả lời cũ từ Cloud CSDL khi mở trang
+  // Nạp câu trả lời cũ từ Cloud CSDL khi mở trang (chỉ khi đã đăng nhập)
   useEffect(() => {
+    if (!isAuthenticated || !studentId) {
+      setSyncStatus("idle");
+      return;
+    }
     let isMounted = true;
     const loadPreviousSurvey = async () => {
       setSyncStatus("loading");
@@ -63,7 +67,7 @@ export const RiasecSurvey: React.FC = () => {
     };
     loadPreviousSurvey();
     return () => { isMounted = false; };
-  }, [studentId, setRiasecScore]);
+  }, [studentId, isAuthenticated, setRiasecScore]);
 
   const handleScoreChange = (qId: number, val: number) => {
     const nextAnswers = { ...questionAnswers, [qId]: val };
@@ -93,16 +97,24 @@ export const RiasecSurvey: React.FC = () => {
     setRiasecScore('e', e);
     setRiasecScore('c', c);
 
-    // Tự động lưu ngầm vào Cloud sau khi người dùng tương tác
-    setSyncStatus("saving");
-    const rawScores = { r, i, a, s, e, c };
-    const dominant = getDominantHollandCode(rawScores);
-    ApiService.saveRiasecSurvey(studentId, nextAnswers, rawScores, dominant.code || "I")
-      .then(() => setSyncStatus("saved"))
-      .catch(() => setSyncStatus("idle"));
+    // Chỉ tự động lưu ngầm vào Cloud nếu đã đăng nhập tài khoản
+    if (isAuthenticated && studentId) {
+      setSyncStatus("saving");
+      const rawScores = { r, i, a, s, e, c };
+      const dominant = getDominantHollandCode(rawScores);
+      ApiService.saveRiasecSurvey(studentId, nextAnswers, rawScores, dominant.code || "I")
+        .then(() => setSyncStatus("saved"))
+        .catch(() => setSyncStatus("idle"));
+    } else {
+      setSyncStatus("idle");
+    }
   };
 
   const handleManualSave = async () => {
+    if (!isAuthenticated || !studentId) {
+      openAuthModal("login");
+      return;
+    }
     setSyncStatus("saving");
     const safeScores = riasecScores || {};
     const rawScores = {
@@ -201,17 +213,22 @@ export const RiasecSurvey: React.FC = () => {
             </h3>
           </div>
           <div className="flex items-center gap-2">
-            {syncStatus === "loading" && (
+            {!isAuthenticated && (
+              <span className="text-[11px] text-slate-500 dark:text-slate-400 font-mono bg-slate-100 dark:bg-slate-800/80 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700/60">
+                Chế độ Khách (Chưa lưu Cloud)
+              </span>
+            )}
+            {isAuthenticated && syncStatus === "loading" && (
               <span className="flex items-center gap-1 text-[11px] text-slate-500 font-mono">
                 <Loader2 className="w-3 h-3 animate-spin text-indigo-500" /> Đang tải...
               </span>
             )}
-            {syncStatus === "saving" && (
+            {isAuthenticated && syncStatus === "saving" && (
               <span className="flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400 font-mono">
                 <Loader2 className="w-3 h-3 animate-spin" /> Đang lưu...
               </span>
             )}
-            {syncStatus === "saved" && (
+            {isAuthenticated && syncStatus === "saved" && (
               <span className="flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 font-mono bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800/50">
                 <Cloud className="w-3 h-3" /> Đã lưu Cloud ({studentId})
               </span>
@@ -220,7 +237,7 @@ export const RiasecSurvey: React.FC = () => {
               type="button"
               onClick={handleManualSave}
               className="flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-md bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950/80 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 transition-colors"
-              title="Lưu bài khảo sát vào CSDL Cloud"
+              title={isAuthenticated ? "Lưu bài khảo sát vào CSDL Cloud" : "Đăng nhập để lưu tiến trình vào Cloud"}
             >
               <Save className="w-3 h-3" />
               <span>Lưu tiến trình</span>
