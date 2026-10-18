@@ -83,6 +83,85 @@ Toàn bộ hồ sơ kiến trúc và đặc tả hệ thống đã được biê
 | **Vector DB & RAG** | ChromaDB (HNSW Indexing, BAAI/bge-m3 Embedding) |
 | **LLM Inference** | Ollama Core, Qwen 2.5 7B Instruct (CUDA Acceleration trên NVIDIA GPU) |
 
+## 🚀 Hướng dẫn Vận hành & Phát triển Thực tế (Operational Runbook)
+
+Hệ thống vận hành theo mạng lưới Hybrid Cloud phân tán liên kết qua **Tailscale**. Dưới đây là quy trình chi tiết để khởi chạy các mắt xích và phát triển tính năng mới:
+
+### 1. Khởi chạy Node HPC GPU (Máy trạm Legion - Tính toán AI)
+Khi máy HPC chưa bật dịch vụ hoặc vừa khởi động lại, từ máy cá nhân kết nối vào HPC qua Tailscale:
+```powershell
+# 1. SSH vào máy tính Legion qua Tailscale
+ssh Lenovo@100.123.107.114
+# Nhập 'yes' nếu hỏi fingerprint. Mật khẩu: 160205
+
+# 2. Bật dịch vụ Ollama (GPU RTX 4060) nếu chưa chạy
+ollama serve
+
+# 3. Mở terminal mới SSH vào HPC và khởi chạy FastAPI Backend
+cd C:\mydata\selfproject\AIO_project\backend-hpc
+.\.venv\Scripts\activate
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+```
+> *(Kiểm tra nhanh tại chỗ: `curl.exe http://localhost:8000/api/v1/health` trả về `gpu_status: NVIDIA CUDA GPU`).*
+
+---
+
+### 2. Khởi chạy Joy 3 Edge Node (Điều phối & Xem Log thời gian thực)
+Thiết bị Joy 3 đóng vai trò cổng biên giám sát và in log mọi request AI thời gian thực:
+```bash
+# 1. SSH vào Joy 3 qua mạng Tailscale
+ssh -p 8022 root@100.71.182.24
+# Mật khẩu: 123456
+
+# 2. Đăng nhập môi trường Ubuntu proot
+proot-distro login ubuntu
+
+# 3. Kích hoạt script điều phối & theo dõi log
+python3 /root/joy3_edge_dispatcher.py
+```
+> *(Giữ nguyên cửa sổ này để theo dõi tiến trình truyền token LLM từ HPC về Client theo thời gian thực).*
+
+---
+
+### 3. Khởi chạy & Phát triển Frontend Client (Máy tính cá nhân)
+Dành cho thành viên clone dự án về máy để viết thêm tính năng, sửa giao diện hoặc kiểm thử:
+```powershell
+# 1. Di chuyển vào thư mục client
+cd client
+
+# 2. Cài đặt thư viện phụ thuộc (nếu chưa cài)
+npm install
+
+# 3. Khởi chạy môi trường phát triển cục bộ
+npm run dev
+```
+* Mở trình duyệt tại: **`http://localhost:3000`**
+* Mọi thay đổi code trên máy bạn sẽ cập nhật tức thì (Hot-Reload). Mọi request phân tích bảng điểm, tính toán Cosine hay Chat LLM sẽ tự động gửi qua Joy 3 / HPC bạn bạn để GPU xử lý!
+
+---
+
+### 4. Kiểm tra sức khỏe toàn hệ thống (Health Check)
+Mở PowerShell trên máy bạn kiểm tra thông tuyến:
+```powershell
+# Kiểm tra trực tiếp Node HPC GPU
+curl.exe -s http://100.123.107.114:8000/api/v1/health
+
+# Kiểm tra qua Joy 3 Edge Node
+curl.exe -s http://100.71.182.24:18080/api/v1/health
+
+# Kiểm tra cổng Cloud Production
+curl.exe -s https://majormatch.vanhoang.online/api/v1/health
+```
+
+---
+
+### 5. Tên miền Sản xuất & Đóng góp Code (Production & Git Workflow)
+* **Tên miền Production chính thức:** [https://majormatch.vanhoang.online](https://majormatch.vanhoang.online) (chạy trên AWS EC2 `13.250.26.54`).
+* **Quy chuẩn Git đóng góp:**
+  1. Tạo nhánh tính năng: `git checkout -b feat/ten-chuc-nang`.
+  2. Commit 100% bằng tiếng Anh theo chuẩn Conventional Commits: `type(scope): description`.
+  3. Tạo Pull Request (PR) vào `main` tại repository [MajorMatch-Labs/MajorMatch](https://github.com/MajorMatch-Labs/MajorMatch).
+
 ---
 
 ## 📄 Bản quyền
