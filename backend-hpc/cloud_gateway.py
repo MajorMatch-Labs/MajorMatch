@@ -89,14 +89,28 @@ def init_db():
             student_id TEXT NOT NULL,
             role TEXT NOT NULL,
             content TEXT NOT NULL,
+            session_id TEXT DEFAULT 'default',
             created_at TEXT NOT NULL
         );
         """)
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS riasec_surveys (
+            student_id TEXT PRIMARY KEY,
+            answers_json TEXT NOT NULL,
+            scores_json TEXT NOT NULL,
+            dominant_code TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+        """)
+        try:
+            conn.execute("ALTER TABLE chat_history ADD COLUMN session_id TEXT DEFAULT 'default';")
+        except Exception:
+            pass
     conn.close()
 
 init_db()
 
-ADMIN_ALLOWED_TABLES = ["user_profiles", "roadmaps", "assessments", "chat_history"]
+ADMIN_ALLOWED_TABLES = ["user_profiles", "roadmaps", "assessments", "chat_history", "riasec_surveys"]
 
 # =============================================================================
 # ENDPOINT NHÓM ADMIN: QUẢN TRỊ & THAO TÁC CƠ SỞ DỮ LIỆU
@@ -584,50 +598,115 @@ async def chat_stream_proxy(request: Request):
 
 
 @app.get("/api/v1/chat/history/{student_id}")
-async def get_chat_history_cloud(student_id: str):
-    """Lấy lịch sử hội thoại đã lưu từ CSDL SQLite trên AWS EC2."""
+async def get_chat_history_cloud(student_id: str, session_id: Optional[str] = None):
+    """Lấy lịch sử hội thoại đã lưu từ CSDL SQLite trên AWS EC2 theo session_id."""
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("""
-    SELECT role, content, created_at
-    FROM chat_history
-    WHERE student_id = ?
-    ORDER BY id ASC
-    LIMIT 50;
-    """, (student_id,))
-    rows = cursor.fetchall()
+    try:
+        if session_id:
+            cursor.execute("""
+            SELECT role, content, session_id, created_at
+            FROM chat_history
+            WHERE student_id = ? AND session_id = ?
+            ORDER BY id ASC
+            LIMIT 50;
+            """, (student_id, session_id))
+        else:
+            cursor.execute("""
+            SELECT role, content, session_id, created_at
+            FROM chat_history
+            WHERE student_id = ?
+            ORDER BY id ASC
+            LIMIT 50;
+            """, (student_id,))
+        rows = cursor.fetchall()
+        msgs = [
+            {"role": r["role"], "content": r["content"], "session_id": r["session_id"] if "session_id" in r.keys() else "default", "created_at": r["created_at"]}
+            for r in rows
+        ]
+    except Exception:
+        cursor.execute("SELECT role, content, created_at FROM chat_history WHERE student_id = ? ORDER BY id ASC LIMIT 50;", (student_id,))
+        rows = cursor.fetchall()
+        msgs = [{"role": r["role"], "content": r["content"], "session_id": "default", "created_at": r["created_at"]} for r in rows]
     conn.close()
 
     return {
         "student_id": student_id,
-        "messages": [
-            {"role": r["role"], "content": r["content"], "created_at": r["created_at"]}
-            for r in rows
-        ]
+        "session_id": session_id or "all",
+        "messages": msgs
     }
 
 
 @app.post("/api/v1/chat/history/{student_id}")
 async def save_chat_message_cloud(student_id: str, request: Request):
-    """Lưu tin nhắn hội thoại vào CSDL SQLite trên AWS EC2."""
+    """Lưu tin nhắn hội thoại vào CSDL SQLite trên AWS EC2 kèm session_id."""
     try:
         data = await request.json()
     except Exception:
         data = {}
     role = str(data.get("role", "user"))
     content = str(data.get("content", ""))
+    session_id = str(data.get("session_id", "default"))
     now_str = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
     if content:
         conn = get_db()
         with conn:
-            conn.execute("""
-            INSERT INTO chat_history (student_id, role, content, created_at)
-            VALUES (?, ?, ?, ?);
-            """, (student_id, role, content, now_str))
+            try:
+                conn.execute("""
+                INSERT INTO chat_history (student_id, role, content, session_id, created_at)
+                VALUES (?, ?, ?, ?, ?);
+                """, (student_id, role, content, session_id, now_str))
+            except Exception:
+                conn.execute("""
+                INSERT INTO chat_history (student_id, role, content, created_at)
+                VALUES (?, ?, ?, ?);
+                """, (student_id, role, content, now_str))
         conn.close()
 
-    return {"status": "success", "student_id": student_id}
+    return {"status": "success", "student_id": student_id, "session_id": session_id}
+
+
+@app.get("/api/v1/chat/sessions/{student_id}")
+async def get_chat_sessions_cloud(student_id: str):
+    """Lấy danh sách các phiên tư vấn AI của sinh viên trên AWS EC2."""
+    conn = get_db()
+    cursor = conn.cursor()
+    sessions = []
+    try:
+        cursor.execute("""
+        SELECT session_id, COUNT(*) as msg_count, MAX(created_at) as last_activity
+        FROM chat_history
+        WHERE student_id = ?
+        GROUP BY session_id
+        ORDER BY last_activity DESC;
+        """, (student_id,))
+        for row in cursor.fetchall():
+            sid = row["session_id"] or "default"
+            c2 = conn.cursor()
+            c2.execute("SELECT content FROM chat_history WHERE student_id = ? AND session_id = ? ORDER BY id DESC LIMIT 1;", (student_id, sid))
+            last_msg_row = c2.fetchone()
+            last_msg = last_msg_row["content"] if last_msg_row else ""
+            if len(last_msg) > 80:
+                last_msg = last_msg[:80] + "..."
+            sessions.append({
+                "session_id": sid,
+                "message_count": row["msg_count"],
+                "last_message": last_msg,
+                "updated_at": row["last_activity"]
+            })
+    except Exception:
+        cursor.execute("SELECT COUNT(*), MAX(created_at) FROM chat_history WHERE student_id = ?;", (student_id,))
+        r = cursor.fetchone()
+        if r and r[0] > 0:
+            sessions.append({
+                "session_id": "default",
+                "message_count": r[0],
+                "last_message": "Phiên trò chuyện mặc định",
+                "updated_at": r[1]
+            })
+    conn.close()
+    return {"student_id": student_id, "sessions": sessions}
 
 
 @app.post("/api/v1/roadmap/generate")
@@ -1427,4 +1506,328 @@ async def upload_transcript_proxy(
     conn.close()
 
     return parsed_res
+
+
+# =============================================================================
+# ENDPOINTS RIASEC SURVEY & CÁ NHÂN HÓA TRÊN CLOUD GATEWAY (AWS EC2)
+# =============================================================================
+
+@app.post("/api/v1/survey/riasec")
+async def save_survey_cloud(request: Request):
+    """Lưu kết quả và từng câu trả lời trắc nghiệm RIASEC vào CSDL SQLite trên AWS EC2."""
+    try:
+        data = await request.json()
+    except Exception:
+        data = {}
+    student_id = str(data.get("student_id", "SV-2025001"))
+    answers = data.get("answers", {})
+    scores = data.get("scores", {})
+    dominant_code = str(data.get("dominant_code", "I"))
+    now_str = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+    conn = get_db()
+    with conn:
+        conn.execute("""
+        INSERT INTO riasec_surveys (student_id, answers_json, scores_json, dominant_code, updated_at)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(student_id) DO UPDATE SET
+            answers_json = excluded.answers_json,
+            scores_json = excluded.scores_json,
+            dominant_code = excluded.dominant_code,
+            updated_at = excluded.updated_at;
+        """, (student_id, json.dumps(answers, ensure_ascii=False), json.dumps(scores), dominant_code, now_str))
+
+        try:
+            conn.execute("""
+            UPDATE user_profiles
+            SET riasec_scores = ?, updated_at = ?
+            WHERE student_id = ?;
+            """, (json.dumps(scores), now_str, student_id))
+        except Exception:
+            pass
+    conn.close()
+
+    return {
+        "student_id": student_id,
+        "answers": answers,
+        "scores": scores,
+        "dominant_code": dominant_code,
+        "updated_at": now_str
+    }
+
+
+@app.get("/api/v1/survey/riasec/{student_id}")
+async def get_survey_cloud(student_id: str):
+    """Truy xuất câu trả lời và kết quả RIASEC từ CSDL SQLite trên AWS EC2."""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+    SELECT student_id, answers_json, scores_json, dominant_code, updated_at
+    FROM riasec_surveys
+    WHERE student_id = ?;
+    """, (student_id,))
+    row = cursor.fetchone()
+    conn.close()
+
+    if not row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Chưa có bài khảo sát RIASEC nào được lưu cho sinh viên {student_id} trên Cloud."
+        )
+
+    try:
+        answers = json.loads(row["answers_json"])
+    except Exception:
+        answers = {}
+
+    try:
+        scores = json.loads(row["scores_json"])
+    except Exception:
+        scores = {}
+
+    return {
+        "student_id": row["student_id"],
+        "answers": answers,
+        "scores": scores,
+        "dominant_code": row["dominant_code"],
+        "updated_at": row["updated_at"]
+    }
+
+
+@app.get("/api/v1/user/{student_id}/full-state")
+async def get_user_full_state_cloud(student_id: str):
+    """Tổng hợp toàn bộ trạng thái cá nhân hóa (Profile, RIASEC, Assessment, Roadmap, Chat) từ AWS EC2."""
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # 1. Profile
+    cursor.execute("SELECT * FROM user_profiles WHERE student_id = ?", (student_id,))
+    p_row = cursor.fetchone()
+    profile = None
+    if p_row:
+        try:
+            courses = json.loads(p_row["courses_data"]) if p_row["courses_data"] else []
+        except Exception:
+            courses = []
+        try:
+            skills = json.loads(p_row["detected_skills"]) if p_row["detected_skills"] else []
+        except Exception:
+            skills = []
+        try:
+            r_scores = json.loads(p_row["riasec_scores"]) if p_row["riasec_scores"] else {}
+        except Exception:
+            r_scores = {}
+        try:
+            tags = json.loads(p_row["career_tags"]) if p_row["career_tags"] else []
+        except Exception:
+            tags = []
+        profile = {
+            "student_id": p_row["student_id"],
+            "full_name": p_row["full_name"],
+            "cumulative_gpa": p_row["cumulative_gpa"],
+            "total_credits": p_row["total_credits"],
+            "courses": courses,
+            "detected_skills": skills,
+            "riasec_scores": r_scores,
+            "career_tags": tags,
+            "updated_at": p_row["updated_at"]
+        }
+
+    # 2. RIASEC Survey
+    cursor.execute("SELECT * FROM riasec_surveys WHERE student_id = ?", (student_id,))
+    s_row = cursor.fetchone()
+    survey = None
+    if s_row:
+        try:
+            survey = {
+                "student_id": s_row["student_id"],
+                "answers": json.loads(s_row["answers_json"]),
+                "scores": json.loads(s_row["scores_json"]),
+                "dominant_code": s_row["dominant_code"],
+                "updated_at": s_row["updated_at"]
+            }
+        except Exception:
+            pass
+
+    # 3. Assessment
+    cursor.execute("SELECT * FROM assessments WHERE student_id = ?", (student_id,))
+    a_row = cursor.fetchone()
+    assessment = None
+    if a_row:
+        try:
+            assessment = {
+                "student_id": a_row["student_id"],
+                "target_career": a_row["target_career"],
+                "assessment": json.loads(a_row["assessment_data"]),
+                "updated_at": a_row["updated_at"]
+            }
+        except Exception:
+            pass
+
+    # 4. Roadmap
+    cursor.execute("SELECT * FROM roadmaps WHERE student_id = ?", (student_id,))
+    r_row = cursor.fetchone()
+    roadmap = None
+    if r_row:
+        try:
+            roadmap = {
+                "student_id": r_row["student_id"],
+                "target_major": r_row["target_major_name"],
+                "target_major_id": r_row["target_major_id"],
+                "job_readiness_percentage": r_row["job_readiness_percentage"],
+                "completed_items": json.loads(r_row["completed_items"]),
+                "updated_at": r_row["updated_at"]
+            }
+        except Exception:
+            pass
+
+    # 5. Chat count
+    cursor.execute("SELECT COUNT(*) FROM chat_history WHERE student_id = ?", (student_id,))
+    chat_count = cursor.fetchone()[0]
+    conn.close()
+
+    now_str = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    return {
+        "student_id": student_id,
+        "profile": profile,
+        "riasec_survey": survey,
+        "assessment": assessment,
+        "roadmap": roadmap,
+        "chat_message_count": chat_count,
+        "updated_at": now_str
+    }
+
+
+def get_all_students_cloud():
+    """Lấy danh sách tất cả sinh viên tổng hợp trên AWS EC2."""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+    SELECT DISTINCT student_id FROM (
+        SELECT student_id FROM user_profiles
+        UNION
+        SELECT student_id FROM assessments
+        UNION
+        SELECT student_id FROM roadmaps
+        UNION
+        SELECT student_id FROM riasec_surveys
+    )
+    ORDER BY student_id ASC;
+    """)
+    student_ids = [r[0] for r in cursor.fetchall()]
+    conn.close()
+
+    result = []
+    for sid in student_ids:
+        # Nhúng trực tiếp state
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("SELECT * FROM user_profiles WHERE student_id = ?", (sid,))
+        p = c.fetchone()
+        c.execute("SELECT * FROM assessments WHERE student_id = ?", (sid,))
+        a = c.fetchone()
+        c.execute("SELECT * FROM roadmaps WHERE student_id = ?", (sid,))
+        r = c.fetchone()
+        c.execute("SELECT * FROM riasec_surveys WHERE student_id = ?", (sid,))
+        s = c.fetchone()
+        c.execute("SELECT COUNT(*) FROM chat_history WHERE student_id = ?", (sid,))
+        ch = c.fetchone()[0]
+        conn.close()
+
+        top_match = "Chưa đánh giá"
+        match_score = 0.0
+        if a and a["assessment_data"]:
+            try:
+                ad = json.loads(a["assessment_data"])
+                matches = ad.get("top_matches", [])
+                if matches:
+                    top_match = matches[0].get("major_name", "Chưa xác định")
+                    match_score = matches[0].get("match_percentage", 0.0)
+            except Exception:
+                pass
+
+        dominant = "N/A"
+        if s and s["dominant_code"]:
+            dominant = s["dominant_code"]
+
+        result.append({
+            "student_id": sid,
+            "full_name": p["full_name"] if p and p["full_name"] else f"Sinh viên {sid}",
+            "cumulative_gpa": p["cumulative_gpa"] if p and p["cumulative_gpa"] else 0.0,
+            "total_credits": p["total_credits"] if p and p["total_credits"] else 0,
+            "top_recommended_major": top_match,
+            "match_score": match_score,
+            "readiness_score": r["job_readiness_percentage"] if r else 0.0,
+            "dominant_riasec": dominant,
+            "has_survey": bool(s),
+            "has_roadmap": bool(r),
+            "chat_count": ch,
+            "updated_at": (p["updated_at"] if p else r["updated_at"] if r else a["updated_at"] if a else "")
+        })
+
+    return result
+
+
+@app.get("/api/v1/admin/students")
+async def get_admin_students_cloud():
+    """Lấy danh sách tổng hợp toàn bộ sinh viên kèm kết quả đánh giá trên AWS EC2."""
+    students = get_all_students_cloud()
+    return {"status": "success", "total": len(students), "students": students}
+
+
+@app.get("/api/v1/admin/export")
+async def export_admin_data_cloud(format: str = "json", table: Optional[str] = None):
+    """Xuất dữ liệu toàn hệ thống trên AWS EC2 dưới dạng JSON hoặc CSV."""
+    import io
+    import csv
+
+    if table and table not in ADMIN_ALLOWED_TABLES:
+        raise HTTPException(status_code=400, detail=f"Bảng '{table}' không hợp lệ. Cho phép: {ADMIN_ALLOWED_TABLES}")
+
+    if format.lower() == "csv":
+        output = io.StringIO()
+        if table:
+            conn = get_db()
+            cursor = conn.cursor()
+            cursor.execute(f"SELECT * FROM {table}")
+            rows = cursor.fetchall()
+            conn.close()
+            if rows:
+                fieldnames = rows[0].keys()
+                writer = csv.DictWriter(output, fieldnames=fieldnames)
+                writer.writeheader()
+                for r in rows:
+                    writer.writerow(dict(r))
+            filename = f"majormatch_ec2_{table}_export.csv"
+        else:
+            students = get_all_students_cloud()
+            if students:
+                fieldnames = students[0].keys()
+                writer = csv.DictWriter(output, fieldnames=fieldnames)
+                writer.writeheader()
+                for s in students:
+                    writer.writerow(s)
+            filename = "majormatch_ec2_all_students_export.csv"
+
+        output.seek(0)
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}",
+                "Content-Type": "text/csv; charset=utf-8"
+            }
+        )
+    else:
+        if table:
+            conn = get_db()
+            cursor = conn.cursor()
+            cursor.execute(f"SELECT * FROM {table}")
+            rows = [dict(r) for r in cursor.fetchall()]
+            conn.close()
+            return {"status": "success", "table": table, "total": len(rows), "records": rows}
+        else:
+            students = get_all_students_cloud()
+            return {"status": "success", "total_students": len(students), "students": students}
+
 

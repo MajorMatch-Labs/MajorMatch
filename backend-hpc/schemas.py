@@ -240,3 +240,48 @@ class HealthCheckResponse(BaseModel):
     status: str
     gateway_node: GatewayNodeStatus
     private_compute_node: PrivateComputeNodeStatus
+
+
+# =============================================================================
+# 5. RIASEC SURVEY & PERSONALIZATION SCHEMAS
+# =============================================================================
+
+class RiasecSurveySaveRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    student_id: str = Field(..., description="Mã số sinh viên", example="SV-2025001")
+    answers: Dict[str, Any] = Field(default_factory=dict, description="Bộ câu trả lời trắc nghiệm RIASEC")
+    scores: Dict[str, float] = Field(default_factory=dict, description="Điểm số từng nhóm RIASEC")
+    dominant_code: str = Field("I", description="Mã Holland nổi trội (R, I, A, S, E, C)", example="I")
+
+
+class RiasecSurveyResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    student_id: str
+    answers: Dict[str, Any]
+    scores: Dict[str, float]
+    dominant_code: str
+    updated_at: str
+
+
+class ChatSessionItem(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    session_id: str
+    last_message: str
+    message_count: int
+    updated_at: str
+
+
+class UserFullStateResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    student_id: str
+    profile: Optional[Dict[str, Any]] = None
+    riasec_survey: Optional[Dict[str, Any]] = None
+    assessment: Optional[Dict[str, Any]] = None
+    roadmap: Optional[Dict[str, Any]] = None
+    chat_message_count: int = 0
+    updated_at: str
+

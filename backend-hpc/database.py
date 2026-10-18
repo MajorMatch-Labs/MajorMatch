@@ -74,9 +74,27 @@ def init_db():
         student_id TEXT NOT NULL,
         role TEXT NOT NULL,
         content TEXT NOT NULL,
+        session_id TEXT DEFAULT 'default',
         created_at TEXT NOT NULL
     );
     """)
+
+    # 5. Bảng lưu trữ kết quả và tiến trình khảo sát RIASEC
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS riasec_surveys (
+        student_id TEXT PRIMARY KEY,
+        answers_json TEXT NOT NULL,
+        scores_json TEXT NOT NULL,
+        dominant_code TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    );
+    """)
+
+    # Nâng cấp bảng chat_history nếu chưa có cột session_id
+    try:
+        cursor.execute("ALTER TABLE chat_history ADD COLUMN session_id TEXT DEFAULT 'default';")
+    except Exception:
+        pass
 
     conn.commit()
     conn.close()
@@ -284,40 +302,116 @@ def get_assessment(student_id: str) -> Optional[Dict[str, Any]]:
 # CÁC THAO TÁC CRUD CHO LỊCH SỬ CHAT (CHAT HISTORY)
 # =============================================================================
 
-def save_chat_message(student_id: str, role: str, content: str) -> None:
-    """Lưu một tin nhắn hội thoại vào CSDL SQLite."""
+def save_chat_message(student_id: str, role: str, content: str, session_id: str = "default") -> None:
+    """Lưu một tin nhắn hội thoại vào CSDL SQLite kèm session_id."""
     conn = get_db_connection()
     now_str = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     with conn:
-        conn.execute("""
-        INSERT INTO chat_history (student_id, role, content, created_at)
-        VALUES (?, ?, ?, ?);
-        """, (student_id, role, content, now_str))
+        try:
+            conn.execute("""
+            INSERT INTO chat_history (student_id, role, content, session_id, created_at)
+            VALUES (?, ?, ?, ?, ?);
+            """, (student_id, role, content, session_id, now_str))
+        except Exception:
+            conn.execute("""
+            INSERT INTO chat_history (student_id, role, content, created_at)
+            VALUES (?, ?, ?, ?);
+            """, (student_id, role, content, now_str))
     conn.close()
 
 
-def get_chat_history(student_id: str, limit: int = 50) -> List[Dict[str, Any]]:
-    """Truy xuất lịch sử hội thoại của sinh viên theo thứ tự thời gian."""
+def get_chat_history(student_id: str, session_id: Optional[str] = None, limit: int = 50) -> List[Dict[str, Any]]:
+    """Truy xuất lịch sử hội thoại của sinh viên theo session_id."""
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("""
-    SELECT role, content, created_at
-    FROM chat_history
-    WHERE student_id = ?
-    ORDER BY id ASC
-    LIMIT ?;
-    """, (student_id, limit))
-    rows = cursor.fetchall()
+    try:
+        if session_id:
+            cursor.execute("""
+            SELECT role, content, session_id, created_at
+            FROM chat_history
+            WHERE student_id = ? AND session_id = ?
+            ORDER BY id ASC
+            LIMIT ?;
+            """, (student_id, session_id, limit))
+        else:
+            cursor.execute("""
+            SELECT role, content, session_id, created_at
+            FROM chat_history
+            WHERE student_id = ?
+            ORDER BY id ASC
+            LIMIT ?;
+            """, (student_id, limit))
+        rows = cursor.fetchall()
+        messages = [
+            {
+                "role": row["role"],
+                "content": row["content"],
+                "session_id": row["session_id"] if "session_id" in row.keys() else "default",
+                "created_at": row["created_at"]
+            }
+            for row in rows
+        ]
+    except Exception:
+        cursor.execute("""
+        SELECT role, content, created_at
+        FROM chat_history
+        WHERE student_id = ?
+        ORDER BY id ASC
+        LIMIT ?;
+        """, (student_id, limit))
+        rows = cursor.fetchall()
+        messages = [
+            {
+                "role": row["role"],
+                "content": row["content"],
+                "session_id": "default",
+                "created_at": row["created_at"]
+            }
+            for row in rows
+        ]
     conn.close()
+    return messages
 
-    return [
-        {
-            "role": row["role"],
-            "content": row["content"],
-            "created_at": row["created_at"]
-        }
-        for row in rows
-    ]
+
+def get_chat_sessions(student_id: str) -> List[Dict[str, Any]]:
+    """Lấy danh sách các phiên tư vấn AI của sinh viên."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    sessions = []
+    try:
+        cursor.execute("""
+        SELECT session_id, COUNT(*) as msg_count, MAX(created_at) as last_activity
+        FROM chat_history
+        WHERE student_id = ?
+        GROUP BY session_id
+        ORDER BY last_activity DESC;
+        """, (student_id,))
+        for row in cursor.fetchall():
+            sid = row["session_id"] or "default"
+            c2 = conn.cursor()
+            c2.execute("SELECT content FROM chat_history WHERE student_id = ? AND session_id = ? ORDER BY id DESC LIMIT 1;", (student_id, sid))
+            last_msg_row = c2.fetchone()
+            last_msg = last_msg_row["content"] if last_msg_row else ""
+            if len(last_msg) > 80:
+                last_msg = last_msg[:80] + "..."
+            sessions.append({
+                "session_id": sid,
+                "message_count": row["msg_count"],
+                "last_message": last_msg,
+                "updated_at": row["last_activity"]
+            })
+    except Exception:
+        cursor.execute("SELECT COUNT(*), MAX(created_at) FROM chat_history WHERE student_id = ?;", (student_id,))
+        r = cursor.fetchone()
+        if r and r[0] > 0:
+            sessions.append({
+                "session_id": "default",
+                "message_count": r[0],
+                "last_message": "Phiên trò chuyện mặc định",
+                "updated_at": r[1]
+            })
+    conn.close()
+    return sessions
 
 
 def clear_chat_history(student_id: str) -> None:
@@ -326,4 +420,239 @@ def clear_chat_history(student_id: str) -> None:
     with conn:
         conn.execute("DELETE FROM chat_history WHERE student_id = ?;", (student_id,))
     conn.close()
+
+
+# =============================================================================
+# CÁC THAO TÁC CRUD CHO KHẢO SÁT RIASEC (RIASEC SURVEY)
+# =============================================================================
+
+def save_riasec_survey(
+    student_id: str,
+    answers: Dict[str, Any],
+    scores: Dict[str, float],
+    dominant_code: str
+) -> None:
+    """Lưu toàn bộ câu trả lời và điểm trắc nghiệm RIASEC vào CSDL SQLite."""
+    conn = get_db_connection()
+    now_str = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    answers_str = json.dumps(answers, ensure_ascii=False)
+    scores_str = json.dumps(scores)
+
+    with conn:
+        conn.execute("""
+        INSERT INTO riasec_surveys (student_id, answers_json, scores_json, dominant_code, updated_at)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(student_id) DO UPDATE SET
+            answers_json = excluded.answers_json,
+            scores_json = excluded.scores_json,
+            dominant_code = excluded.dominant_code,
+            updated_at = excluded.updated_at;
+        """, (student_id, answers_str, scores_str, dominant_code, now_str))
+
+        try:
+            conn.execute("""
+            UPDATE user_profiles
+            SET riasec_scores = ?, updated_at = ?
+            WHERE student_id = ?;
+            """, (scores_str, now_str, student_id))
+        except Exception:
+            pass
+    conn.close()
+
+
+def get_riasec_survey(student_id: str) -> Optional[Dict[str, Any]]:
+    """Truy xuất bài khảo sát RIASEC đã lưu của sinh viên."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+    SELECT student_id, answers_json, scores_json, dominant_code, updated_at
+    FROM riasec_surveys
+    WHERE student_id = ?;
+    """, (student_id,))
+    row = cursor.fetchone()
+    conn.close()
+
+    if not row:
+        return None
+
+    try:
+        answers = json.loads(row["answers_json"])
+    except Exception:
+        answers = {}
+
+    try:
+        scores = json.loads(row["scores_json"])
+    except Exception:
+        scores = {}
+
+    return {
+        "student_id": row["student_id"],
+        "answers": answers,
+        "scores": scores,
+        "dominant_code": row["dominant_code"],
+        "updated_at": row["updated_at"]
+    }
+
+
+# =============================================================================
+# CÁC THAO TÁC CÁ NHÂN HÓA & QUẢN TRỊ ADMIN (PERSONALIZATION & ADMIN AGGREGATION)
+# =============================================================================
+
+def get_user_full_state(student_id: str) -> Dict[str, Any]:
+    """Tổng hợp toàn bộ trạng thái cá nhân của sinh viên từ mọi bảng dữ liệu."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # 1. Profile
+    cursor.execute("SELECT * FROM user_profiles WHERE student_id = ?", (student_id,))
+    p_row = cursor.fetchone()
+    profile = None
+    if p_row:
+        try:
+            courses = json.loads(p_row["courses_data"]) if p_row["courses_data"] else []
+        except Exception:
+            courses = []
+        try:
+            skills = json.loads(p_row["detected_skills"]) if p_row["detected_skills"] else []
+        except Exception:
+            skills = []
+        try:
+            r_scores = json.loads(p_row["riasec_scores"]) if p_row["riasec_scores"] else {}
+        except Exception:
+            r_scores = {}
+        try:
+            tags = json.loads(p_row["career_tags"]) if p_row["career_tags"] else []
+        except Exception:
+            tags = []
+        profile = {
+            "student_id": p_row["student_id"],
+            "full_name": p_row["full_name"],
+            "cumulative_gpa": p_row["cumulative_gpa"],
+            "total_credits": p_row["total_credits"],
+            "courses": courses,
+            "detected_skills": skills,
+            "riasec_scores": r_scores,
+            "career_tags": tags,
+            "updated_at": p_row["updated_at"]
+        }
+
+    # 2. RIASEC Survey
+    cursor.execute("SELECT * FROM riasec_surveys WHERE student_id = ?", (student_id,))
+    s_row = cursor.fetchone()
+    survey = None
+    if s_row:
+        try:
+            survey = {
+                "student_id": s_row["student_id"],
+                "answers": json.loads(s_row["answers_json"]),
+                "scores": json.loads(s_row["scores_json"]),
+                "dominant_code": s_row["dominant_code"],
+                "updated_at": s_row["updated_at"]
+            }
+        except Exception:
+            pass
+
+    # 3. Assessment
+    cursor.execute("SELECT * FROM assessments WHERE student_id = ?", (student_id,))
+    a_row = cursor.fetchone()
+    assessment = None
+    if a_row:
+        try:
+            assessment = {
+                "student_id": a_row["student_id"],
+                "target_career": a_row["target_career"],
+                "assessment": json.loads(a_row["assessment_data"]),
+                "updated_at": a_row["updated_at"]
+            }
+        except Exception:
+            pass
+
+    # 4. Roadmap
+    cursor.execute("SELECT * FROM roadmaps WHERE student_id = ?", (student_id,))
+    r_row = cursor.fetchone()
+    roadmap = None
+    if r_row:
+        try:
+            roadmap = {
+                "student_id": r_row["student_id"],
+                "target_major": r_row["target_major_name"],
+                "target_major_id": r_row["target_major_id"],
+                "job_readiness_percentage": r_row["job_readiness_percentage"],
+                "completed_items": json.loads(r_row["completed_items"]),
+                "updated_at": r_row["updated_at"]
+            }
+        except Exception:
+            pass
+
+    # 5. Chat message count
+    cursor.execute("SELECT COUNT(*) FROM chat_history WHERE student_id = ?", (student_id,))
+    chat_count = cursor.fetchone()[0]
+
+    conn.close()
+
+    now_str = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    return {
+        "student_id": student_id,
+        "profile": profile,
+        "riasec_survey": survey,
+        "assessment": assessment,
+        "roadmap": roadmap,
+        "chat_message_count": chat_count,
+        "updated_at": now_str
+    }
+
+
+def get_all_students_admin() -> List[Dict[str, Any]]:
+    """Lấy danh sách tất cả sinh viên tổng hợp phục vụ giao diện Site Admin và xuất báo cáo CSV/JSON."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+    SELECT DISTINCT student_id FROM (
+        SELECT student_id FROM user_profiles
+        UNION
+        SELECT student_id FROM assessments
+        UNION
+        SELECT student_id FROM roadmaps
+        UNION
+        SELECT student_id FROM riasec_surveys
+    )
+    ORDER BY student_id ASC;
+    """)
+    student_ids = [r[0] for r in cursor.fetchall()]
+    conn.close()
+
+    result = []
+    for sid in student_ids:
+        state = get_user_full_state(sid)
+        p = state.get("profile") or {}
+        a = state.get("assessment") or {}
+        r = state.get("roadmap") or {}
+        s = state.get("riasec_survey") or {}
+
+        top_match = "Chưa đánh giá"
+        match_score = 0.0
+        if a and "assessment" in a and isinstance(a["assessment"], dict):
+            matches = a["assessment"].get("top_matches", [])
+            if matches and len(matches) > 0:
+                top_match = matches[0].get("major_name", "Chưa xác định")
+                match_score = matches[0].get("match_percentage", 0.0)
+
+        result.append({
+            "student_id": sid,
+            "full_name": p.get("full_name") or f"Sinh viên {sid}",
+            "cumulative_gpa": p.get("cumulative_gpa", 0.0),
+            "total_credits": p.get("total_credits", 0),
+            "top_recommended_major": top_match,
+            "match_score": match_score,
+            "readiness_score": r.get("job_readiness_percentage", 0.0),
+            "dominant_riasec": s.get("dominant_code", "N/A"),
+            "has_survey": bool(s),
+            "has_roadmap": bool(r),
+            "chat_count": state.get("chat_message_count", 0),
+            "updated_at": state.get("updated_at")
+        })
+
+    return result
+
 
