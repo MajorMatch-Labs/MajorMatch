@@ -368,13 +368,14 @@ export const useProfileStore = create<ProfileState>()(
         set({ isAnalyzing: true });
         try {
           const state = get();
+          const s = state.riasecScores || {};
           const hollandScores: HollandScores = {
-            realistic: state.riasecScores.R || 3.0,
-            investigative: state.riasecScores.I || 3.0,
-            artistic: state.riasecScores.A || 3.0,
-            social: state.riasecScores.S || 3.0,
-            enterprising: state.riasecScores.E || 3.0,
-            conventional: state.riasecScores.C || 3.0
+            realistic: Number(s.r ?? s.R ?? 3.0) || 3.0,
+            investigative: Number(s.i ?? s.I ?? 3.0) || 3.0,
+            artistic: Number(s.a ?? s.A ?? 3.0) || 3.0,
+            social: Number(s.s ?? s.S ?? 3.0) || 3.0,
+            enterprising: Number(s.e ?? s.E ?? 3.0) || 3.0,
+            conventional: Number(s.c ?? s.C ?? 3.0) || 3.0
           };
 
           const coursesInput: CourseInputAssessment[] = (state.profile?.courses || []).map((c) => ({
