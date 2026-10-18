@@ -21,24 +21,30 @@ cursor = conn.cursor()
 
 now_str = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
-# 1. DỌN DẸP DỮ LIỆU RÁC
-INVALID_IDS = ["calculate-match", "student_demo_1"]
-print("[*] 1. Dọn dẹp các ID kiểm thử rác...")
-for table in ["user_profiles", "assessments", "roadmaps", "riasec_surveys", "chat_history"]:
+# 1. DỌN DẸP DỮ LIỆU RÁC VÀ BẢNG TIN NHẮN CŨ
+INVALID_IDS = ["calculate-match", "student_demo_1", "SV-2025001", "SV-2025002", "SV-2025003", "21020000"]
+print("[*] 1. Dọn dẹp các ID kiểm thử cũ và xóa sạch lịch sử chat...")
+try:
+    cursor.execute("DELETE FROM chat_history")
+    print("    [+] Đã dọn sạch toàn bộ bảng chat_history.")
+except Exception as e:
+    print(f"    Lỗi dọn bảng chat_history: {e}")
+
+for table in ["user_profiles", "assessments", "roadmaps", "riasec_surveys"]:
     try:
         cursor.execute(f"DELETE FROM {table} WHERE student_id IN ({','.join(['?']*len(INVALID_IDS))})", INVALID_IDS)
     except Exception as e:
         print(f"    Lỗi dọn bảng {table}: {e}")
 
-# 2. DANH SÁCH SINH VIÊN ĐẠI HỌC THỰC TẾ
+# 2. DANH SÁCH SINH VIÊN ĐẠI HỌC VKU CHUẨN MỰC
 STUDENTS = [
     {
-        "student_id": "SV-2025001",
+        "student_id": "23IT196",
         "full_name": "Đặng Long Nhật",
-        "email": "nhatdl.22it@vku.udn.vn",
-        "university": "Trường ĐH Công nghệ Thông tin & Truyền thông Việt - Hàn",
+        "email": "nhatdl.23it@vku.udn.vn",
+        "university": "Trường ĐH Công nghệ Thông tin & Truyền thông Việt - Hàn (VKU)",
         "major": "Kỹ thuật Đám mây & Trí tuệ Nhân tạo",
-        "cohort": "K22 (2022 - 2026)",
+        "cohort": "K23 (2023 - 2027)",
         "gpa": 2.89,
         "completed_credits": 78,
         "skills": ["Linux", "Docker", "AWS", "CI/CD", "Git", "Python", "Kubernetes", "PyTorch"],
@@ -54,10 +60,10 @@ STUDENTS = [
         }
     },
     {
-        "student_id": "21020000",
+        "student_id": "21IT001",
         "full_name": "Nguyễn Văn An",
         "email": "annv.21it@vku.udn.vn",
-        "university": "Trường ĐH Công nghệ Thông tin & Truyền thông Việt - Hàn",
+        "university": "Trường ĐH Công nghệ Thông tin & Truyền thông Việt - Hàn (VKU)",
         "major": "Khoa học Dữ liệu & Trí tuệ Nhân tạo",
         "cohort": "K21 (2021 - 2025)",
         "gpa": 3.42,
@@ -130,10 +136,10 @@ STUDENTS = [
         }
     },
     {
-        "student_id": "SV-2025002",
+        "student_id": "22IT088",
         "full_name": "Nguyễn Văn Hoàng",
         "email": "hoangnv.22it@vku.udn.vn",
-        "university": "Trường ĐH Công nghệ Thông tin & Truyền thông Việt - Hàn",
+        "university": "Trường ĐH Công nghệ Thông tin & Truyền thông Việt - Hàn (VKU)",
         "major": "Công nghệ Thông tin",
         "cohort": "K22 (2022 - 2026)",
         "gpa": 3.52,
@@ -149,10 +155,10 @@ STUDENTS = [
         }
     },
     {
-        "student_id": "SV-2025003",
+        "student_id": "22IT115",
         "full_name": "Võ Thanh Phong",
         "email": "phongvt.22it@vku.udn.vn",
-        "university": "Trường ĐH Công nghệ Thông tin & Truyền thông Việt - Hàn",
+        "university": "Trường ĐH Công nghệ Thông tin & Truyền thông Việt - Hàn (VKU)",
         "major": "Kỹ thuật Phần mềm",
         "cohort": "K22 (2022 - 2026)",
         "gpa": 3.58,
