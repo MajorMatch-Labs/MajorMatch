@@ -510,6 +510,36 @@ export class ApiService {
     return res.json();
   }
 
+  static async getAdminAudit(): Promise<any> {
+    const res = await fetch(`${API_BASE_URL}/api/v1/admin/audit?limit=30`, {
+      headers: this.adminHeaders(),
+      cache: "no-store",
+      signal: AbortSignal.timeout(8000)
+    });
+    await this.requireAdminResponse(res);
+    return res.json();
+  }
+
+  static async createAdminBackup(): Promise<any> {
+    const res = await fetch(`${API_BASE_URL}/api/v1/admin/backup`, {
+      method: "POST",
+      headers: this.adminHeaders(),
+      signal: AbortSignal.timeout(15000)
+    });
+    await this.requireAdminResponse(res);
+    return res.json();
+  }
+
+  static async getAdminSystemHealth(): Promise<any> {
+    const res = await fetch(`${API_BASE_URL}/api/v1/health`, {
+      headers: this.adminHeaders(),
+      cache: "no-store",
+      signal: AbortSignal.timeout(8000)
+    });
+    if (!res.ok) throw new Error(`Không thể kiểm tra hạ tầng (HTTP ${res.status}).`);
+    return res.json();
+  }
+
   /**
    * Lấy danh sách bản ghi theo bảng kèm tìm kiếm và phân trang
    * Endpoint: GET /api/v1/admin/table/{table_name}

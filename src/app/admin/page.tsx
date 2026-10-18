@@ -29,13 +29,19 @@ import {
   Sparkles,
   Server,
   Lock,
-  KeyRound
+  KeyRound,
+  Activity,
+  Archive,
+  LayoutDashboard,
+  ClipboardList,
+  Wifi,
+  WifiOff
 } from "lucide-react";
 import { ApiService } from "@/services/api";
 import { useAuthStore } from "@/stores/useAuthStore";
 
 type TableName = "users" | "user_profiles" | "roadmaps" | "assessments" | "chat_history" | "riasec_surveys";
-type ViewMode = "students" | "raw";
+type ViewMode = "overview" | "students" | "raw" | "operations";
 
 interface AdminStats {
   engine: string;
@@ -45,12 +51,29 @@ interface AdminStats {
   total_records: number;
   table_counts: Record<TableName, number>;
   latest_backup: string;
+  backup_count: number;
   server_time: string;
+}
+
+interface AdminAuditEvent {
+  id: number;
+  actor: string;
+  action: string;
+  resource: string;
+  detail: string;
+  created_at: string;
+}
+
+interface AdminSystemHealth {
+  status: string;
+  cloud_gateway?: { node?: string; db_engine?: string };
+  private_compute_node?: { status?: string; device?: string; message?: string };
 }
 
 interface StudentSummary {
   student_id: string;
   full_name: string;
+  has_account: boolean;
   has_profile: boolean;
   has_assessment: boolean;
   cumulative_gpa: number | null;
@@ -94,7 +117,11 @@ export default function AdminDatabasePage() {
   };
 
   const [stats, setStats] = useState<AdminStats | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>("students");
+  const [viewMode, setViewMode] = useState<ViewMode>("overview");
+  const [auditEvents, setAuditEvents] = useState<AdminAuditEvent[] | null>(null);
+  const [systemHealth, setSystemHealth] = useState<AdminSystemHealth | null>(null);
+  const [operationsError, setOperationsError] = useState<string | null>(null);
+  const [creatingBackup, setCreatingBackup] = useState(false);
 
   // State cho Raw Table View
   const [activeTable, setActiveTable] = useState<TableName>("user_profiles");
@@ -118,6 +145,7 @@ export default function AdminDatabasePage() {
   const [studentSearch, setStudentSearch] = useState<string>("");
   const [majorFilter, setMajorFilter] = useState<string>("ALL");
   const [gpaFilter, setGpaFilter] = useState<string>("ALL");
+  const [progressFilter, setProgressFilter] = useState<string>("ALL");
   const [isExporting, setIsExporting] = useState<"csv" | "json" | null>(null);
 
   const fetchStats = useCallback(async () => {
@@ -137,7 +165,7 @@ export default function AdminDatabasePage() {
     setStudentsLoading(true);
     try {
       const list = await ApiService.getAdminStudents();
-      if (list.some((item) => typeof item.has_profile !== "boolean" || typeof item.has_assessment !== "boolean")) {
+      if (list.some((item) => typeof item.has_account !== "boolean" || typeof item.has_profile !== "boolean" || typeof item.has_assessment !== "boolean")) {
         throw new Error("Gateway AWS chưa có định dạng dữ liệu quản trị mới. Vui lòng cập nhật gateway rồi làm mới trang.");
       }
       setStudents(list);
@@ -178,12 +206,34 @@ export default function AdminDatabasePage() {
     }
   }, [offset]);
 
+  const fetchOperations = useCallback(async () => {
+    const [auditResult, healthResult] = await Promise.allSettled([
+      ApiService.getAdminAudit(),
+      ApiService.getAdminSystemHealth(),
+    ]);
+    if (auditResult.status === "fulfilled" && Array.isArray(auditResult.value?.events)) {
+      setAuditEvents(auditResult.value.events);
+    } else {
+      setAuditEvents(null);
+    }
+    if (healthResult.status === "fulfilled" && healthResult.value?.status === "healthy") {
+      setSystemHealth(healthResult.value);
+    } else {
+      setSystemHealth(null);
+    }
+    const failed = [auditResult, healthResult].find((result) => result.status === "rejected");
+    const reason = failed?.status === "rejected" ? failed.reason : null;
+    setOperationsError(reason instanceof Error ? reason.message : failed ? "Không thể tải trạng thái vận hành." : null);
+    if (reason instanceof Error && reason.message.includes("đăng nhập")) setAuthExpired(true);
+  }, []);
+
   useEffect(() => {
     if (isUnlocked) {
       fetchStats();
       fetchStudents();
+      fetchOperations();
     }
-  }, [isUnlocked, fetchStats, fetchStudents]);
+  }, [isUnlocked, fetchStats, fetchStudents, fetchOperations]);
 
   useEffect(() => {
     if (isUnlocked && viewMode === "raw") {
@@ -193,12 +243,26 @@ export default function AdminDatabasePage() {
 
   const handleRefresh = () => {
     fetchStats();
-    if (viewMode === "students") {
+    fetchOperations();
+    if (viewMode === "students" || viewMode === "overview") {
       fetchStudents();
-    } else {
+    } else if (viewMode === "raw") {
       fetchTableData(activeTable, searchTerm);
     }
     setActionMessage(null);
+  };
+
+  const handleCreateBackup = async () => {
+    setCreatingBackup(true);
+    try {
+      const result = await ApiService.createAdminBackup();
+      setActionMessage({ text: `Đã tạo bản sao ${result.filename} trên máy chủ.`, type: "success" });
+      await Promise.all([fetchStats(), fetchOperations()]);
+    } catch (err) {
+      setActionMessage({ text: err instanceof Error ? err.message : "Không thể tạo bản sao dữ liệu.", type: "error" });
+    } finally {
+      setCreatingBackup(false);
+    }
   };
 
   const handleExportData = async (format: "csv" | "json") => {
@@ -268,9 +332,14 @@ export default function AdminDatabasePage() {
       if (gpaFilter === "AVERAGE" && (gpa < 2.5 || gpa >= 3.2)) return false;
       if (gpaFilter === "LOW" && gpa >= 2.5) return false;
 
+      if (progressFilter === "NO_PROFILE" && st.has_profile) return false;
+      if (progressFilter === "NO_SURVEY" && st.has_survey) return false;
+      if (progressFilter === "NO_ASSESSMENT" && st.has_assessment) return false;
+      if (progressFilter === "NO_ROADMAP" && st.has_roadmap) return false;
+
       return true;
     });
-  }, [students, studentSearch, majorFilter, gpaFilter]);
+  }, [students, studentSearch, majorFilter, gpaFilter, progressFilter]);
 
   // Chỉ tính tỷ lệ trên các hồ sơ có đúng loại dữ liệu tương ứng.
   const analyticsMetrics = useMemo(() => {
@@ -354,16 +423,21 @@ export default function AdminDatabasePage() {
 
   if (!isUnlocked) {
     return (
-      <div className="mx-auto flex w-full max-w-3xl flex-1 items-center py-8 sm:py-16">
-        <div className="grid w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 md:grid-cols-2">
-          <div className="bg-slate-950 p-8 text-white sm:p-10">
-            <div className="mb-8 flex h-12 w-12 items-center justify-center rounded-lg border border-indigo-400/30 bg-indigo-500/15 text-indigo-300">
+      <div className="mx-auto flex w-full max-w-4xl flex-1 items-center py-8 sm:py-16">
+        <div className="grid w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900 md:grid-cols-2">
+          <div className="bg-indigo-50 p-8 text-slate-900 dark:bg-slate-950 dark:text-white sm:p-10">
+            <div className="mb-8 flex h-12 w-12 items-center justify-center rounded-lg border border-indigo-200 bg-white text-indigo-700 dark:border-indigo-400/30 dark:bg-indigo-500/15 dark:text-indigo-300">
               <Lock className="h-6 w-6" />
             </div>
-            <p className="text-sm font-semibold text-indigo-300">MAJORMATCH / QUẢN TRỊ</p>
-            <h1 className="mt-3 text-3xl font-bold leading-tight">Dữ liệu học tập trong một nơi rõ ràng</h1>
-            <p className="mt-4 text-sm leading-6 text-slate-300">Theo dõi hồ sơ, khảo sát và lộ trình từ gateway AWS. Quyền quản trị được xác thực bằng tài khoản riêng.</p>
-            <p className="mt-10 border-t border-slate-800 pt-5 text-xs text-slate-400">Chỉ dành cho người quản trị được cấp quyền.</p>
+            <p className="text-sm font-semibold text-indigo-700 dark:text-indigo-300">MAJORMATCH / QUẢN TRỊ</p>
+            <h1 className="mt-3 text-3xl font-bold leading-tight">Điều hành MajorMatch từ một nơi</h1>
+            <p className="mt-4 text-base leading-7 text-slate-700 dark:text-slate-300">Theo dõi người học, dữ liệu và trạng thái hạ tầng hybrid cloud từ gateway AWS.</p>
+            <div className="mt-8 grid gap-3 text-sm text-slate-700 dark:text-slate-300">
+              <p className="flex items-center gap-2"><Users className="h-4 w-4 text-indigo-600 dark:text-indigo-300" /> Hồ sơ và tiến trình người học</p>
+              <p className="flex items-center gap-2"><Activity className="h-4 w-4 text-indigo-600 dark:text-indigo-300" /> Trạng thái gateway và máy xử lý local</p>
+              <p className="flex items-center gap-2"><Archive className="h-4 w-4 text-indigo-600 dark:text-indigo-300" /> Sao lưu và nhật ký quản trị</p>
+            </div>
+            <p className="mt-10 border-t border-indigo-200 pt-5 text-sm text-slate-600 dark:border-slate-800 dark:text-slate-400">Chỉ dành cho người quản trị được cấp quyền.</p>
           </div>
           <div className="space-y-6 p-8 text-slate-900 dark:text-white sm:p-10">
             <div>
@@ -417,10 +491,10 @@ export default function AdminDatabasePage() {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-                Quản trị dữ liệu
+                Trung tâm quản trị
               </h1>
               <p className="text-sm text-slate-600 dark:text-slate-400">
-                Hồ sơ, khảo sát và kết quả được lưu tại gateway AWS
+                Người học, dữ liệu và vận hành hybrid cloud
               </p>
             </div>
           </div>
@@ -544,39 +618,51 @@ export default function AdminDatabasePage() {
           </span>
         </div>
 
-        {/* Chuyển đổi chế độ xem: Tổng hợp Sinh viên vs Raw Explorer */}
-        <div className="flex flex-wrap items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => { setViewMode("students"); setActionMessage(null); }}
-              className={`min-h-11 px-4 rounded-lg text-sm font-semibold flex items-center gap-2 transition-all ${
-                viewMode === "students"
-                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/20"
-                  : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:text-indigo-600"
-              }`}
-            >
-              <Users className="w-4 h-4" />
-              <span>Sinh viên ({studentsLoading ? "…" : studentsUnavailable ? "—" : students.length})</span>
+        <nav aria-label="Các khu vực quản trị" className="flex gap-2 overflow-x-auto border-b border-slate-200 pb-3 dark:border-slate-800">
+          {([
+            { id: "overview", label: "Tổng quan", icon: LayoutDashboard },
+            { id: "students", label: `Người học (${studentsLoading ? "…" : studentsUnavailable ? "—" : students.length})`, icon: Users },
+            { id: "raw", label: "Dữ liệu", icon: Database },
+            { id: "operations", label: "Vận hành", icon: Activity },
+          ] as const).map(({ id, label, icon: Icon }) => (
+            <button key={id} type="button" aria-current={viewMode === id ? "page" : undefined} onClick={() => { setViewMode(id); setActionMessage(null); }}
+              className={`flex min-h-11 shrink-0 items-center gap-2 rounded-lg px-4 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 ${viewMode === id ? "bg-indigo-600 text-white" : "border border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:text-indigo-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:text-indigo-300"}`}>
+              <Icon className="h-4 w-4" />{label}
             </button>
-            <button
-              onClick={() => { setViewMode("raw"); setActionMessage(null); }}
-              className={`min-h-11 px-4 rounded-lg text-sm font-semibold flex items-center gap-2 transition-all ${
-                viewMode === "raw"
-                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/20"
-                  : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:text-indigo-600"
-              }`}
-            >
-              <Database className="w-4 h-4" />
-              <span>Bảng dữ liệu</span>
-            </button>
+          ))}
+        </nav>
+
+        {viewMode === "overview" && (
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
+              <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Tài khoản đăng ký</p>
+              <p className="mt-2 text-3xl font-bold tabular-nums">{stats?.table_counts?.users ?? "—"}</p>
+              <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">{studentsUnavailable ? "Chưa tải được tình trạng hồ sơ" : `${students.filter((item) => item.has_account && !item.has_profile).length} chưa có hồ sơ học tập`}</p>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
+              <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Gateway AWS</p>
+              <p className={`mt-2 flex items-center gap-2 text-lg font-bold ${systemHealth ? "text-emerald-700 dark:text-emerald-300" : "text-amber-700 dark:text-amber-300"}`}>
+                {systemHealth ? <Wifi className="h-5 w-5" /> : <WifiOff className="h-5 w-5" />}{systemHealth ? "Đang phản hồi" : "Chưa xác nhận"}
+              </p>
+              <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">Kiểm tra trạng thái qua gateway</p>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
+              <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Máy tính toán local</p>
+              <p className={`mt-2 flex items-center gap-2 text-lg font-bold ${systemHealth?.private_compute_node?.status === "online" ? "text-emerald-700 dark:text-emerald-300" : "text-amber-700 dark:text-amber-300"}`}>
+                {systemHealth?.private_compute_node?.status === "online" ? <Wifi className="h-5 w-5" /> : <WifiOff className="h-5 w-5" />}
+                {systemHealth ? systemHealth.private_compute_node?.status === "online" ? "Đang kết nối" : "Ngoại tuyến" : "Chưa xác nhận"}
+              </p>
+              <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">Tác vụ AI cần máy local trực tuyến</p>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* VIEW MODE 1: QUẢN LÝ & THỐNG KÊ SINH VIÊN */}
-        {viewMode === "students" && (
+        {(viewMode === "overview" || viewMode === "students") && (
           <div className="space-y-4">
             {/* Visual Distribution Dashboard (Thống kê Trực quan Toàn trường) */}
-            {!studentsUnavailable && <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {viewMode === "overview" && (studentsUnavailable || students.length === 0) && <div role="status" className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">{studentsUnavailable ? "Chưa tải được dữ liệu người học. Chọn Làm mới để thử lại." : "Chưa có dữ liệu người học để phân tích. Số liệu sẽ xuất hiện khi có tài khoản hoặc hồ sơ thực."}</div>}
+            {viewMode === "overview" && !studentsUnavailable && students.length > 0 && <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Card 1: Phân bố Chuyên ngành */}
               <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-3">
                 <div className="flex items-center justify-between">
@@ -664,7 +750,7 @@ export default function AdminDatabasePage() {
             </div>}
 
             {/* Bảng điều khiển sinh viên */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 sm:p-5 space-y-4 shadow-xs">
+            {viewMode === "students" && <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 sm:p-5 space-y-4 shadow-xs">
               {/* Bộ lọc đa chiều & Tìm kiếm */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="relative w-full sm:w-72">
@@ -714,6 +800,14 @@ export default function AdminDatabasePage() {
                   <option value="AVERAGE">Khá (2.5 - 3.19)</option>
                   <option value="LOW">Cần cải thiện (&lt; 2.5)</option>
                 </select>
+                <select value={progressFilter} onChange={(event) => setProgressFilter(event.target.value)} aria-label="Lọc tiến trình người học"
+                  className="min-h-11 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm dark:border-slate-700 dark:bg-slate-800">
+                  <option value="ALL">Mọi tiến trình</option>
+                  <option value="NO_PROFILE">Chưa có hồ sơ</option>
+                  <option value="NO_SURVEY">Chưa khảo sát</option>
+                  <option value="NO_ASSESSMENT">Chưa đánh giá</option>
+                  <option value="NO_ROADMAP">Chưa có lộ trình</option>
+                </select>
               </div>
             </div>
 
@@ -736,6 +830,7 @@ export default function AdminDatabasePage() {
                     <tr>
                       <th className="px-3.5 py-3 whitespace-nowrap">MSSV</th>
                       <th className="px-3.5 py-3 whitespace-nowrap">Họ & Tên</th>
+                      <th className="px-3.5 py-3 whitespace-nowrap">Nguồn hồ sơ</th>
                       <th className="px-3.5 py-3 whitespace-nowrap">GPA / Tín chỉ</th>
                       <th className="px-3.5 py-3 whitespace-nowrap">Ngành Đề Xuất #1</th>
                       <th className="px-3.5 py-3 whitespace-nowrap">Phù Hợp %</th>
@@ -754,6 +849,7 @@ export default function AdminDatabasePage() {
                         <td className="px-3.5 py-3 font-medium text-slate-900 dark:text-slate-100 whitespace-nowrap">
                           {st.full_name}
                         </td>
+                        <td className="px-3.5 py-3 whitespace-nowrap text-slate-600 dark:text-slate-300">{st.has_account ? "Tài khoản" : "Dữ liệu cũ"}</td>
                         <td className="px-3.5 py-3 font-mono whitespace-nowrap">
                           <span className="font-semibold text-slate-800 dark:text-slate-200">{st.cumulative_gpa === null ? "Chưa có bảng điểm" : st.cumulative_gpa.toFixed(2)}</span>
                           {st.total_credits !== null && <span className="text-slate-400 text-[11px] ml-1">({st.total_credits} TC)</span>}
@@ -802,9 +898,40 @@ export default function AdminDatabasePage() {
                 </table>
               )}
             </div>
-          </div>
+          </div>}
         </div>
       )}
+
+        {viewMode === "operations" && (
+          <section className="space-y-4" aria-labelledby="operations-heading">
+            <div>
+              <h2 id="operations-heading" className="text-xl font-bold text-slate-900 dark:text-white">Vận hành hệ thống</h2>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Trạng thái trực tiếp từ gateway, bản sao dữ liệu và các thao tác quản trị gần đây.</p>
+            </div>
+            {operationsError && <div role="alert" className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">{operationsError} <button type="button" onClick={fetchOperations} className="ml-2 min-h-11 font-semibold underline">Thử lại</button></div>}
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
+                <div className="flex items-center gap-2"><Activity className="h-5 w-5 text-indigo-600 dark:text-indigo-300" /><h3 className="text-base font-bold">Kết nối hybrid cloud</h3></div>
+                <dl className="mt-5 space-y-4 text-sm">
+                  <div className="flex justify-between gap-3 border-b border-slate-100 pb-3 dark:border-slate-800"><dt>Gateway AWS</dt><dd className="font-semibold">{systemHealth ? "Đang phản hồi" : "Chưa xác nhận"}</dd></div>
+                  <div className="flex justify-between gap-3 border-b border-slate-100 pb-3 dark:border-slate-800"><dt>Máy tính toán local</dt><dd className="font-semibold">{systemHealth ? systemHealth.private_compute_node?.status === "online" ? "Đang kết nối" : "Ngoại tuyến" : "Chưa xác nhận"}</dd></div>
+                  <div className="flex justify-between gap-3"><dt>Cơ sở dữ liệu</dt><dd className="text-right font-semibold">{stats?.engine ?? "Chưa xác nhận"}</dd></div>
+                </dl>
+                {systemHealth?.private_compute_node?.message && <p className="mt-5 rounded-lg bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">{systemHealth.private_compute_node.message}</p>}
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
+                <div className="flex items-center gap-2"><Archive className="h-5 w-5 text-indigo-600 dark:text-indigo-300" /><h3 className="text-base font-bold">Bản sao SQLite</h3></div>
+                <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">Tạo ảnh chụp nhất quán trên máy chủ. Tệp được giữ trên server và không tải qua trình duyệt.</p>
+                <dl className="mt-4 space-y-2 text-sm"><div className="flex justify-between gap-2"><dt>Số bản sao</dt><dd className="font-semibold">{stats?.backup_count ?? "—"}</dd></div><div className="flex justify-between gap-2"><dt>Gần nhất</dt><dd className="text-right font-semibold">{stats?.latest_backup ?? "Chưa xác nhận"}</dd></div></dl>
+                <button type="button" onClick={handleCreateBackup} disabled={creatingBackup} className="mt-5 flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 text-sm font-semibold text-white hover:bg-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 disabled:opacity-50"><Archive className="h-4 w-4" />{creatingBackup ? "Đang tạo bản sao..." : "Tạo bản sao ngay"}</button>
+              </div>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
+              <div className="flex items-center gap-2"><ClipboardList className="h-5 w-5 text-indigo-600 dark:text-indigo-300" /><h3 className="text-base font-bold">Nhật ký quản trị gần đây</h3></div>
+              {auditEvents === null ? <p className="mt-4 text-sm text-slate-600 dark:text-slate-300">Chưa tải được nhật ký.</p> : auditEvents.length === 0 ? <p className="mt-4 text-sm text-slate-600 dark:text-slate-300">Chưa có thao tác nào được ghi nhận.</p> : <div className="mt-4 overflow-x-auto"><table className="w-full min-w-[540px] text-left text-sm"><thead className="border-b border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300"><tr><th className="py-3 pr-4">Thời điểm UTC</th><th className="py-3 pr-4">Người thực hiện</th><th className="py-3 pr-4">Thao tác</th><th className="py-3">Đối tượng</th></tr></thead><tbody>{auditEvents.map((event) => <tr key={event.id} className="border-b border-slate-100 dark:border-slate-800"><td className="py-3 pr-4 tabular-nums">{event.created_at}</td><td className="py-3 pr-4">{event.actor}</td><td className="py-3 pr-4">{event.action}</td><td className="py-3">{event.resource}</td></tr>)}</tbody></table></div>}
+            </div>
+          </section>
+        )}
 
         {/* VIEW MODE 2: TRÌNH DUYỆT CSDL CHI TIẾT (RAW SQLITE EXPLORER) */}
         {viewMode === "raw" && (
