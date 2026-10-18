@@ -10,17 +10,18 @@ import sqlite3
 import json
 import time
 import hashlib
+import hmac
 import secrets
 from typing import Dict, Any, Optional, List
 
-from fastapi import FastAPI, Request, HTTPException, status, UploadFile, File, Form
+from fastapi import FastAPI, Request, HTTPException, status, UploadFile, File, Form, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 import httpx
 from pydantic import BaseModel
 
 HPC_BASE_URL = os.getenv("HPC_BASE_URL", "http://127.0.0.1:8000")
-DB_PATH = os.path.expanduser("~/data/majormatch.db")
+DB_PATH = os.getenv("MAJORMATCH_DB_PATH", os.path.expanduser("~/data/majormatch.db"))
 os.makedirs(os.path.dirname(os.path.abspath(DB_PATH)), exist_ok=True)
 
 app = FastAPI(
@@ -142,14 +143,52 @@ def init_db():
             pass
     conn.close()
 
-ADMIN_ALLOWED_TABLES = ["user_profiles", "roadmaps", "assessments", "chat_history", "riasec_surveys"]
+ADMIN_ALLOWED_TABLES = ["users", "user_profiles", "roadmaps", "assessments", "chat_history", "riasec_surveys"]
+ADMIN_DELETABLE_TABLES = ["user_profiles", "roadmaps", "assessments", "chat_history", "riasec_surveys"]
+
+
+def issue_admin_token(password_hash: str) -> str:
+    """Create an eight-hour admin session signed with the stored credential hash."""
+    expires = int(time.time()) + 8 * 60 * 60
+    nonce = secrets.token_hex(16)
+    payload = f"{expires}.{nonce}"
+    signature = hmac.new(password_hash.encode(), payload.encode(), hashlib.sha256).hexdigest()
+    return f"mm_admin_v1.{payload}.{signature}"
+
+
+def require_admin(request: Request) -> None:
+    """Reject missing, expired, or forged admin bearer tokens."""
+    unauthorized = HTTPException(status_code=401, detail="Phiên quản trị không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại.")
+    authorization = request.headers.get("authorization", "")
+    if not authorization.startswith("Bearer mm_admin_v1."):
+        raise unauthorized
+    parts = authorization.removeprefix("Bearer mm_admin_v1.").split(".")
+    if len(parts) != 3:
+        raise unauthorized
+    expires_text, nonce, signature = parts
+    if not expires_text.isdigit() or len(nonce) != 32 or len(signature) != 64:
+        raise unauthorized
+    expires = int(expires_text)
+    if expires < time.time() or expires > time.time() + 8 * 60 * 60:
+        raise unauthorized
+    conn = get_db()
+    try:
+        row = conn.execute("SELECT password_hash FROM users WHERE student_id = 'admin' AND role = 'admin'").fetchone()
+    finally:
+        conn.close()
+    if not row:
+        raise unauthorized
+    payload = f"{expires_text}.{nonce}"
+    expected = hmac.new(row["password_hash"].encode(), payload.encode(), hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(signature, expected):
+        raise unauthorized
 
 # =============================================================================
 # ENDPOINT NHÓM ADMIN: QUẢN TRỊ & THAO TÁC CƠ SỞ DỮ LIỆU
 # =============================================================================
 
 @app.get("/api/v1/admin/stats")
-async def get_admin_db_stats():
+async def get_admin_db_stats(_: None = Depends(require_admin)):
     """Tổng quan dung lượng, trạng thái WAL và số lượng bản ghi của CSDL SQLite trên Cloud."""
     db_size_kb = 0
     wal_size_kb = 0
@@ -197,7 +236,8 @@ async def get_admin_table_records(
     table_name: str,
     search: Optional[str] = None,
     limit: int = 50,
-    offset: int = 0
+    offset: int = 0,
+    _: None = Depends(require_admin)
 ):
     """Truy xuất danh sách bản ghi theo bảng kèm tìm kiếm và phân trang an toàn."""
     if table_name not in ADMIN_ALLOWED_TABLES:
@@ -272,9 +312,9 @@ async def get_admin_table_records(
 
 
 @app.delete("/api/v1/admin/table/{table_name}/{record_id}")
-async def delete_admin_table_record(table_name: str, record_id: str):
+async def delete_admin_table_record(table_name: str, record_id: str, _: None = Depends(require_admin)):
     """Xóa an toàn một bản ghi khỏi bảng chỉ định theo khóa chính."""
-    if table_name not in ADMIN_ALLOWED_TABLES:
+    if table_name not in ADMIN_DELETABLE_TABLES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Bảng '{table_name}' không hợp lệ."
@@ -421,7 +461,7 @@ async def cloud_login_user(request: Request):
 
     user_role = row["role"] if "role" in row.keys() and row["role"] else ("admin" if row["student_id"] == "admin" else "student")
 
-    token = f"mm_token_{int(time.time())}_{secrets.token_hex(16)}"
+    token = issue_admin_token(row["password_hash"]) if user_role == "admin" and row["student_id"] == "admin" else f"mm_token_{int(time.time())}_{secrets.token_hex(16)}"
     return {
         "status": "success",
         "token": token,
@@ -2074,6 +2114,8 @@ def get_all_students_cloud():
     cursor = conn.cursor()
     cursor.execute("""
     SELECT DISTINCT student_id FROM (
+        SELECT student_id FROM users WHERE role != 'admin' OR role IS NULL
+        UNION
         SELECT student_id FROM user_profiles
         UNION
         SELECT student_id FROM assessments
@@ -2100,12 +2142,14 @@ def get_all_students_cloud():
         r = c.fetchone()
         c.execute("SELECT * FROM riasec_surveys WHERE student_id = ?", (sid,))
         s = c.fetchone()
+        c.execute("SELECT full_name, updated_at FROM users WHERE student_id = ?", (sid,))
+        u = c.fetchone()
         c.execute("SELECT COUNT(*) FROM chat_history WHERE student_id = ?", (sid,))
         ch = c.fetchone()[0]
         conn.close()
 
         top_match = "Chưa đánh giá"
-        match_score = 0.0
+        match_score = None
         if a and a["assessment_data"]:
             try:
                 ad = json.loads(a["assessment_data"])
@@ -2122,31 +2166,33 @@ def get_all_students_cloud():
 
         result.append({
             "student_id": sid,
-            "full_name": p["full_name"] if p and p["full_name"] else f"Sinh viên {sid}",
-            "cumulative_gpa": p["cumulative_gpa"] if p and p["cumulative_gpa"] else 0.0,
-            "total_credits": p["total_credits"] if p and p["total_credits"] else 0,
+            "full_name": p["full_name"] if p and p["full_name"] else u["full_name"] if u and u["full_name"] else f"Sinh viên {sid}",
+            "has_profile": bool(p),
+            "has_assessment": bool(a),
+            "cumulative_gpa": p["cumulative_gpa"] if p else None,
+            "total_credits": p["total_credits"] if p else None,
             "top_recommended_major": top_match,
             "match_score": match_score,
-            "readiness_score": r["job_readiness_percentage"] if r else 0.0,
+            "readiness_score": r["job_readiness_percentage"] if r else None,
             "dominant_riasec": dominant,
             "has_survey": bool(s),
             "has_roadmap": bool(r),
             "chat_count": ch,
-            "updated_at": (p["updated_at"] if p else r["updated_at"] if r else a["updated_at"] if a else "")
+            "updated_at": (p["updated_at"] if p else r["updated_at"] if r else a["updated_at"] if a else u["updated_at"] if u else "")
         })
 
     return result
 
 
 @app.get("/api/v1/admin/students")
-async def get_admin_students_cloud():
+async def get_admin_students_cloud(_: None = Depends(require_admin)):
     """Lấy danh sách tổng hợp toàn bộ sinh viên kèm kết quả đánh giá trên AWS EC2."""
     students = get_all_students_cloud()
     return {"status": "success", "total": len(students), "students": students}
 
 
 @app.get("/api/v1/admin/export")
-async def export_admin_data_cloud(format: str = "json", table: Optional[str] = None):
+async def export_admin_data_cloud(format: str = "json", table: Optional[str] = None, _: None = Depends(require_admin)):
     """Xuất dữ liệu toàn hệ thống trên AWS EC2 dưới dạng JSON hoặc CSV."""
     import io
     import csv
@@ -2163,11 +2209,11 @@ async def export_admin_data_cloud(format: str = "json", table: Optional[str] = N
             rows = cursor.fetchall()
             conn.close()
             if rows:
-                fieldnames = rows[0].keys()
+                fieldnames = [key for key in rows[0].keys() if key != "password_hash"]
                 writer = csv.DictWriter(output, fieldnames=fieldnames)
                 writer.writeheader()
                 for r in rows:
-                    writer.writerow(dict(r))
+                    writer.writerow({key: r[key] for key in fieldnames})
             filename = f"majormatch_ec2_{table}_export.csv"
         else:
             students = get_all_students_cloud()
@@ -2193,7 +2239,7 @@ async def export_admin_data_cloud(format: str = "json", table: Optional[str] = N
             conn = get_db()
             cursor = conn.cursor()
             cursor.execute(f"SELECT * FROM {table}")
-            rows = [dict(r) for r in cursor.fetchall()]
+            rows = [{key: value for key, value in dict(r).items() if key != "password_hash"} for r in cursor.fetchall()]
             conn.close()
             return {"status": "success", "table": table, "total": len(rows), "records": rows}
         else:
