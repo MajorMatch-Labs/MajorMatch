@@ -1,130 +1,54 @@
-import React from "react";
 import Link from "next/link";
-import {
-  Compass,
-  ArrowRight,
-  ShieldCheck,
-  Radar,
-  GitFork,
-  Cpu,
-  Sparkles,
-  CheckCircle,
-  FileCheck
-} from "lucide-react";
+import { ArrowRight, BookOpen, ClipboardList, FileText, Sparkles } from "lucide-react";
+
+const steps = [
+  { icon: FileText, number: "01", title: "Thêm bảng điểm nếu có", description: "Tải PDF để hệ thống nhận diện môn học và kết quả đã đạt. Bạn vẫn có thể bắt đầu bằng khảo sát khi chưa có bảng điểm." },
+  { icon: ClipboardList, number: "02", title: "Chia sẻ điều bạn quan tâm", description: "Chọn lĩnh vực muốn tìm hiểu và trả lời 10 câu hỏi về sở thích học tập, công việc." },
+  { icon: BookOpen, number: "03", title: "Xem gợi ý và lộ trình", description: "So sánh các chuyên ngành, xem kỹ năng cần bổ sung rồi chọn một hướng để xây dựng lộ trình học." },
+];
 
 export default function HomePage() {
   return (
-    <div className="flex flex-col items-center justify-center space-y-16 py-8">
-      {/* Hero Section */}
-      <div className="text-center max-w-3xl mx-auto space-y-6">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 dark:bg-indigo-600/10 dark:border-indigo-500/30 dark:text-indigo-300 text-xs font-semibold backdrop-blur-md">
-          <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-          <span>MajorMatch Web 2.0 Client • Kiến trúc Hybrid Cloud AI</span>
+    <div className="space-y-16 py-8 sm:py-14">
+      <section className="mx-auto max-w-4xl text-center" aria-labelledby="home-title">
+        <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950 dark:text-indigo-300">
+          <Sparkles className="h-4 w-4" aria-hidden="true" />Định hướng chuyên ngành cùng MajorMatch
         </div>
-
-        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight">
-          Định lượng Năng lực &{" "}
-          <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 via-cyan-500 to-emerald-500 dark:from-indigo-400 dark:via-cyan-400 dark:to-emerald-400">
-            Cá nhân hóa Lộ trình
-          </span>{" "}
-          Đại học
+        <h1 id="home-title" className="text-4xl font-extrabold leading-tight tracking-tight text-slate-900 dark:text-white sm:text-5xl lg:text-6xl">
+          Hiểu năng lực của bạn. <span className="text-indigo-600 dark:text-indigo-400">Chọn hướng học phù hợp.</span>
         </h1>
-
-        <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 max-w-2xl mx-auto leading-relaxed">
-          Không còn cảm tính khi chọn chuyên ngành. MajorMatch bóc tách bảng điểm PDF,
-          đo đạc khoảng cách kỹ năng (Skill Gap) bằng <strong>Cosine Similarity</strong>,
-          và sinh cây lộ trình học tập thông minh bảo đảm 100% tính logic về môn tiên quyết.
+        <p className="mx-auto mt-6 max-w-2xl text-base leading-7 text-slate-600 dark:text-slate-300 sm:text-lg">
+          MajorMatch kết hợp bảng điểm bạn cung cấp với khảo sát sở thích để gợi ý chuyên ngành và những kỹ năng nên học tiếp. Kết quả là thông tin tham khảo để bạn tự quyết định.
         </p>
-
-        {/* CTA Buttons */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-          <Link
-            href="/upload"
-            className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm shadow-lg shadow-indigo-600/30 transition-all hover:scale-105 duration-150"
-          >
-            <span>Bắt đầu Tải hồ sơ & Trắc nghiệm</span>
-            <ArrowRight className="w-4 h-4" />
+        <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <Link href="/upload" className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-base font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 sm:w-auto">
+            Bắt đầu với hồ sơ của tôi <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </Link>
-
-          <Link
-            href="/result"
-            className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-white hover:bg-slate-50 dark:bg-slate-900/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 font-medium text-sm shadow-sm transition-all"
-          >
-            <Radar className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
-            <span>Xem Báo cáo Mẫu</span>
+          <Link href="/result?demo=1" className="inline-flex min-h-12 w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-6 py-3 text-base font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 sm:w-auto">
+            Xem báo cáo minh họa
           </Link>
         </div>
-      </div>
+        <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">Báo cáo minh họa dùng dữ liệu mẫu, không phải kết quả của bạn.</p>
+      </section>
 
-      {/* 3 Core Architectural Pillars */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
-        <div className="p-6 rounded-2xl glass-panel border border-slate-200 dark:border-slate-800/80 hover:border-indigo-500/40 hover:shadow-md transition-all duration-200">
-          <div className="w-12 h-12 rounded-xl bg-indigo-50 dark:bg-indigo-600/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mb-4 border border-indigo-200 dark:border-indigo-500/20">
-            <FileCheck className="w-6 h-6" />
-          </div>
-          <h3 className="text-base font-bold text-slate-900 dark:text-white mb-2">
-            1. Bóc tách PDF & Khử định danh PII
-          </h3>
-          <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-            Thuật toán Regex trích xuất toàn bộ mã môn, tín chỉ và điểm GPA hệ chữ/hệ 4.
-            Thông tin cá nhân nhạy cảm được xóa sạch trước khi đưa vào pipeline tính toán AI.
-          </p>
+      <section aria-labelledby="how-it-works" className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-10">
+        <div className="mb-8 max-w-2xl">
+          <p className="text-sm font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Cách sử dụng</p>
+          <h2 id="how-it-works" className="mt-2 text-2xl font-bold text-slate-900 dark:text-white sm:text-3xl">Từ thông tin của bạn đến một hướng học rõ ràng</h2>
         </div>
-
-        <div className="p-6 rounded-2xl glass-panel border border-slate-200 dark:border-slate-800/80 hover:border-cyan-500/40 hover:shadow-md transition-all duration-200">
-          <div className="w-12 h-12 rounded-xl bg-cyan-50 dark:bg-cyan-600/10 text-cyan-600 dark:text-cyan-400 flex items-center justify-center mb-4 border border-cyan-200 dark:border-cyan-500/20">
-            <Radar className="w-6 h-6" />
-          </div>
-          <h3 className="text-base font-bold text-slate-900 dark:text-white mb-2">
-            2. Đo khoảng cách Kỹ năng Cosine
-          </h3>
-          <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-            Vector hóa năng lực học tập đối chiếu với chuẩn chuyên ngành, xuất biểu đồ Radar
-            6 trục mạng nhện phân tách rõ ràng Mastered, Developing và Missing Skills.
-          </p>
+        <div className="grid gap-5 md:grid-cols-3">
+          {steps.map(({ icon: Icon, number, title, description }) => (
+            <div key={number} className="rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-950">
+              <div className="mb-5 flex items-center justify-between">
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300"><Icon className="h-5 w-5" aria-hidden="true" /></span>
+                <span className="text-sm font-bold text-slate-400">{number}</span>
+              </div>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">{title}</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{description}</p>
+            </div>
+          ))}
         </div>
-
-        <div className="p-6 rounded-2xl glass-panel border border-slate-200 dark:border-slate-800/80 hover:border-emerald-500/40 hover:shadow-md transition-all duration-200">
-          <div className="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-600/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-4 border border-emerald-200 dark:border-emerald-500/20">
-            <GitFork className="w-6 h-6" />
-          </div>
-          <h3 className="text-base font-bold text-slate-900 dark:text-white mb-2">
-            3. Web 2.0 Dynamic State Tracking
-          </h3>
-          <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-            Lộ trình học tập tương tác với Interactive Checklist. Khi tích chọn môn đã học,
-            chỉ số % Job Readiness tự động nhảy tiến độ tức thời mà không cần reload trang.
-          </p>
-        </div>
-      </div>
-
-      {/* System Metrics Strip */}
-      <div className="w-full p-6 rounded-2xl glass-panel border border-slate-200 dark:border-slate-800 grid grid-cols-2 md:grid-cols-4 gap-4 text-center shadow-sm">
-        <div>
-          <span className="text-2xl sm:text-3xl font-extrabold text-indigo-600 dark:text-indigo-400 font-mono">
-            &lt; 1.0s
-          </span>
-          <div className="text-xs text-slate-600 dark:text-slate-400 mt-1">Thời gian bóc tách PDF</div>
-        </div>
-        <div>
-          <span className="text-2xl sm:text-3xl font-extrabold text-cyan-600 dark:text-cyan-400 font-mono">
-            100%
-          </span>
-          <div className="text-xs text-slate-600 dark:text-slate-400 mt-1">Khử định danh riêng tư</div>
-        </div>
-        <div>
-          <span className="text-2xl sm:text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 font-mono">
-            6 Trục
-          </span>
-          <div className="text-xs text-slate-600 dark:text-slate-400 mt-1">Đánh giá Radar chuẩn hóa</div>
-        </div>
-        <div>
-          <span className="text-2xl sm:text-3xl font-extrabold text-amber-600 dark:text-amber-400 font-mono">
-            Qwen 2.5
-          </span>
-          <div className="text-xs text-slate-600 dark:text-slate-400 mt-1">Cố vấn học tập Streaming</div>
-        </div>
-      </div>
+      </section>
     </div>
   );
 }
