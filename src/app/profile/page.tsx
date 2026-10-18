@@ -72,6 +72,13 @@ export default function ProfilePage() {
     }
   };
 
+  // Tự động đồng bộ activeStudentId khi user đăng nhập hoặc đổi tài khoản
+  useEffect(() => {
+    const currentId = user?.studentId || profile?.student_id || "SV-2025001";
+    setActiveStudentId(currentId);
+    setStudentIdInput(currentId);
+  }, [user, profile]);
+
   useEffect(() => {
     fetchUserData(activeStudentId);
   }, [activeStudentId]);
