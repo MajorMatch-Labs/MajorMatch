@@ -57,14 +57,22 @@ export const Navbar: React.FC = () => {
     }
   };
 
-  const navLinks = [
-    { href: "/", label: "Trang chủ", icon: Compass },
-    { href: "/upload", label: "Tải hồ sơ & Khảo sát", icon: UploadCloud },
-    { href: "/result", label: "Khoảng cách Kỹ năng", icon: Radar },
-    { href: "/roadmap", label: "Lộ trình Tương tác", icon: GitFork },
-    { href: "/chat", label: "Trợ lý AI Streaming", icon: MessageSquare },
-    { href: "/admin", label: "Admin CSDL", icon: Database },
-  ];
+  const navLinks = isAuthenticated
+    ? [
+        { href: "/", label: "Trang chủ", icon: Compass },
+        { href: "/upload", label: "Tải hồ sơ & Khảo sát", icon: UploadCloud },
+        { href: "/result", label: "Khoảng cách Kỹ năng", icon: Radar },
+        { href: "/roadmap", label: "Lộ trình Tương tác", icon: GitFork },
+        { href: "/chat", label: "Trợ lý AI Streaming", icon: MessageSquare },
+        { href: "/profile", label: "Hồ sơ Cá nhân", icon: User },
+      ]
+    : [
+        { href: "/", label: "Trang chủ", icon: Compass },
+        { href: "/upload", label: "Tải hồ sơ & Khảo sát", icon: UploadCloud },
+      ];
+
+  const displayName = user?.name ? user.name.trim().split(" ").slice(-1)[0] : "Sinh viên";
+  const avatarLetter = displayName.charAt(0).toUpperCase();
 
   return (
     <header className="sticky top-0 z-50 w-full glass-panel border-b border-slate-200/90 dark:border-slate-800/80 backdrop-blur-md">
@@ -166,13 +174,13 @@ export const Navbar: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
-                className="flex items-center gap-2 p-1.5 pr-3 rounded-full bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800/80 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-all"
+                className="flex items-center gap-2 p-1.5 pr-3 rounded-full bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800/80 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-all shadow-xs"
               >
                 <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-600 to-cyan-500 flex items-center justify-center text-white text-[11px] font-bold">
-                  {user.name.charAt(0)}
+                  {avatarLetter}
                 </div>
                 <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 hidden sm:inline">
-                  {user.name.split(" ").slice(-1)[0]}
+                  {displayName}
                 </span>
               </button>
 
@@ -185,7 +193,15 @@ export const Navbar: React.FC = () => {
                       {user.major}
                     </p>
                   </div>
-                  <div className="pt-2">
+                  <div className="pt-2 space-y-1">
+                    <Link
+                      href="/profile"
+                      onClick={() => setShowProfileMenu(false)}
+                      className="w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    >
+                      <User className="w-3.5 h-3.5 text-indigo-500" />
+                      <span>Hồ sơ & Tiến trình</span>
+                    </Link>
                     <button
                       type="button"
                       onClick={() => {

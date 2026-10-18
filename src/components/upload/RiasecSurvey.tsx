@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect, useState } from "react";
 import { AVAILABLE_CAREER_TAGS } from "@/types/survey";
 import { useProfileStore } from "@/stores/useProfileStore";
-import { Sparkles, Compass, Check, Award, BrainCircuit } from "lucide-react";
+import { Sparkles, Compass, Check, Award, BrainCircuit, Cloud, Loader2, Save } from "lucide-react";
 import { RIASEC_QUESTIONS_DATASET } from "@/modules/ingestion/constants/riasecQuestions";
 import {
   RIASEC_TRAIT_DEFINITIONS,
@@ -14,19 +14,60 @@ import {
   getDominantHollandCode,
   rankRiasecTraits,
 } from "@/modules/ingestion/utils/riasecScoring";
+import { ApiService } from "@/services/api";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 export const RiasecSurvey: React.FC = () => {
   const {
+    profile,
     riasecScores,
     selectedCareerTags,
     setRiasecScore,
     toggleCareerTag,
   } = useProfileStore();
+  const { user, isAuthenticated, openAuthModal } = useAuthStore();
+
+  const studentId = isAuthenticated ? (user?.studentId || profile?.student_id || "23IT196") : null;
 
   // State độc lập cho từng câu hỏi từ 1 đến 10
-  const [questionAnswers, setQuestionAnswers] = React.useState<Record<number, number>>({
+  const [questionAnswers, setQuestionAnswers] = useState<Record<number, number>>({
     1: 3, 2: 4, 3: 3, 4: 3, 5: 4, 6: 4, 7: 3, 8: 3, 9: 3, 10: 4
   });
+  const [syncStatus, setSyncStatus] = useState<"idle" | "loading" | "saved" | "saving">("idle");
+
+  // Nạp câu trả lời cũ từ Cloud CSDL khi mở trang (chỉ khi đã đăng nhập)
+  useEffect(() => {
+    if (!isAuthenticated || !studentId) {
+      setSyncStatus("idle");
+      return;
+    }
+    let isMounted = true;
+    const loadPreviousSurvey = async () => {
+      setSyncStatus("loading");
+      try {
+        const saved = await ApiService.getRiasecSurvey(studentId);
+        if (saved && saved.answers && Object.keys(saved.answers).length > 0 && isMounted) {
+          const parsed: Record<number, number> = {};
+          Object.entries(saved.answers).forEach(([k, v]) => {
+            parsed[Number(k)] = Number(v);
+          });
+          setQuestionAnswers(parsed);
+          if (saved.scores) {
+            Object.entries(saved.scores).forEach(([grp, sc]) => {
+              setRiasecScore(grp.toLowerCase(), Number(sc));
+            });
+          }
+          setSyncStatus("saved");
+        } else if (isMounted) {
+          setSyncStatus("idle");
+        }
+      } catch {
+        if (isMounted) setSyncStatus("idle");
+      }
+    };
+    loadPreviousSurvey();
+    return () => { isMounted = false; };
+  }, [studentId, isAuthenticated, setRiasecScore]);
 
   const handleScoreChange = (qId: number, val: number) => {
     const nextAnswers = { ...questionAnswers, [qId]: val };
@@ -42,12 +83,51 @@ export const RiasecSurvey: React.FC = () => {
 
     const calcAvg = (arr: number[]) => Math.round((arr.reduce((a, b) => a + b, 0) / arr.length) * 10) / 10;
 
-    setRiasecScore('r', calcAvg(rScores));
-    setRiasecScore('i', calcAvg(iScores));
-    setRiasecScore('a', calcAvg(aScores));
-    setRiasecScore('s', calcAvg(sScores));
-    setRiasecScore('e', calcAvg(eScores));
-    setRiasecScore('c', calcAvg(cScores));
+    const r = calcAvg(rScores);
+    const i = calcAvg(iScores);
+    const a = calcAvg(aScores);
+    const s = calcAvg(sScores);
+    const e = calcAvg(eScores);
+    const c = calcAvg(cScores);
+
+    setRiasecScore('r', r);
+    setRiasecScore('i', i);
+    setRiasecScore('a', a);
+    setRiasecScore('s', s);
+    setRiasecScore('e', e);
+    setRiasecScore('c', c);
+
+    // Chỉ tự động lưu ngầm vào Cloud nếu đã đăng nhập tài khoản
+    if (isAuthenticated && studentId) {
+      setSyncStatus("saving");
+      const rawScores = { r, i, a, s, e, c };
+      const dominant = getDominantHollandCode(rawScores);
+      ApiService.saveRiasecSurvey(studentId, nextAnswers, rawScores, dominant.code || "I")
+        .then(() => setSyncStatus("saved"))
+        .catch(() => setSyncStatus("idle"));
+    } else {
+      setSyncStatus("idle");
+    }
+  };
+
+  const handleManualSave = async () => {
+    if (!isAuthenticated || !studentId) {
+      openAuthModal("login");
+      return;
+    }
+    setSyncStatus("saving");
+    const safeScores = riasecScores || {};
+    const rawScores = {
+      r: Number(safeScores.r ?? safeScores.R ?? 3.0) || 3.0,
+      i: Number(safeScores.i ?? safeScores.I ?? 3.0) || 3.0,
+      a: Number(safeScores.a ?? safeScores.A ?? 3.0) || 3.0,
+      s: Number(safeScores.s ?? safeScores.S ?? 3.0) || 3.0,
+      e: Number(safeScores.e ?? safeScores.E ?? 3.0) || 3.0,
+      c: Number(safeScores.c ?? safeScores.C ?? 3.0) || 3.0,
+    };
+    const dominant = getDominantHollandCode(rawScores);
+    await ApiService.saveRiasecSurvey(studentId, questionAnswers, rawScores, dominant.code || "I");
+    setSyncStatus("saved");
   };
 
   // Tinh toan ma Holland noi troi tu diem so hien tai voi Fallback an toan tuyet doi
@@ -125,14 +205,45 @@ export const RiasecSurvey: React.FC = () => {
 
       {/* 2. Khảo sát Holland Code RIASEC 10 câu */}
       <div className="p-5 rounded-xl glass-panel border border-slate-200 dark:border-slate-800 shadow-sm">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-amber-500 dark:text-amber-400" />
             <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-200">
               2. Trắc nghiệm Thiên hướng Holland Code (RIASEC)
             </h3>
           </div>
-          <span className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">10 Câu hỏi trắc nghiệm</span>
+          <div className="flex items-center gap-2">
+            {!isAuthenticated && (
+              <span className="text-[11px] text-slate-500 dark:text-slate-400 font-mono bg-slate-100 dark:bg-slate-800/80 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700/60">
+                Chế độ Khách (Chưa lưu Cloud)
+              </span>
+            )}
+            {isAuthenticated && syncStatus === "loading" && (
+              <span className="flex items-center gap-1 text-[11px] text-slate-500 font-mono">
+                <Loader2 className="w-3 h-3 animate-spin text-indigo-500" /> Đang tải...
+              </span>
+            )}
+            {isAuthenticated && syncStatus === "saving" && (
+              <span className="flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400 font-mono">
+                <Loader2 className="w-3 h-3 animate-spin" /> Đang lưu...
+              </span>
+            )}
+            {isAuthenticated && syncStatus === "saved" && (
+              <span className="flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 font-mono bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800/50">
+                <Cloud className="w-3 h-3" /> Đã lưu Cloud ({studentId})
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={handleManualSave}
+              className="flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-md bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950/80 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 transition-colors"
+              title={isAuthenticated ? "Lưu bài khảo sát vào CSDL Cloud" : "Đăng nhập để lưu tiến trình vào Cloud"}
+            >
+              <Save className="w-3 h-3" />
+              <span>Lưu tiến trình</span>
+            </button>
+            <span className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">10 Câu hỏi</span>
+          </div>
         </div>
 
         {/* Khung xem trước thiên hướng nhận diện thời gian thực */}

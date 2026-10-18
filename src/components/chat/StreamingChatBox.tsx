@@ -1,8 +1,32 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Bot, User, Sparkles, Loader2, Square, ArrowDown, AlertTriangle } from "lucide-react";
+import {
+  Send,
+  Bot,
+  User,
+  Sparkles,
+  Loader2,
+  Square,
+  ArrowDown,
+  AlertTriangle,
+  History,
+  Plus,
+  Clock,
+  PanelLeftClose,
+  PanelLeft,
+  X,
+  Compass,
+  Cpu,
+  GraduationCap,
+  MessageSquare,
+  BookOpen,
+  FolderGit2,
+  Award,
+  ChevronRight
+} from "lucide-react";
 import { useProfileStore } from "@/stores/useProfileStore";
+import { useAuthStore } from "@/stores/useAuthStore";
 import { SseStreamController } from "@/modules/advisor/services/sseStreamController";
 import { SseConnectionStatus } from "@/modules/advisor/types/sseTypes";
 import { MarkdownMessage } from "@/modules/advisor/components/MarkdownMessage";
@@ -13,15 +37,30 @@ interface Message {
   content: string;
 }
 
+interface ChatSession {
+  session_id: string;
+  message_count: number;
+  last_message: string;
+  updated_at: string;
+}
+
 export const StreamingChatBox: React.FC = () => {
   const { selectedMajor, profile } = useProfileStore();
-  const targetMajor = selectedMajor?.major_name || "AI & Data Science Specialist";
-  const studentId = profile?.student_id || "SV-2025001";
+  const { user } = useAuthStore();
+  const studentId = user?.studentId || profile?.student_id || "23IT196";
+  const studentName = user?.name || profile?.full_name || "Đặng Long Nhật";
+  const displayName = studentName.trim().split(" ").slice(-1)[0] || "Nhật";
+  const avatarLetter = displayName.charAt(0).toUpperCase();
+  const targetMajor = selectedMajor?.major_name || "Kỹ thuật Đám mây & Vận hành Hệ thống";
+
+  const [currentSessionId, setCurrentSessionId] = useState<string>("default");
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
-      content: `Xin chào! Tôi là Trợ lý Cố vấn Học tập AI của hệ thống MajorMatch. Tôi sẵn sàng giải đáp chi tiết về chuyên ngành **${targetMajor}**, phương pháp ôn tập môn tiên quyết hoặc định hướng làm đồ án thực chiến. Bạn muốn tìm hiểu nội dung nào?`,
+      content: `Xin chào **${displayName}**! Tôi là Trợ lý Cố vấn Học tập AI của hệ thống MajorMatch. Tôi sẵn sàng giải đáp chi tiết về chuyên ngành **${targetMajor}**, phương pháp ôn tập môn tiên quyết hoặc định hướng làm đồ án thực chiến. Bạn muốn tìm hiểu nội dung nào?`,
     },
   ]);
   const [input, setInput] = useState("");
@@ -35,6 +74,12 @@ export const StreamingChatBox: React.FC = () => {
   const currentAssistantTextRef = useRef<string>("");
 
   const isStreaming = streamStatus === "connecting" || streamStatus === "streaming";
+
+  const loadSessions = useCallback(() => {
+    ApiService.getChatSessions(studentId).then((sess) => {
+      setSessions(sess || []);
+    });
+  }, [studentId]);
 
   // Khởi tạo controller, kiểm tra trạng thái HPC Node định kỳ & nạp lịch sử hội thoại
   useEffect(() => {
@@ -61,11 +106,19 @@ export const StreamingChatBox: React.FC = () => {
     };
 
     checkNodeStatus();
-    const intervalId = setInterval(checkNodeStatus, 10000);
+    loadSessions();
+    const intervalId = setInterval(checkNodeStatus, 15000);
 
-    ApiService.getChatHistory(studentId).then((history) => {
+    ApiService.getChatHistory(studentId, currentSessionId).then((history) => {
       if (isMounted && history && history.length > 0) {
         setMessages(history);
+      } else if (isMounted) {
+        setMessages([
+          {
+            role: "assistant",
+            content: `Xin chào **${displayName}**! Tôi là Trợ lý Cố vấn Học tập AI của hệ thống MajorMatch. Tôi sẵn sàng giải đáp chi tiết về chuyên ngành **${targetMajor}**, phương pháp ôn tập môn tiên quyết hoặc định hướng làm đồ án thực chiến. Bạn muốn tìm hiểu nội dung nào?`,
+          },
+        ]);
       }
     });
 
@@ -74,9 +127,35 @@ export const StreamingChatBox: React.FC = () => {
       clearInterval(intervalId);
       controllerRef.current?.abort();
     };
-  }, [studentId]);
+  }, [studentId, displayName, currentSessionId, loadSessions, targetMajor]);
 
-  // Xu ly cuon thong minh (Smart Auto-Scroll)
+  const switchSession = async (sid: string) => {
+    setCurrentSessionId(sid);
+    const hist = await ApiService.getChatHistory(studentId, sid);
+    if (hist && hist.length > 0) {
+      setMessages(hist);
+    } else {
+      setMessages([
+        {
+          role: "assistant",
+          content: `Đã chuyển sang phiên tư vấn **${sid}**. Tôi sẵn sàng giải đáp thắc mắc của bạn về chuyên ngành **${targetMajor}**!`,
+        },
+      ]);
+    }
+  };
+
+  const createNewSession = () => {
+    const newSid = `session-${Date.now().toString(36)}`;
+    setCurrentSessionId(newSid);
+    setMessages([
+      {
+        role: "assistant",
+        content: `Đã khởi tạo phiên tư vấn mới. Tôi là Cố vấn AI MajorMatch. Hãy đặt bất kỳ câu hỏi nào về môn học, đồ án hay kỹ năng!`,
+      },
+    ]);
+  };
+
+  // Smart Auto-Scroll
   const scrollToBottom = useCallback((force = false) => {
     if (force || !userScrolledUp) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -87,11 +166,10 @@ export const StreamingChatBox: React.FC = () => {
     scrollToBottom();
   }, [messages, isStreaming, scrollToBottom]);
 
-  // Nhan dien khi nguoi dung chu dong cuon chuot len de doc lai tin nhan cu
   const handleContainerScroll = () => {
     const el = scrollContainerRef.current;
     if (!el) return;
-    const isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
+    const isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
     setUserScrolledUp(!isAtBottom);
   };
 
@@ -101,19 +179,18 @@ export const StreamingChatBox: React.FC = () => {
   };
 
   const handleSend = async (textToSend?: string) => {
-    const query = textToSend || input;
-    if (!query.trim() || isStreaming) return;
+    const query = (textToSend || input).trim();
+    if (!query || isStreaming) return;
 
     setInput("");
     setUserScrolledUp(false);
     const userMsg: Message = { role: "user", content: query };
     setMessages((prev) => [...prev, userMsg]);
 
-    // Lưu tin nhắn của người dùng vào CSDL SQLite
-    ApiService.saveChatMessage(studentId, "user", query);
+    // Lưu tin nhắn người dùng vào CSDL
+    ApiService.saveChatMessage(studentId, "user", query, currentSessionId);
 
-    // Tạo tin nhắn trợ lý rỗng ban đầu để nhận stream
-    const assistantIndex = messages.length + 1;
+    // Tạo tin nhắn trợ lý nhận stream
     setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
     currentAssistantTextRef.current = "";
 
@@ -124,8 +201,10 @@ export const StreamingChatBox: React.FC = () => {
       endpoint,
       {
         message: query,
+        student_id: studentId,
+        session_id: currentSessionId,
         target_major: targetMajor,
-        gpa: profile?.cumulative_gpa,
+        gpa: profile?.cumulative_gpa ?? 2.89,
         context_skills: {
           mastered: profile?.detected_skills || [],
           missing: selectedMajor?.skill_gap?.missing_skills || [],
@@ -150,9 +229,9 @@ export const StreamingChatBox: React.FC = () => {
         onStatusChange: (status) => setStreamStatus(status),
         onComplete: () => {
           setStreamStatus("completed");
-          // Lưu câu trả lời của trợ lý AI vào CSDL SQLite
           if (currentAssistantTextRef.current) {
-            ApiService.saveChatMessage(studentId, "assistant", currentAssistantTextRef.current);
+            ApiService.saveChatMessage(studentId, "assistant", currentAssistantTextRef.current, currentSessionId);
+            loadSessions();
           }
         },
         onError: (err) => {
@@ -174,198 +253,363 @@ export const StreamingChatBox: React.FC = () => {
     );
   };
 
+  const starterCards = [
+    {
+      title: "Ôn tập môn tiên quyết",
+      desc: "Cần chuẩn bị kiến thức toán và lập trình gì cho môn Machine Learning (CS402)?",
+      prompt: "Cần chuẩn bị kiến thức gì cho môn Machine Learning (CS402)?",
+      icon: BookOpen,
+      color: "from-blue-500/20 to-indigo-500/20 text-blue-600 dark:text-blue-400",
+    },
+    {
+      title: "Lộ trình thực tập & Cloud",
+      desc: "Nên thi chứng chỉ AWS Cloud Practitioner hay Solutions Architect trước kỳ thực tập?",
+      prompt: "Nên lấy chứng chỉ Cloud nào trước khi đi thực tập?",
+      icon: Award,
+      color: "from-amber-500/20 to-orange-500/20 text-amber-600 dark:text-amber-400",
+    },
+    {
+      title: "Xây dựng Portfolio",
+      desc: "Chiến lược xây dựng dự án DevOps/CI-CD với Docker và Kubernetes trên GitHub?",
+      prompt: "Làm sao để xây dựng dự án DevOps thực chiến chuẩn bị CV?",
+      icon: FolderGit2,
+      color: "from-emerald-500/20 to-teal-500/20 text-emerald-600 dark:text-emerald-400",
+    },
+    {
+      title: "Cải thiện GPA & Đồ án",
+      desc: "Phương pháp cân bằng thời gian giữa học tín chỉ trên lớp và nghiên cứu đồ án?",
+      prompt: "Làm sao để cân bằng giữa học trên lớp và làm đồ án cá nhân?",
+      icon: GraduationCap,
+      color: "from-purple-500/20 to-pink-500/20 text-purple-600 dark:text-purple-400",
+    },
+  ];
+
   const samplePrompts = [
-    "Cần chuẩn bị kiến thức toán gì cho môn CS402?",
-    "Làm sao để cân bằng giữa học trên lớp và làm dự án cá nhân?",
-    "Nên lấy chứng chỉ nào trước khi đi thực tập?",
+    "Cần chuẩn bị kiến thức gì cho môn CS402?",
+    "Lộ trình chứng chỉ AWS cho sinh viên VKU?",
+    "Xây dựng đồ án Microservices như thế nào?",
+    "Cách cải thiện GPA từ 2.89 lên 3.2?",
   ];
 
   return (
-    <div className="flex flex-col h-[650px] rounded-2xl glass-panel border border-slate-200 dark:border-slate-800 overflow-hidden relative shadow-lg shadow-slate-200/50 dark:shadow-none transition-all">
-      {/* Header */}
-      <div className="p-4 border-b border-slate-200 dark:border-slate-800/80 bg-white/80 dark:bg-slate-900/60 backdrop-blur-md flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-cyan-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
-            <Bot className="w-5 h-5" />
+    <div className="flex h-full w-full rounded-2xl glass-panel border border-slate-200/90 dark:border-slate-800/80 overflow-hidden relative shadow-xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-md">
+      {/* 1. SIDEBAR PHONG CÁCH CHATGPT / GEMINI */}
+      <aside
+        className={`${
+          isSidebarOpen ? "w-72" : "w-0 -ml-72"
+        } transition-all duration-300 ease-in-out border-r border-slate-200 dark:border-slate-800/80 bg-slate-50/90 dark:bg-slate-950/60 flex flex-col z-20 shrink-0 overflow-hidden`}
+      >
+        {/* Top: New Chat Button */}
+        <div className="p-3 border-b border-slate-200 dark:border-slate-800/80 space-y-2">
+          <div className="flex items-center justify-between px-1">
+            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              <span>Studio Cố vấn AI</span>
+            </span>
+            <button
+              onClick={() => setIsSidebarOpen(false)}
+              className="lg:hidden p-1 rounded-lg text-slate-400 hover:text-slate-600"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
-          <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-              MajorMatch AI Streaming Assistant
-              {isHpcOnline === false ? (
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/30 font-medium">
-                  Cloud DB Fallback
-                </span>
-              ) : (
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-500/20 dark:text-indigo-300 dark:border-indigo-500/30 font-medium">
-                  Qwen 2.5 Local LLM
-                </span>
-              )}
-            </h3>
-            <p className="text-[11px] text-slate-600 dark:text-slate-400">
-              Định hướng bám sát chuyên ngành: <span className="text-indigo-600 dark:text-indigo-300 font-semibold">{targetMajor}</span>
+
+          <button
+            onClick={createNewSession}
+            className="w-full py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-600 text-white text-xs font-semibold flex items-center justify-center gap-2 shadow-sm shadow-indigo-600/25 transition-all hover:scale-[1.01]"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Cuộc trò chuyện mới</span>
+          </button>
+        </div>
+
+        {/* Middle: Sessions List */}
+        <div className="flex-1 overflow-y-auto p-2 space-y-1">
+          <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+            Lịch sử phiên ({sessions.length})
+          </div>
+
+          {sessions.length === 0 ? (
+            <div className="p-4 text-center text-xs text-slate-400">
+              Chưa có phiên trò chuyện nào trước đó.
+            </div>
+          ) : (
+            sessions.map((s) => {
+              const isSelected = currentSessionId === s.session_id;
+              return (
+                <button
+                  key={s.session_id}
+                  onClick={() => switchSession(s.session_id)}
+                  className={`w-full p-2.5 rounded-xl text-left transition-all flex items-start gap-2.5 ${
+                    isSelected
+                      ? "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-950 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-800/80 shadow-xs"
+                      : "text-slate-700 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800/50"
+                  }`}
+                >
+                  <MessageSquare className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${isSelected ? "text-indigo-600 dark:text-indigo-400" : "text-slate-400"}`} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between text-[11px] font-medium">
+                      <span className="truncate">{s.last_message || s.session_id}</span>
+                      <span className="text-[9px] text-slate-400 shrink-0 ml-1 font-mono">
+                        {s.message_count} tin
+                      </span>
+                    </div>
+                    <div className="text-[9px] text-slate-400 flex items-center gap-1 font-mono mt-0.5">
+                      <Clock className="w-2.5 h-2.5" />
+                      <span>{s.updated_at ? s.updated_at.split("T")[0] : "Gần đây"}</span>
+                    </div>
+                  </div>
+                </button>
+              );
+            })
+          )}
+        </div>
+
+        {/* Bottom: User Card */}
+        <div className="p-3 border-t border-slate-200 dark:border-slate-800/80 bg-slate-100/60 dark:bg-slate-900/40 flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-600 to-cyan-500 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-xs">
+            {avatarLetter}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+              {studentName}
+            </p>
+            <p className="text-[10px] text-slate-500 font-mono">
+              MSSV: <strong className="text-indigo-600 dark:text-indigo-400">{studentId}</strong>
             </p>
           </div>
         </div>
+      </aside>
 
-        {/* Status Indicator */}
-        <div className="flex items-center gap-1.5">
-          {streamStatus === "streaming" && (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/30 animate-pulse">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400" /> Đang nhận stream...
-            </span>
-          )}
-          {streamStatus === "connecting" && (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-300 dark:border-indigo-500/30">
-              <Loader2 className="w-3 h-3 animate-spin" /> Đang kết nối...
-            </span>
-          )}
-          {streamStatus === "interrupted" && (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/30">
-              Đã dừng phản hồi
-            </span>
-          )}
-          {streamStatus === "error" && (
+      {/* 2. MAIN CHAT STAGE (GEMINI / CHATGPT CENTER STAGE) */}
+      <main className="flex-1 flex flex-col h-full min-w-0 relative bg-gradient-to-b from-transparent via-slate-50/20 to-slate-100/40 dark:via-slate-900/10 dark:to-slate-950/20">
+        {/* Top Header Bar */}
+        <header className="h-14 px-4 border-b border-slate-200 dark:border-slate-800/80 flex items-center justify-between shrink-0 bg-white/60 dark:bg-slate-900/40 backdrop-blur-sm">
+          <div className="flex items-center gap-2.5">
             <button
-              type="button"
-              onClick={() => {
-                const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
-                if (lastUserMsg) handleSend(lastUserMsg.content);
-              }}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 dark:bg-rose-500/10 dark:text-rose-300 dark:border-rose-500/30 dark:hover:bg-rose-500/20 transition-colors"
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="p-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              title={isSidebarOpen ? "Đóng danh sách phiên" : "Mở danh sách phiên"}
             >
-              Lỗi kết nối - Thử lại
+              {isSidebarOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeft className="w-4 h-4" />}
             </button>
-          )}
-        </div>
-      </div>
 
-      {/* HPC Offline Fast Warning Banner */}
-      {isHpcOnline === false && (
-        <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 flex items-center justify-between text-[11px] text-amber-800 dark:text-amber-300">
-          <span className="flex items-center gap-1.5 font-medium">
-            <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
-            Private HPC GPU Node đang ngoại tuyến. Trợ lý AI đang tư vấn dựa trên hồ sơ CSDL đám mây (Cloud DB Mode).
-          </span>
-          <span className="text-[10px] bg-amber-500/20 text-amber-900 dark:text-amber-200 px-2 py-0.5 rounded-full font-mono font-medium shrink-0">
-            Cloud DB Active
-          </span>
-        </div>
-      )}
-
-      {/* Message History */}
-      <div
-        ref={scrollContainerRef}
-        onScroll={handleContainerScroll}
-        className="flex-1 overflow-y-auto p-4 space-y-4 relative"
-      >
-        {messages.map((msg, idx) => (
-          <div
-            key={idx}
-            className={`flex items-start gap-3 ${
-              msg.role === "user" ? "justify-end" : "justify-start"
-            }`}
-          >
-            {msg.role === "assistant" && (
-              <div className="w-7 h-7 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-600 dark:bg-indigo-600/30 dark:border-indigo-500/40 dark:text-indigo-300 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-xs">
-                <Bot className="w-4 h-4" />
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-xs">
+                <Bot className="w-3.5 h-3.5" />
               </div>
-            )}
+              <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                MajorMatch AI
+              </span>
+              <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                Qwen 2.5 7B
+              </span>
+            </div>
+          </div>
 
+          <div className="flex items-center gap-2">
+            {/* HPC Status Badge */}
             <div
-              className={`max-w-[82%] rounded-2xl px-4 py-3 text-xs leading-relaxed ${
-                msg.role === "user"
-                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/20"
-                  : "bg-white dark:bg-slate-900/90 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-800 shadow-sm"
+              className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-medium border ${
+                isHpcOnline
+                  ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300"
+                  : "bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300"
               }`}
             >
-              {msg.content ? (
-                msg.role === "assistant" ? (
-                  <MarkdownMessage content={msg.content} />
-                ) : (
-                  <span>{msg.content}</span>
-                )
-              ) : (
-                <span className="inline-flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 font-medium">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> Đang suy luận phản hồi...
-                </span>
-              )}
+              <Cpu className="w-3 h-3" />
+              <span>{isHpcOnline ? "HPC GPU Ready" : "Cloud DB Mode"}</span>
             </div>
 
-            {msg.role === "user" && (
-              <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center flex-shrink-0 mt-0.5">
-                <User className="w-4 h-4" />
-              </div>
+            {streamStatus === "streaming" && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/30 animate-pulse">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Trả lời lời...
+              </span>
+            )}
+            {streamStatus === "connecting" && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-300 dark:border-indigo-500/30">
+                <Loader2 className="w-3 h-3 animate-spin" /> Kết nối...
+              </span>
             )}
           </div>
-        ))}
-        <div ref={messagesEndRef} />
-      </div>
+        </header>
 
-      {/* Nút hỗ trợ cuộn nhanh xuống đáy nếu người dùng đang đọc ở trên */}
-      {userScrolledUp && (
-        <button
-          type="button"
-          onClick={() => scrollToBottom(true)}
-          className="absolute bottom-24 right-6 p-2 rounded-full bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-indigo-600 dark:text-indigo-300 border border-slate-200 dark:border-slate-700 shadow-xl flex items-center gap-1.5 text-[11px] transition-all"
+        {/* Message Stream Scroll Area */}
+        <div
+          ref={scrollContainerRef}
+          onScroll={handleContainerScroll}
+          className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 space-y-5 scroll-smooth"
         >
-          <ArrowDown className="w-3.5 h-3.5" />
-          <span>Cuộn xuống</span>
-        </button>
-      )}
+          {/* Welcome Screen kiểu Gemini nếu chỉ có 1 tin nhắn mặc định */}
+          {messages.length <= 1 && (
+            <div className="max-w-3xl mx-auto py-8 sm:py-12 space-y-8 animate-in fade-in duration-300">
+              <div className="space-y-2">
+                <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-500 bg-clip-text text-transparent">
+                  Xin chào, {displayName}!
+                </h1>
+                <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
+                  Tôi có thể giúp bạn giải đáp những thắc mắc nào về lộ trình đại học, chuẩn đầu ra môn học hay chiến lược thực tập hôm nay?
+                </p>
+              </div>
 
-      {/* Suggested Prompt Chips */}
-      <div className="px-4 py-2 bg-slate-50/90 dark:bg-slate-950/40 border-t border-slate-200 dark:border-slate-900 flex items-center gap-2 overflow-x-auto no-scrollbar">
-        <Sparkles className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400 flex-shrink-0" />
-        {samplePrompts.map((p, idx) => (
+              {/* 4 Cards Gợi ý phong cách Gemini */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {starterCards.map((card, idx) => {
+                  const Icon = card.icon;
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => handleSend(card.prompt)}
+                      className="p-4 rounded-2xl bg-white/80 dark:bg-slate-800/60 border border-slate-200/90 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-500/50 shadow-xs hover:shadow-md text-left transition-all group flex flex-col justify-between"
+                    >
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                            {card.title}
+                          </span>
+                          <div className={`w-7 h-7 rounded-lg bg-gradient-to-tr ${card.color} flex items-center justify-center`}>
+                            <Icon className="w-3.5 h-3.5" />
+                          </div>
+                        </div>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2">
+                          {card.desc}
+                        </p>
+                      </div>
+                      <div className="mt-3 flex items-center gap-1 text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span>Hỏi ngay</span>
+                        <ChevronRight className="w-3 h-3" />
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Danh sách tin nhắn hội thoại */}
+          <div className="max-w-3xl mx-auto space-y-4">
+            {messages.map((msg, idx) => (
+              <div
+                key={idx}
+                className={`flex items-start gap-3 ${
+                  msg.role === "user" ? "justify-end" : "justify-start"
+                }`}
+              >
+                {msg.role === "assistant" && (
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-cyan-500 text-white flex items-center justify-center shrink-0 shadow-xs mt-0.5">
+                    <Bot className="w-4 h-4" />
+                  </div>
+                )}
+
+                <div
+                  className={`rounded-2xl px-4 sm:px-5 py-3 text-xs leading-relaxed max-w-[85%] ${
+                    msg.role === "user"
+                      ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/20 rounded-tr-xs"
+                      : "bg-white dark:bg-slate-900/90 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-800/80 shadow-xs rounded-tl-xs"
+                  }`}
+                >
+                  {msg.content ? (
+                    msg.role === "assistant" ? (
+                      <MarkdownMessage content={msg.content} />
+                    ) : (
+                      <span className="whitespace-pre-wrap">{msg.content}</span>
+                    )
+                  ) : (
+                    <span className="inline-flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-medium">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Đang tổng hợp tri thức...
+                    </span>
+                  )}
+                </div>
+
+                {msg.role === "user" && (
+                  <div className="w-8 h-8 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
+                    {avatarLetter}
+                  </div>
+                )}
+              </div>
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
+        </div>
+
+        {/* Nút cuộn xuống đáy */}
+        {userScrolledUp && (
           <button
-            key={idx}
             type="button"
-            disabled={isStreaming}
-            onClick={() => handleSend(p)}
-            className="text-[11px] whitespace-nowrap px-3 py-1 rounded-full bg-white hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-300 dark:bg-slate-900 dark:hover:bg-indigo-950 dark:hover:text-indigo-300 dark:hover:border-indigo-500/40 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-400 shadow-xs transition-colors"
+            onClick={() => scrollToBottom(true)}
+            className="absolute bottom-24 right-6 sm:right-10 p-2.5 rounded-full bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-indigo-600 dark:text-indigo-300 border border-slate-200 dark:border-slate-700 shadow-xl flex items-center gap-1.5 text-xs transition-all z-10"
           >
-            {p}
-          </button>
-        ))}
-      </div>
-
-      {/* Input Form */}
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          handleSend();
-        }}
-        className="p-3 border-t border-slate-200 dark:border-slate-800/80 bg-white/90 dark:bg-slate-900/60 backdrop-blur-md flex items-center gap-2"
-      >
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Hỏi bất kỳ câu hỏi nào về môn học, phương pháp hay chuẩn đầu ra..."
-          disabled={isStreaming}
-          className="flex-1 px-4 py-2.5 rounded-xl glass-input text-xs focus:outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500 disabled:opacity-50"
-        />
-
-        {isStreaming ? (
-          <button
-            type="button"
-            onClick={handleStop}
-            className="p-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white shadow-md shadow-rose-600/30 transition-all flex items-center gap-1.5 text-xs font-medium"
-            title="Dừng sinh phản hồi"
-          >
-            <Square className="w-4 h-4 fill-current" />
-            <span className="hidden sm:inline">Dừng</span>
-          </button>
-        ) : (
-          <button
-            type="submit"
-            disabled={!input.trim()}
-            className="p-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:hover:bg-indigo-600 text-white shadow-md shadow-indigo-600/30 transition-all"
-          >
-            <Send className="w-4 h-4" />
+            <ArrowDown className="w-3.5 h-3.5" />
+            <span>Cuộn xuống</span>
           </button>
         )}
-      </form>
+
+        {/* 3. FLOATING INPUT BAR PHONG CÁCH GEMINI / CHATGPT */}
+        <div className="p-3 sm:p-4 bg-transparent shrink-0">
+          <div className="max-w-3xl mx-auto space-y-2">
+            {/* Suggested Prompts Pill Row */}
+            {messages.length > 1 && (
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+                <Sparkles className="w-3 h-3 text-amber-500 shrink-0" />
+                {samplePrompts.map((p, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    disabled={isStreaming}
+                    onClick={() => handleSend(p)}
+                    className="text-[11px] whitespace-nowrap px-3 py-1 rounded-full bg-white/90 hover:bg-indigo-50 dark:bg-slate-800/90 dark:hover:bg-indigo-950/60 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-indigo-300 transition-colors shadow-2xs"
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Input Capsule Box */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSend();
+              }}
+              className="relative flex items-center rounded-2xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700/80 shadow-md focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all p-1.5 pl-4"
+            >
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Nhắn tin cho Cố vấn AI MajorMatch..."
+                disabled={isStreaming}
+                className="flex-1 bg-transparent text-xs sm:text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none py-2"
+              />
+
+              {isStreaming ? (
+                <button
+                  type="button"
+                  onClick={handleStop}
+                  className="p-2 sm:px-3 sm:py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-all"
+                  title="Dừng sinh phản hồi"
+                >
+                  <Square className="w-3.5 h-3.5 fill-current" />
+                  <span className="hidden sm:inline">Dừng</span>
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={!input.trim()}
+                  className="p-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-30 disabled:hover:bg-indigo-600 text-white shadow-xs transition-all"
+                  title="Gửi tin nhắn"
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              )}
+            </form>
+
+            <p className="text-[10px] text-center text-slate-400 dark:text-slate-500 font-mono">
+              MajorMatch AI có thể phản hồi chưa hoàn hảo. Hãy đối chiếu với Cố vấn học tập khoa CNTT - VKU.
+            </p>
+          </div>
+        </div>
+      </main>
     </div>
   );
 };

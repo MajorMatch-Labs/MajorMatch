@@ -29,6 +29,8 @@ export interface SseTokenPayload {
 
 export interface StreamChatRequestPayload {
   message: string;
+  student_id?: string;
+  session_id?: string;
   conversation_id?: string;
   target_major?: string;
   context_skills?: {

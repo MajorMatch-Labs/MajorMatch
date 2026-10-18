@@ -1,17 +1,23 @@
 "use client";
 
 import React, { useState, useRef } from "react";
-import { UploadCloud, CheckCircle2, AlertCircle, Loader2, FileCode2 } from "lucide-react";
+import { UploadCloud, CheckCircle2, AlertCircle, Loader2, FileCode2, Lock } from "lucide-react";
 import { useProfileStore } from "@/stores/useProfileStore";
+import { useAuthStore } from "@/stores/useAuthStore";
 import { IngestionService } from "@/modules/ingestion/services/ingestionService";
 
 export const FileDropzone: React.FC = () => {
   const { profile, uploadedFileName, isUploading } = useProfileStore();
+  const { isAuthenticated, openAuthModal } = useAuthStore();
   const [isDragOver, setIsDragOver] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = async (file: File) => {
+    if (!isAuthenticated) {
+      openAuthModal("login");
+      return;
+    }
     setErrorMsg(null);
     const validation = await IngestionService.validateTranscriptFileAdvanced(file);
     if (!validation.isValid) {
@@ -26,9 +32,21 @@ export const FileDropzone: React.FC = () => {
     }
   };
 
+  const handleClickDropzone = () => {
+    if (!isAuthenticated) {
+      openAuthModal("login");
+      return;
+    }
+    fileInputRef.current?.click();
+  };
+
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
+    if (!isAuthenticated) {
+      openAuthModal("login");
+      return;
+    }
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       handleFile(e.dataTransfer.files[0]);
     }
@@ -43,7 +61,7 @@ export const FileDropzone: React.FC = () => {
         }}
         onDragLeave={() => setIsDragOver(false)}
         onDrop={onDrop}
-        onClick={() => fileInputRef.current?.click()}
+        onClick={handleClickDropzone}
         className={`relative cursor-pointer rounded-2xl border-2 border-dashed p-8 text-center transition-all duration-200 ${
           isDragOver
             ? "border-indigo-400 bg-indigo-500/10 scale-[1.01]"
@@ -97,6 +115,12 @@ export const FileDropzone: React.FC = () => {
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                   Hỗ trợ tệp .PDF dung lượng tối đa 10MB (Khử định danh tự động 100%)
                 </p>
+                {!isAuthenticated && (
+                  <p className="text-[11px] font-medium text-amber-600 dark:text-amber-400 mt-2 flex items-center justify-center gap-1">
+                    <Lock className="w-3.5 h-3.5" />
+                    <span>Yêu cầu đăng nhập tài khoản sinh viên VKU để tải hồ sơ & xem phân tích</span>
+                  </p>
+                )}
               </div>
             </>
           )}
@@ -110,6 +134,10 @@ export const FileDropzone: React.FC = () => {
             type="button"
             onClick={(e) => {
               e.stopPropagation();
+              if (!isAuthenticated) {
+                openAuthModal("login");
+                return;
+              }
               IngestionService.loadOfflineDemoData();
             }}
             className="inline-flex items-center gap-1.5 text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 font-medium py-1 px-2.5 rounded-md hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-colors"
