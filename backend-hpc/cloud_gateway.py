@@ -458,6 +458,90 @@ async def cloud_get_user_me(student_id: str):
     return d
 
 
+# =============================================================================
+# ENDPOINT NHÓM 3: TIẾP NHẬN BẢNG ĐIỂM & ĐIỀU PHỐI HYBRID CLOUD
+# =============================================================================
+
+@app.post("/api/v1/profile/upload-transcript")
+async def upload_transcript_proxy(
+    file: UploadFile = File(...),
+    document_type: str = Form("transcript")
+):
+    """Tiếp nhận bảng điểm PDF: Bóc tách cục bộ tức thì trên AWS EC2 với fallback an toàn."""
+    file_bytes = await file.read()
+    filename = file.filename or "transcript.pdf"
+
+    # Thử gửi sang HPC Node qua Joy 3 trong 2.5s
+    try:
+        async with httpx.AsyncClient(timeout=2.5) as client:
+            files = {"file": (filename, file_bytes, file.content_type or "application/pdf")}
+            data = {"document_type": document_type}
+            resp = await client.post(
+                f"{HPC_BASE_URL}/api/v1/profile/upload-transcript",
+                files=files,
+                data=data
+            )
+            if resp.status_code == 200:
+                hpc_data = resp.json()
+                # Lưu hồ sơ vào CSDL SQLite EC2
+                prof = hpc_data.get("profile_data") or hpc_data.get("profile")
+                if prof:
+                    conn = get_db()
+                    with conn:
+                        conn.execute("""
+                        INSERT INTO user_profiles (student_id, full_name, cumulative_gpa, total_credits, courses_data, detected_skills, updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                        ON CONFLICT(student_id) DO UPDATE SET
+                            cumulative_gpa = excluded.cumulative_gpa,
+                            total_credits = excluded.total_credits,
+                            courses_data = excluded.courses_data,
+                            detected_skills = excluded.detected_skills,
+                            updated_at = excluded.updated_at;
+                        """, (
+                            "SV-2025001",
+                            prof.get("full_name", "Sinh viên"),
+                            prof.get("cumulative_gpa", 3.2),
+                            prof.get("total_credits", 0),
+                            json.dumps(prof.get("courses", []), ensure_ascii=False),
+                            json.dumps(prof.get("detected_skills", []), ensure_ascii=False),
+                            time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+                        ))
+                    conn.close()
+                return hpc_data
+    except Exception:
+        pass
+
+    # Kích hoạt Fast Native PDF Parser trên AWS EC2
+    parsed_res = parse_pdf_locally(file_bytes, filename)
+    prof = parsed_res["profile_data"]
+
+    # Lưu hồ sơ vào CSDL SQLite EC2
+    conn = get_db()
+    with conn:
+        conn.execute("""
+        INSERT INTO user_profiles (student_id, full_name, cumulative_gpa, total_credits, courses_data, detected_skills, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(student_id) DO UPDATE SET
+            cumulative_gpa = excluded.cumulative_gpa,
+            total_credits = excluded.total_credits,
+            courses_data = excluded.courses_data,
+            detected_skills = excluded.detected_skills,
+            updated_at = excluded.updated_at;
+        """, (
+            "SV-2025001",
+            prof.get("full_name", "Sinh viên"),
+            prof.get("cumulative_gpa", 3.2),
+            prof.get("total_credits", 0),
+            json.dumps(prof.get("courses", []), ensure_ascii=False),
+            json.dumps(prof.get("detected_skills", []), ensure_ascii=False),
+            time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        ))
+    conn.close()
+
+    return parsed_res
+
+
+
 @app.post("/api/v1/profile/{student_id}", tags=["Profile"])
 async def cloud_save_profile(student_id: str, request: Request):
     """Lưu trữ hoặc cập nhật hồ sơ bảng điểm/CV vào CSDL SQLite trên AWS EC2."""
@@ -1711,89 +1795,6 @@ def generate_roadmap_locally(req_data: Dict[str, Any]) -> Dict[str, Any]:
         "phases": phases,
         "semesters": phases
     }
-
-
-# =============================================================================
-# ENDPOINT NHÓM 3: TIẾP NHẬN BẢNG ĐIỂM & ĐIỀU PHỐI HYBRID CLOUD
-# =============================================================================
-
-@app.post("/api/v1/profile/upload-transcript")
-async def upload_transcript_proxy(
-    file: UploadFile = File(...),
-    document_type: str = Form("transcript")
-):
-    """Tiếp nhận bảng điểm PDF: Bóc tách cục bộ tức thì trên AWS EC2 với fallback an toàn."""
-    file_bytes = await file.read()
-    filename = file.filename or "transcript.pdf"
-
-    # Thử gửi sang HPC Node qua Joy 3 trong 2.5s
-    try:
-        async with httpx.AsyncClient(timeout=2.5) as client:
-            files = {"file": (filename, file_bytes, file.content_type or "application/pdf")}
-            data = {"document_type": document_type}
-            resp = await client.post(
-                f"{HPC_BASE_URL}/api/v1/profile/upload-transcript",
-                files=files,
-                data=data
-            )
-            if resp.status_code == 200:
-                hpc_data = resp.json()
-                # Lưu hồ sơ vào CSDL SQLite EC2
-                prof = hpc_data.get("profile_data") or hpc_data.get("profile")
-                if prof:
-                    conn = get_db()
-                    with conn:
-                        conn.execute("""
-                        INSERT INTO user_profiles (student_id, full_name, cumulative_gpa, total_credits, courses_data, detected_skills, updated_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                        ON CONFLICT(student_id) DO UPDATE SET
-                            cumulative_gpa = excluded.cumulative_gpa,
-                            total_credits = excluded.total_credits,
-                            courses_data = excluded.courses_data,
-                            detected_skills = excluded.detected_skills,
-                            updated_at = excluded.updated_at;
-                        """, (
-                            "SV-2025001",
-                            prof.get("full_name", "Sinh viên"),
-                            prof.get("cumulative_gpa", 3.2),
-                            prof.get("total_credits", 0),
-                            json.dumps(prof.get("courses", []), ensure_ascii=False),
-                            json.dumps(prof.get("detected_skills", []), ensure_ascii=False),
-                            time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-                        ))
-                    conn.close()
-                return hpc_data
-    except Exception:
-        pass
-
-    # Kích hoạt Fast Native PDF Parser trên AWS EC2
-    parsed_res = parse_pdf_locally(file_bytes, filename)
-    prof = parsed_res["profile_data"]
-
-    # Lưu hồ sơ vào CSDL SQLite EC2
-    conn = get_db()
-    with conn:
-        conn.execute("""
-        INSERT INTO user_profiles (student_id, full_name, cumulative_gpa, total_credits, courses_data, detected_skills, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(student_id) DO UPDATE SET
-            cumulative_gpa = excluded.cumulative_gpa,
-            total_credits = excluded.total_credits,
-            courses_data = excluded.courses_data,
-            detected_skills = excluded.detected_skills,
-            updated_at = excluded.updated_at;
-        """, (
-            "SV-2025001",
-            prof.get("full_name", "Sinh viên"),
-            prof.get("cumulative_gpa", 3.2),
-            prof.get("total_credits", 0),
-            json.dumps(prof.get("courses", []), ensure_ascii=False),
-            json.dumps(prof.get("detected_skills", []), ensure_ascii=False),
-            time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-        ))
-    conn.close()
-
-    return parsed_res
 
 
 # =============================================================================
