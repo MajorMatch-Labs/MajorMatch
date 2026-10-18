@@ -72,7 +72,6 @@ export default function ResultPage() {
   const handleRoadmap = async () => {
     setRoadmapError(null);
     if (currentRoadmap) { router.push("/roadmap"); return; }
-    if (!profile?.courses?.length) { setRoadmapError("Cần tải bảng điểm trước khi tạo lộ trình học tập."); return; }
     if (currentSemester === null) { setRoadmapError("Vui lòng chọn học kỳ hiện tại của bạn."); return; }
     try {
       await generateRoadmapAction(currentSemester);
@@ -133,8 +132,57 @@ export default function ResultPage() {
       </section>
 
       <div className="flex flex-col gap-4 rounded-2xl border border-indigo-200 bg-indigo-50 p-6 dark:border-indigo-800 dark:bg-indigo-950 sm:flex-row sm:items-center sm:justify-between">
-        <div><h2 className="text-base font-bold text-slate-900 dark:text-white">Bạn muốn tìm hiểu sâu hơn?</h2><p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{demoMode ? "Hoàn thành khảo sát để tạo lộ trình từ dữ liệu của bạn." : currentRoadmap ? "Lộ trình đã lưu của ngành này sẵn sàng để xem." : !profile?.courses?.length ? "Cần có bảng điểm để tạo lộ trình. Kết quả so sánh hiện tại vẫn có thể xem." : "Chọn học kỳ hiện tại để tạo lộ trình cho ngành này."}</p></div>
-        {demoMode ? <Link href="/upload" className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 font-semibold text-white hover:bg-indigo-700">Bắt đầu khảo sát <ArrowRight className="h-4 w-4" /></Link> : !currentRoadmap && !profile?.courses?.length ? <Link href="/upload" className="inline-flex min-h-12 shrink-0 items-center justify-center rounded-xl bg-indigo-600 px-5 py-3 font-semibold text-white hover:bg-indigo-700">Tải bảng điểm</Link> : <div className="flex flex-col gap-2 sm:flex-row sm:items-center">{!currentRoadmap && <label className="text-sm font-medium text-slate-700 dark:text-slate-200">Học kỳ hiện tại <select value={currentSemester ?? ""} onChange={(event) => setCurrentSemester(event.target.value ? Number(event.target.value) : null)} className="ml-2 min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white"><option value="">Chọn học kỳ</option>{Array.from({ length: 10 }, (_, index) => index + 1).map((semester) => <option key={semester} value={semester}>{semester}</option>)}</select></label>}<button type="button" disabled={isGeneratingRoadmap || (!currentRoadmap && currentSemester === null)} onClick={handleRoadmap} className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50">{isGeneratingRoadmap ? "Đang tạo lộ trình..." : currentRoadmap ? "Xem lộ trình" : "Tạo lộ trình"}<ArrowRight className="h-4 w-4" /></button></div>}
+        <div>
+          <h2 className="text-base font-bold text-slate-900 dark:text-white">Bạn muốn tìm hiểu sâu hơn?</h2>
+          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+            {demoMode
+              ? "Hoàn thành khảo sát để tạo lộ trình từ dữ liệu của bạn."
+              : currentRoadmap
+              ? "Lộ trình đã lưu của ngành này sẵn sàng để xem."
+              : "Chọn học kỳ hiện tại để AI xây dựng lộ trình học tập tối ưu cho ngành này."}
+          </p>
+        </div>
+        {demoMode ? (
+          <Link
+            href="/upload"
+            className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 font-semibold text-white hover:bg-indigo-700"
+          >
+            Bắt đầu khảo sát <ArrowRight className="h-4 w-4" />
+          </Link>
+        ) : (
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            {!currentRoadmap && (
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                Học kỳ hiện tại
+                <select
+                  value={currentSemester ?? ""}
+                  onChange={(event) => setCurrentSemester(event.target.value ? Number(event.target.value) : null)}
+                  className="ml-2 min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                >
+                  <option value="">Chọn học kỳ</option>
+                  {Array.from({ length: 10 }, (_, index) => index + 1).map((semester) => (
+                    <option key={semester} value={semester}>
+                      Học kỳ {semester}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <button
+              type="button"
+              disabled={isGeneratingRoadmap || (!currentRoadmap && currentSemester === null)}
+              onClick={handleRoadmap}
+              className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isGeneratingRoadmap
+                ? "Đang tạo lộ trình..."
+                : currentRoadmap
+                ? "Xem lộ trình"
+                : "Tạo lộ trình"}
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          </div>
+        )}
       </div>
       {roadmapError && <p role="alert" className="text-sm text-rose-600 dark:text-rose-400">{roadmapError}</p>}
     </div>
