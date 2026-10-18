@@ -292,7 +292,7 @@ export const StreamingChatBox: React.FC = () => {
   ];
 
   return (
-    <div className="flex h-full w-full rounded-2xl glass-panel border border-slate-200/90 dark:border-slate-800/80 overflow-hidden relative shadow-xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-md">
+    <div className="flex h-full w-full overflow-hidden relative bg-white/80 dark:bg-slate-950/80 backdrop-blur-md">
       {/* 1. SIDEBAR PHONG CÁCH CHATGPT / GEMINI */}
       <aside
         className={`${

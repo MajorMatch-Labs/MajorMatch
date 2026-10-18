@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Compass,
   UploadCloud,
@@ -15,7 +15,9 @@ import {
   Moon,
   User,
   LogOut,
-  Database
+  Database,
+  Menu,
+  X
 } from "lucide-react";
 import { ApiService } from "@/services/api";
 import { HealthCheckResponse } from "@/types/api";
@@ -23,10 +25,12 @@ import { useAuthStore } from "@/stores/useAuthStore";
 
 export const Navbar: React.FC = () => {
   const pathname = usePathname();
+  const router = useRouter();
   const [health, setHealth] = useState<HealthCheckResponse | null>(null);
   const [isDark, setIsDark] = useState<boolean>(true);
   const { user, isAuthenticated, openAuthModal, logout, checkAuthSession } = useAuthStore();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const updateHealth = () => {
@@ -92,8 +96,8 @@ export const Navbar: React.FC = () => {
           </div>
         </Link>
 
-        {/* Navigation Links */}
-        <nav className="hidden md:flex items-center gap-1">
+        {/* Navigation Links - Ẩn khi phóng to / màn hình thu nhỏ, chuyển sang menu 3 gạch */}
+        <nav className="hidden lg:flex items-center gap-1">
           {navLinks.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
@@ -206,7 +210,9 @@ export const Navbar: React.FC = () => {
                       type="button"
                       onClick={() => {
                         setShowProfileMenu(false);
+                        setIsMobileMenuOpen(false);
                         logout();
+                        router.push("/");
                       }}
                       className="w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
                     >
@@ -237,8 +243,44 @@ export const Navbar: React.FC = () => {
           >
             <Github className="w-4 h-4" />
           </a>
+
+          {/* Nút 3 gạch mở Menu khi thu nhỏ hoặc phóng to màn hình */}
+          <button
+            type="button"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="lg:hidden p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors border border-slate-200 dark:border-slate-800 shadow-xs"
+            aria-label="Toggle navigation menu"
+            title="Menu điều hướng"
+          >
+            {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
         </div>
       </div>
+
+      {/* Menu thả xuống khi phóng to hoặc màn hình di động */}
+      {isMobileMenuOpen && (
+        <div className="lg:hidden border-t border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl px-4 py-3 space-y-1 shadow-2xl animate-in slide-in-from-top-2 duration-150">
+          {navLinks.map((item) => {
+            const Icon = item.icon;
+            const isActive = pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${
+                  isActive
+                    ? "bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-xs dark:bg-indigo-600/20 dark:text-indigo-300 dark:border-indigo-500/30 font-semibold"
+                    : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                }`}
+              >
+                <Icon className={`w-4 h-4 ${isActive ? "text-indigo-600 dark:text-indigo-400" : "text-slate-400"}`} />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      )}
     </header>
   );
 };

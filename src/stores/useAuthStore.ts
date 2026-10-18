@@ -203,6 +203,11 @@ export const useAuthStore = create<AuthState>((set) => ({
     useProfileStore.getState().resetAll();
 
     set({ user: null, token: null, isAuthenticated: false });
+
+    // 3. Tự động đưa trang hiện tại đang đứng quay về Trang chủ
+    if (typeof window !== "undefined" && window.location.pathname !== "/") {
+      window.location.href = "/";
+    }
   },
 
   checkAuthSession: () => {
