@@ -40,9 +40,12 @@ describe("Integration Test: useProfileStore Lifecycle and State Sync", () => {
     expect(state.profile).toBeNull();
     expect(state.uploadedFileName).toBeNull();
     expect(state.analysisResult).toBeNull();
+    expect(state.analysisStudentId).toBeNull();
     expect(state.roadmap).toBeNull();
     expect(state.completedItems).toEqual({});
     expect(state.isAnalyzing).toBe(false);
+    expect(state.riasecAnswers).toEqual({});
+    expect(state.selectedCareerTags).toEqual([]);
   });
 
   it("should correctly update transcript profile and calculate metadata", () => {
@@ -115,6 +118,20 @@ describe("Integration Test: useProfileStore Lifecycle and State Sync", () => {
     // Toggle career tag lần 2 để gỡ bỏ
     useProfileStore.getState().toggleCareerTag("AI_RESEARCH");
     expect(useProfileStore.getState().selectedCareerTags).not.toContain("AI_RESEARCH");
+  });
+
+  it("invalidates an existing result when an answer changes", () => {
+    useProfileStore.getState().setAnalysisResult(MOCK_SKILL_GAP_ANALYSIS);
+    useProfileStore.getState().setRoadmap(MOCK_ROADMAP);
+
+    useProfileStore.getState().setRiasecAnswers({ 1: 4 });
+
+    const state = useProfileStore.getState();
+    expect(state.riasecAnswers).toEqual({ 1: 4 });
+    expect(state.analysisResult).toBeNull();
+    expect(state.analysisStudentId).toBeNull();
+    expect(state.selectedMajor).toBeNull();
+    expect(state.roadmap).toBeNull();
   });
 
   it("should fully restore core initial state on resetAll call", () => {

@@ -28,8 +28,7 @@ export const XaiExplanationCard: React.FC<XaiExplanationCardProps> = ({
 }) => {
   const [isExpanded, setIsExpanded] = useState<boolean>(true);
 
-  // Dữ liệu fallback chuẩn mực học thuật nếu dữ liệu xai_explanation chưa đồng bộ
-  const defaultSummary = `Ngành ${majorName} được mô hình gợi ý với độ tin cậy cao (${matchPercentage}%) dựa trên sự kết hợp hài hòa giữa nền tảng học thuật, thiên hướng tâm lý cá nhân và năng lực công nghệ ghi nhận từ hồ sơ.`;
+  const defaultSummary = `Chưa có lời giải thích chi tiết cho ${majorName}.`;
 
   const academicFactor: XAIFactorItem = explanation?.academic_factor || {
     factor_name: "Điểm số & Học phần nền tảng",
@@ -56,8 +55,8 @@ export const XaiExplanationCard: React.FC<XaiExplanationCardProps> = ({
   };
 
   const summary = explanation?.summary || defaultSummary;
-  const strengths = explanation?.key_strengths || ["Tư duy phân tích logic", "Năng lực lập trình cốt lõi"];
-  const improvements = explanation?.improvement_areas || ["Kiến trúc hệ thống quy mô lớn", "Bảo mật nâng cao"];
+  const strengths = explanation?.key_strengths || [];
+  const improvements = explanation?.improvement_areas || [];
 
   const factors = [
     {
@@ -108,7 +107,7 @@ export const XaiExplanationCard: React.FC<XaiExplanationCardProps> = ({
                 </h3>
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/80 border border-emerald-300 dark:border-emerald-800 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
                   <ShieldCheck className="w-3 h-3" />
-                  Minh bạch 100%
+                  Giải thích từ mô hình
                 </span>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
@@ -185,7 +184,7 @@ export const XaiExplanationCard: React.FC<XaiExplanationCardProps> = ({
                 {/* Evidence List */}
                 <div className="space-y-1.5 pt-2 border-t border-slate-200/60 dark:border-slate-800/60">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">
-                    Bằng chứng xác thực:
+                    Dữ liệu được mô hình sử dụng:
                   </span>
                   <div className="space-y-1">
                     {factor.evidence && factor.evidence.length > 0 ? (
@@ -196,7 +195,7 @@ export const XaiExplanationCard: React.FC<XaiExplanationCardProps> = ({
                         </div>
                       ))
                     ) : (
-                      <span className="text-[11px] text-slate-400 italic">Đang bóc tách thêm từ hồ sơ...</span>
+                      <span className="text-[11px] text-slate-400 italic">Chưa có dữ liệu nguồn chi tiết.</span>
                     )}
                   </div>
                 </div>
@@ -213,6 +212,7 @@ export const XaiExplanationCard: React.FC<XaiExplanationCardProps> = ({
                 <span>Điểm mạnh vượt trội cá nhân:</span>
               </div>
               <div className="flex flex-wrap gap-1.5">
+                {strengths.length === 0 && <span className="text-xs text-slate-500">Chưa có dữ liệu.</span>}
                 {strengths.map((str, idx) => (
                   <span
                     key={idx}
@@ -231,6 +231,7 @@ export const XaiExplanationCard: React.FC<XaiExplanationCardProps> = ({
                 <span>Trọng tâm bồi đắp trong lộ trình:</span>
               </div>
               <div className="flex flex-wrap gap-1.5">
+                {improvements.length === 0 && <span className="text-xs text-slate-500">Chưa có dữ liệu.</span>}
                 {improvements.map((imp, idx) => (
                   <span
                     key={idx}
