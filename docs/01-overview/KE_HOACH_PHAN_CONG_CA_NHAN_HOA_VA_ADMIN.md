@@ -81,10 +81,10 @@ graph TD
 
 ---
 
-### 👤 THÀNH VIÊN 3: NGUYỄN THỊ ÁNH VY (MODULE ANALYTICS, CHAT UI & ADMIN DASHBOARD)
+### 👤 THÀNH VIÊN 3: THANH PHONG (MODULE ANALYTICS, CHAT UI & ADMIN DASHBOARD)
 > **Phạm vi**: Trực quan hóa Cá nhân hóa (Analytics Radar, Chat History Drawer, Roadmap Progress, Admin UI).  
-> **Git Branch**: `feat/anhvy-analytics-personalization-ui`  
-> **Git Author**: `Nguyen Thi Anh Vy <anhvydn2005@gmail.com>`
+> **Git Branch**: `feat/thanhphong-analytics-personalization-ui`  
+> **Git Author**: `Thanh Phong <thanhphong.vku@gmail.com>`
 
 * **Mục tiêu chính**:
   1. **Cá nhân hóa Trực quan Năng lực Sinh viên (Analytics Radar)**:
@@ -162,7 +162,7 @@ erDiagram
 1. **Khởi tạo nhánh làm việc độc lập**:
    * Long Nhật: `git checkout -b feat/longnhat-hpc-personalization-and-admin-api`
    * Văn Hoàng: `git checkout -b feat/vanhoang-ingestion-personalization-admin`
-   * Ánh Vy: `git checkout -b feat/anhvy-analytics-personalization-ui`
+   * Thanh Phong: `git checkout -b feat/thanhphong-analytics-personalization-ui`
 2. **Quy tắc Commit Message**:
    * Phải viết $100\%$ bằng tiếng Anh theo chuẩn Conventional Commits: `<type>(<scope>): <description>`.
    * Gán đúng danh tính tác giả (`user.name` và `user.email`).
