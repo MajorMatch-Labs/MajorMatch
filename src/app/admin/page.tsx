@@ -218,6 +218,63 @@ export default function AdminDatabasePage() {
     });
   }, [students, studentSearch, majorFilter, gpaFilter]);
 
+  // Phân tích dữ liệu thống kê trực quan toàn trường
+  const analyticsMetrics = useMemo(() => {
+    const total = students.length || 1;
+    let aiCount = 0;
+    let seCount = 0;
+    let cloudCount = 0;
+    let secCount = 0;
+    let biCount = 0;
+
+    let gpaExc = 0;
+    let gpaGood = 0;
+    let gpaAvg = 0;
+    let gpaLow = 0;
+
+    let surveyDone = 0;
+    let roadmapDone = 0;
+    let totalReadiness = 0;
+
+    students.forEach((s) => {
+      const m = (s.top_recommended_major || "").toLowerCase();
+      if (m.includes("trí tuệ") || m.includes("dữ liệu & ai") || m.includes("ai")) aiCount++;
+      else if (m.includes("phần mềm") || m.includes("fullstack")) seCount++;
+      else if (m.includes("đám mây") || m.includes("devops")) cloudCount++;
+      else if (m.includes("an toàn") || m.includes("bảo mật") || m.includes("cyber")) secCount++;
+      else biCount++;
+
+      if (s.cumulative_gpa >= 3.6) gpaExc++;
+      else if (s.cumulative_gpa >= 3.2) gpaGood++;
+      else if (s.cumulative_gpa >= 2.5) gpaAvg++;
+      else gpaLow++;
+
+      if (s.has_survey) surveyDone++;
+      if (s.has_roadmap) roadmapDone++;
+      totalReadiness += s.readiness_score || 0;
+    });
+
+    return {
+      total: students.length,
+      majors: [
+        { name: "Khoa học Dữ liệu & AI", count: aiCount, pct: Math.round((aiCount / total) * 100), color: "#6366F1" },
+        { name: "Kỹ thuật Phần mềm & Web", count: seCount, pct: Math.round((seCount / total) * 100), color: "#3B82F6" },
+        { name: "Cloud Computing & DevOps", count: cloudCount, pct: Math.round((cloudCount / total) * 100), color: "#06B6D4" },
+        { name: "An toàn Thông tin", count: secCount, pct: Math.round((secCount / total) * 100), color: "#EC4899" },
+        { name: "Data Analytics & BI", count: biCount, pct: Math.round((biCount / total) * 100), color: "#10B981" },
+      ],
+      gpa: [
+        { label: "Xuất sắc (>= 3.6)", count: gpaExc, pct: Math.round((gpaExc / total) * 100), color: "#10B981" },
+        { label: "Giỏi (3.2 - 3.59)", count: gpaGood, pct: Math.round((gpaGood / total) * 100), color: "#3B82F6" },
+        { label: "Khá (2.5 - 3.19)", count: gpaAvg, pct: Math.round((gpaAvg / total) * 100), color: "#F59E0B" },
+        { label: "Cần cải thiện (< 2.5)", count: gpaLow, pct: Math.round((gpaLow / total) * 100), color: "#EF4444" },
+      ],
+      surveyPct: Math.round((surveyDone / total) * 100),
+      roadmapPct: Math.round((roadmapDone / total) * 100),
+      avgReadiness: Math.round((totalReadiness / total) * 10) / 10,
+    };
+  }, [students]);
+
   const tableTabs: Array<{ id: TableName; label: string; icon: any; count: number }> = [
     { id: "user_profiles", label: "Hồ sơ Sinh viên", icon: Users, count: stats?.table_counts?.user_profiles ?? 0 },
     { id: "riasec_surveys", label: "Khảo sát RIASEC", icon: BrainCircuit, count: stats?.table_counts?.riasec_surveys ?? 0 },
@@ -405,9 +462,99 @@ export default function AdminDatabasePage() {
 
         {/* VIEW MODE 1: QUẢN LÝ & THỐNG KÊ SINH VIÊN */}
         {viewMode === "students" && (
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 sm:p-5 space-y-4 shadow-xs">
-            {/* Bộ lọc đa chiều & Tìm kiếm */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="space-y-4">
+            {/* Visual Distribution Dashboard (Thống kê Trực quan Toàn trường) */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Card 1: Phân bố Chuyên ngành */}
+              <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+                    Phân bố Chuyên ngành Đề xuất
+                  </h4>
+                  <span className="text-[10px] text-slate-400 font-mono">{students.length} SV</span>
+                </div>
+                <div className="space-y-2">
+                  {analyticsMetrics.majors.map((m) => (
+                    <div key={m.name} className="space-y-1">
+                      <div className="flex justify-between text-[11px]">
+                        <span className="text-slate-600 dark:text-slate-300 truncate max-w-[170px]">{m.name}</span>
+                        <span className="font-mono text-slate-500">{m.count} ({m.pct}%)</span>
+                      </div>
+                      <div className="h-1.5 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${m.pct}%`, backgroundColor: m.color }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Card 2: Phổ điểm GPA */}
+              <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                    <Target className="w-3.5 h-3.5 text-sky-500" />
+                    Phổ điểm GPA Toàn trường
+                  </h4>
+                  <span className="text-[10px] text-slate-400 font-mono">Hệ 4.0</span>
+                </div>
+                <div className="space-y-2">
+                  {analyticsMetrics.gpa.map((g) => (
+                    <div key={g.label} className="space-y-1">
+                      <div className="flex justify-between text-[11px]">
+                        <span className="text-slate-600 dark:text-slate-300">{g.label}</span>
+                        <span className="font-mono text-slate-500">{g.count} ({g.pct}%)</span>
+                      </div>
+                      <div className="h-1.5 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${g.pct}%`, backgroundColor: g.color }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Card 3: Khảo sát RIASEC & Sẵn sàng Nghề nghiệp */}
+              <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                    <BrainCircuit className="w-3.5 h-3.5 text-purple-500" />
+                    Tiến trình Khảo sát & Đào tạo
+                  </h4>
+                  <span className="text-[10px] text-slate-400 font-mono">Realtime</span>
+                </div>
+                <div className="space-y-3 pt-1">
+                  <div>
+                    <div className="flex justify-between text-[11px] mb-1">
+                      <span className="text-slate-600 dark:text-slate-300">Tỷ lệ đã làm RIASEC</span>
+                      <span className="font-mono font-bold text-purple-600 dark:text-purple-400">{analyticsMetrics.surveyPct}%</span>
+                    </div>
+                    <div className="h-2 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                      <div className="h-full bg-purple-500 rounded-full transition-all duration-500" style={{ width: `${analyticsMetrics.surveyPct}%` }} />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-[11px] mb-1">
+                      <span className="text-slate-600 dark:text-slate-300">Tỷ lệ kích hoạt Lộ trình</span>
+                      <span className="font-mono font-bold text-sky-600 dark:text-sky-400">{analyticsMetrics.roadmapPct}%</span>
+                    </div>
+                    <div className="h-2 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                      <div className="h-full bg-sky-500 rounded-full transition-all duration-500" style={{ width: `${analyticsMetrics.roadmapPct}%` }} />
+                    </div>
+                  </div>
+                  <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                    <span className="text-[11px] text-slate-500">Readiness TB toàn trường:</span>
+                    <span className="text-xs font-bold font-mono text-emerald-600 dark:text-emerald-400">
+                      {analyticsMetrics.avgReadiness}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Bảng điều khiển sinh viên */}
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 sm:p-5 space-y-4 shadow-xs">
+              {/* Bộ lọc đa chiều & Tìm kiếm */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="relative w-full sm:w-72">
                 <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
@@ -538,7 +685,8 @@ export default function AdminDatabasePage() {
               )}
             </div>
           </div>
-        )}
+        </div>
+      )}
 
         {/* VIEW MODE 2: TRÌNH DUYỆT CSDL CHI TIẾT (RAW SQLITE EXPLORER) */}
         {viewMode === "raw" && (
