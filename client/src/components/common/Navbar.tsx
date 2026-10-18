@@ -10,7 +10,6 @@ import {
   GitFork,
   MessageSquare,
   ShieldCheck,
-  Github,
   Sun,
   Moon,
   User,
@@ -182,16 +181,6 @@ export const Navbar: React.FC = () => {
               <span>Đăng nhập</span>
             </button>
           )}
-
-          <a
-            href="https://github.com/MajorMatch-Labs/MajorMatch"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors border border-slate-200 dark:border-slate-800"
-            title="GitHub Repository"
-          >
-            <Github className="w-4 h-4" />
-          </a>
 
           {/* Nút 3 gạch mở Menu khi thu nhỏ hoặc phóng to màn hình */}
           <button

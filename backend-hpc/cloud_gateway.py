@@ -15,8 +15,8 @@ from typing import Dict, Any, Optional, List
 
 from fastapi import FastAPI, Request, HTTPException, status, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, StreamingResponse
 import httpx
+from pydantic import BaseModel
 
 HPC_BASE_URL = os.getenv("HPC_BASE_URL", "http://127.0.0.1:8000")
 DB_PATH = os.path.expanduser("~/data/majormatch.db")
@@ -1913,7 +1913,9 @@ async def get_user_full_state_cloud(student_id: str):
             "student_id": p_row["student_id"],
             "full_name": p_row["full_name"],
             "cumulative_gpa": p_row["cumulative_gpa"],
+            "gpa": p_row["cumulative_gpa"],
             "total_credits": p_row["total_credits"],
+            "completed_credits": p_row["total_credits"],
             "courses": courses,
             "detected_skills": skills,
             "riasec_scores": r_scores,
@@ -1930,7 +1932,9 @@ async def get_user_full_state_cloud(student_id: str):
             survey = {
                 "student_id": s_row["student_id"],
                 "answers": json.loads(s_row["answers_json"]),
+                "survey_data": json.loads(s_row["answers_json"]),
                 "scores": json.loads(s_row["scores_json"]),
+                "riasec_scores": json.loads(s_row["scores_json"]),
                 "dominant_code": s_row["dominant_code"],
                 "updated_at": s_row["updated_at"]
             }
@@ -1958,12 +1962,17 @@ async def get_user_full_state_cloud(student_id: str):
     roadmap = None
     if r_row:
         try:
+            phases_list = json.loads(r_row["phases_data"]) if "phases_data" in r_row.keys() and r_row["phases_data"] else []
+            completed_dict = json.loads(r_row["completed_items"]) if r_row["completed_items"] else {}
             roadmap = {
                 "student_id": r_row["student_id"],
                 "target_major": r_row["target_major_name"],
                 "target_major_id": r_row["target_major_id"],
                 "job_readiness_percentage": r_row["job_readiness_percentage"],
-                "completed_items": json.loads(r_row["completed_items"]),
+                "readiness_score": r_row["job_readiness_percentage"],
+                "phases": phases_list,
+                "semesters": phases_list,
+                "completed_items": completed_dict,
                 "updated_at": r_row["updated_at"]
             }
         except Exception:
@@ -1982,6 +1991,76 @@ async def get_user_full_state_cloud(student_id: str):
         "assessment": assessment,
         "roadmap": roadmap,
         "chat_message_count": chat_count,
+        "updated_at": now_str
+    }
+
+
+class UpdateProfileRequest(BaseModel):
+    full_name: Optional[str] = None
+    cumulative_gpa: Optional[float] = None
+    gpa: Optional[float] = None
+    total_credits: Optional[int] = None
+    completed_credits: Optional[int] = None
+
+
+@app.post("/api/v1/user/{student_id}/profile")
+async def update_user_profile_cloud(student_id: str, req: UpdateProfileRequest):
+    """Cập nhật điểm GPA, số tín chỉ và thông tin hồ sơ sinh viên vào SQLite."""
+    conn = get_db()
+    cursor = conn.cursor()
+    now_str = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+    # Kiểm tra xem sinh viên đã có bản ghi chưa
+    cursor.execute("SELECT * FROM user_profiles WHERE student_id = ?", (student_id,))
+    row = cursor.fetchone()
+
+    target_gpa = req.cumulative_gpa if req.cumulative_gpa is not None else req.gpa
+    target_credits = req.total_credits if req.total_credits is not None else req.completed_credits
+
+    if not row:
+        # Tạo mới nếu chưa tồn tại
+        cursor.execute("""
+        INSERT INTO user_profiles (student_id, full_name, cumulative_gpa, total_credits, courses_data, detected_skills, riasec_scores, career_tags, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            student_id,
+            req.full_name or "Sinh viên",
+            target_gpa if target_gpa is not None else 3.25,
+            target_credits if target_credits is not None else 68,
+            json.dumps([]),
+            json.dumps([]),
+            json.dumps({}),
+            json.dumps([]),
+            now_str
+        ))
+    else:
+        # Cập nhật các trường được truyền lên
+        updates = []
+        params = []
+        if req.full_name is not None and req.full_name.strip():
+            updates.append("full_name = ?")
+            params.append(req.full_name.strip())
+        if target_gpa is not None:
+            updates.append("cumulative_gpa = ?")
+            params.append(round(float(target_gpa), 2))
+        if target_credits is not None:
+            updates.append("total_credits = ?")
+            params.append(int(target_credits))
+
+        updates.append("updated_at = ?")
+        params.append(now_str)
+        params.append(student_id)
+
+        query = f"UPDATE user_profiles SET {', '.join(updates)} WHERE student_id = ?"
+        cursor.execute(query, params)
+
+    conn.commit()
+    conn.close()
+
+    return {
+        "status": "success",
+        "student_id": student_id,
+        "message": "Cập nhật hồ sơ sinh viên thành công.",
         "updated_at": now_str
     }
 

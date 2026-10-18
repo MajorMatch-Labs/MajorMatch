@@ -738,6 +738,74 @@ async def get_user_full_state_endpoint(student_id: str):
     return state
 
 
+class UpdateUserProfileLocalRequest(BaseModel):
+    full_name: Optional[str] = None
+    cumulative_gpa: Optional[float] = None
+    gpa: Optional[float] = None
+    total_credits: Optional[int] = None
+    completed_credits: Optional[int] = None
+
+
+@app.post("/api/v1/user/{student_id}/profile", tags=["Personalization"])
+async def update_user_profile_endpoint(student_id: str, req: UpdateUserProfileLocalRequest):
+    """Cập nhật thông tin GPA, Tín chỉ tích lũy của sinh viên vào CSDL SQLite."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    now_str = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+    cursor.execute("SELECT * FROM user_profiles WHERE student_id = ?", (student_id,))
+    row = cursor.fetchone()
+
+    target_gpa = req.cumulative_gpa if req.cumulative_gpa is not None else req.gpa
+    target_credits = req.total_credits if req.total_credits is not None else req.completed_credits
+
+    if not row:
+        cursor.execute("""
+        INSERT INTO user_profiles (student_id, full_name, cumulative_gpa, total_credits, courses_data, detected_skills, riasec_scores, career_tags, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            student_id,
+            req.full_name or "Sinh viên",
+            target_gpa if target_gpa is not None else 3.25,
+            target_credits if target_credits is not None else 68,
+            json.dumps([]),
+            json.dumps([]),
+            json.dumps({}),
+            json.dumps([]),
+            now_str
+        ))
+    else:
+        updates = []
+        params = []
+        if req.full_name is not None and req.full_name.strip():
+            updates.append("full_name = ?")
+            params.append(req.full_name.strip())
+        if target_gpa is not None:
+            updates.append("cumulative_gpa = ?")
+            params.append(round(float(target_gpa), 2))
+        if target_credits is not None:
+            updates.append("total_credits = ?")
+            params.append(int(target_credits))
+
+        updates.append("updated_at = ?")
+        params.append(now_str)
+        params.append(student_id)
+
+        query = f"UPDATE user_profiles SET {', '.join(updates)} WHERE student_id = ?"
+        cursor.execute(query, params)
+
+    conn.commit()
+    conn.close()
+
+    return {
+        "status": "success",
+        "student_id": student_id,
+        "message": "Cập nhật hồ sơ sinh viên thành công.",
+        "updated_at": now_str
+    }
+
+
+
 @app.get("/api/v1/admin/students", tags=["Admin"])
 async def get_admin_students_endpoint():
     """Lấy danh sách tổng hợp toàn bộ sinh viên kèm kết quả đánh giá cho Site Admin."""

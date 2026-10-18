@@ -743,8 +743,36 @@ export class ApiService {
       return await res.json();
     } catch {
       return null;
+  }
+
+  /**
+   * Cập nhật điểm GPA, số tín chỉ tích lũy hoặc họ tên sinh viên vào CSDL SQLite
+   * Endpoint: POST /api/v1/user/{student_id}/profile
+   */
+  static async updateUserProfile(
+    studentId: string = "23IT196",
+    payload: {
+      cumulative_gpa?: number;
+      gpa?: number;
+      total_credits?: number;
+      completed_credits?: number;
+      full_name?: string;
+    }
+  ): Promise<boolean> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/user/${encodeURIComponent(studentId)}/profile`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(6000)
+      });
+      return res.ok;
+    } catch (err) {
+      console.error("updateUserProfile error:", err);
+      return false;
     }
   }
 }
+
 
 
