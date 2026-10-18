@@ -604,16 +604,53 @@ LƯU Ý QUAN TRỌNG:
 
     @classmethod
     async def stream_chat_tokens(cls, request: ChatStreamRequest) -> AsyncGenerator[str, None]:
-        """Stream phản hồi từ Qwen 2.5 qua Server-Sent Events (SSE)."""
+        """Stream phản hồi từ Qwen 2.5 qua Server-Sent Events (SSE) với ngữ cảnh cá nhân hóa sâu."""
+        student_id = getattr(request, "student_id", None) or "SV-2025001"
+        session_id = getattr(request, "session_id", None) or "default"
+
+        user_state: Dict[str, Any] = {}
+        try:
+            from database import get_user_full_state, save_chat_message
+            user_state = get_user_full_state(student_id)
+        except Exception:
+            pass
+
+        profile_data = user_state.get("profile") or {}
+        student_name = profile_data.get("full_name") or "Sinh viên"
+        gpa = profile_data.get("gpa") or request.gpa or 3.25
+        survey_data = user_state.get("riasec_survey") or {}
+        riasec_scores = survey_data.get("riasec_scores") or {}
+        roadmap_data = user_state.get("roadmap") or {}
+        target_major = roadmap_data.get("target_major") or (request.context.target_major if request.context else None) or request.major_focus or "Công nghệ Thông tin"
+        readiness_score = roadmap_data.get("job_readiness_percentage") or 45.6
+        completed_items = roadmap_data.get("completed_items") or {}
+        completed_count = len([k for k, v in completed_items.items() if v])
+
+        # Lưu tin nhắn người dùng vào lịch sử hội thoại
+        try:
+            from database import save_chat_message
+            save_chat_message(student_id, "user", request.message, session_id=session_id)
+        except Exception:
+            pass
+
         system_instruction = (
-            "Bạn là Trợ lý Cố vấn Học tập MajorMatch. "
-            "Trả lời ngắn gọn, chuyên nghiệp, súc tích bằng tiếng Việt. "
-            "Tập trung hướng dẫn sinh viên cách khắc phục lỗ hổng kỹ năng và phương pháp học tập hiệu quả."
+            f"Bạn là Trợ lý Cố vấn Học tập MajorMatch thông minh và tận tâm.\n"
+            f"Bạn đang tư vấn cá nhân hóa trực tiếp cho sinh viên: {student_name} (MSSV: {student_id}).\n"
+            f"Thông số năng lực thực tế của sinh viên:\n"
+            f"- Điểm tích lũy GPA: {gpa}/4.0\n"
+            f"- Định hướng chuyên ngành mục tiêu: {target_major}\n"
+            f"- Chỉ số sẵn sàng nghề nghiệp (Job Readiness): {readiness_score}%\n"
+            f"- Tiến trình lộ trình: Đã hoàn thành {completed_count} đầu việc (môn học/đồ án)\n"
+            f"- Thiên hướng RIASEC: {json.dumps(riasec_scores, ensure_ascii=False) if riasec_scores else 'Chưa có'}\n"
+            f"Quy tắc phản hồi:\n"
+            f"1. Luôn chào và xưng hô thân thiện, gợi mở đúng bối cảnh của {student_name}.\n"
+            f"2. Giải đáp thắc mắc chuyên sâu, gợi ý môn học và đồ án phù hợp để nâng cao tỷ lệ Readiness Score.\n"
+            f"3. Trả lời bằng tiếng Việt chuyên nghiệp, súc tích, mạch lạc."
         )
 
         context_info = ""
-        if request.context:
-            context_info = f"\n[Ngữ cảnh: Ngành {request.context.target_major}, Kỹ năng thiếu: {request.context.missing_skills}]"
+        if request.context and request.context.missing_skills:
+            context_info = f"\n[Kỹ năng sinh viên đang cần bồi đắp: {', '.join(request.context.missing_skills)}]"
 
         payload = {
             "model": OLLAMA_MODEL,
@@ -624,6 +661,8 @@ LƯU Ý QUAN TRỌNG:
             "stream": True,
             "options": {"temperature": 0.5, "num_predict": 512}
         }
+
+        full_assistant_reply = []
 
         async with GPU_SEMAPHORE:
             try:
@@ -636,6 +675,9 @@ LƯU Ý QUAN TRỌNG:
                                     content = chunk.get("message", {}).get("content", "")
                                     done = chunk.get("done", False)
 
+                                    if content:
+                                        full_assistant_reply.append(content)
+
                                     event_data = json.dumps({"token": content, "done": done}, ensure_ascii=False)
                                     yield f"event: message\ndata: {event_data}\n\n"
 
@@ -644,6 +686,20 @@ LƯU Ý QUAN TRỌNG:
                                 except json.JSONDecodeError:
                                     continue
             except Exception as e:
-                # Fallback phản hồi nếu không kết nối được Ollama
-                msg = f"Hệ thống trợ lý cục bộ ghi nhận câu hỏi: '{request.message}'. Vui lòng đảm bảo dịch vụ Ollama đang hoạt động."
+                # Fallback phản hồi cục bộ nếu GPU offline
+                msg = (
+                    f"Chào bạn {student_name}! Mình đã ghi nhận câu hỏi: '{request.message}'. "
+                    f"Dựa trên hồ sơ của bạn (GPA {gpa}, chuyên ngành {target_major}, độ sẵn sàng {readiness_score}%), "
+                    f"hãy tiếp tục hoàn thành các môn học trọng tâm trong lộ trình để nâng cao năng lực nhé!"
+                )
+                full_assistant_reply.append(msg)
                 yield f"event: message\ndata: {json.dumps({'token': msg, 'done': True}, ensure_ascii=False)}\n\n"
+
+        # Tự động lưu phản hồi hoàn chỉnh của trợ lý AI vào CSDL
+        try:
+            from database import save_chat_message
+            saved_reply = "".join(full_assistant_reply).strip()
+            if saved_reply:
+                save_chat_message(student_id, "assistant", saved_reply, session_id=session_id)
+        except Exception:
+            pass

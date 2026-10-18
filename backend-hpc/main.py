@@ -27,7 +27,11 @@ from schemas import (
     HealthCheckResponse,
     ProblemDetails,
     GatewayNodeStatus,
-    PrivateComputeNodeStatus
+    PrivateComputeNodeStatus,
+    RiasecSurveySaveRequest,
+    RiasecSurveyResponse,
+    ChatSessionItem,
+    UserFullStateResponse
 )
 from parser import parse_transcript_document
 from ml_engine import process_skill_assessment
@@ -41,6 +45,11 @@ from database import (
     get_assessment,
     save_chat_message,
     get_chat_history,
+    get_chat_sessions,
+    save_riasec_survey,
+    get_riasec_survey,
+    get_user_full_state,
+    get_all_students_admin,
     get_db_connection,
     DB_PATH
 )
@@ -294,9 +303,9 @@ async def chat_stream(request_body: ChatStreamRequest):
     summary="Truy xuất lịch sử đoạn chat của sinh viên với trợ lý AI",
     tags=["Assistant"]
 )
-async def get_chat_history_endpoint(student_id: str):
-    history = get_chat_history(student_id)
-    return {"student_id": student_id, "messages": history}
+async def get_chat_history_endpoint(student_id: str, session_id: Optional[str] = None):
+    history = get_chat_history(student_id, session_id=session_id)
+    return {"student_id": student_id, "session_id": session_id or "all", "messages": history}
 
 
 @app.post(
@@ -311,9 +320,10 @@ async def save_chat_message_endpoint(student_id: str, request: Request):
         data = {}
     role = str(data.get("role", "user"))
     content = str(data.get("content", ""))
+    session_id = str(data.get("session_id", "default"))
     if content:
-        save_chat_message(student_id, role, content)
-    return {"status": "success", "student_id": student_id}
+        save_chat_message(student_id, role, content, session_id=session_id)
+    return {"status": "success", "student_id": student_id, "session_id": session_id}
 
 
 
@@ -381,7 +391,7 @@ async def health_check():
 # ADMIN DATABASE ENDPOINTS (QUẢN TRỊ CSDL)
 # =============================================================================
 
-ADMIN_ALLOWED_TABLES = ["user_profiles", "roadmaps", "assessments", "chat_history"]
+ADMIN_ALLOWED_TABLES = ["user_profiles", "roadmaps", "assessments", "chat_history", "riasec_surveys"]
 
 @app.get("/api/v1/admin/stats", tags=["Admin"])
 async def get_admin_db_stats():
@@ -525,3 +535,117 @@ async def delete_admin_table_record(table_name: str, record_id: str):
         "message": f"Đã xóa thành công bản ghi '{record_id}' khỏi bảng '{table_name}'.",
         "deleted_count": deleted
     }
+
+
+# =============================================================================
+# ENDPOINTS RIASEC SURVEY & CÁ NHÂN HÓA (PERSONALIZATION)
+# =============================================================================
+
+@app.post("/api/v1/survey/riasec", response_model=RiasecSurveyResponse, tags=["Survey"])
+async def save_survey_endpoint(survey_data: RiasecSurveySaveRequest):
+    """Lưu trữ kết quả bài trắc nghiệm tính cách nghề nghiệp RIASEC của sinh viên."""
+    try:
+        save_riasec_survey(
+            student_id=survey_data.student_id,
+            answers=survey_data.answers,
+            scores=survey_data.scores,
+            dominant_code=survey_data.dominant_code
+        )
+        saved = get_riasec_survey(survey_data.student_id)
+        if not saved:
+            raise HTTPException(status_code=500, detail="Không thể lưu bài khảo sát.")
+        return saved
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Lỗi lưu trữ bài khảo sát: {str(e)}")
+
+
+@app.get("/api/v1/survey/riasec/{student_id}", response_model=RiasecSurveyResponse, tags=["Survey"])
+async def get_survey_endpoint(student_id: str):
+    """Truy xuất kết quả và câu trả lời bài trắc nghiệm RIASEC của sinh viên."""
+    saved = get_riasec_survey(student_id)
+    if not saved:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Chưa có bài khảo sát RIASEC nào được lưu cho sinh viên {student_id}."
+        )
+    return saved
+
+
+@app.get("/api/v1/chat/sessions/{student_id}", tags=["Advisor"])
+async def get_chat_sessions_endpoint(student_id: str):
+    """Lấy danh sách các phiên tư vấn AI của sinh viên."""
+    sessions = get_chat_sessions(student_id)
+    return {"student_id": student_id, "sessions": sessions}
+
+
+@app.get("/api/v1/user/{student_id}/full-state", response_model=UserFullStateResponse, tags=["Personalization"])
+async def get_user_full_state_endpoint(student_id: str):
+    """Lấy toàn bộ hồ sơ cá nhân hóa (Bảng điểm, Khảo sát, Đánh giá, Lộ trình, Chat) theo sinh viên."""
+    state = get_user_full_state(student_id)
+    return state
+
+
+@app.get("/api/v1/admin/students", tags=["Admin"])
+async def get_admin_students_endpoint():
+    """Lấy danh sách tổng hợp toàn bộ sinh viên kèm kết quả đánh giá cho Site Admin."""
+    students = get_all_students_admin()
+    return {"status": "success", "total": len(students), "students": students}
+
+
+@app.get("/api/v1/admin/export", tags=["Admin"])
+async def export_admin_data(format: str = "json", table: Optional[str] = None):
+    """Xuất dữ liệu toàn hệ thống dưới dạng JSON hoặc CSV cho phòng đào tạo / quản trị viên."""
+    import io
+    import csv
+
+    if table and table not in ADMIN_ALLOWED_TABLES:
+        raise HTTPException(status_code=400, detail=f"Bảng '{table}' không hợp lệ. Cho phép: {ADMIN_ALLOWED_TABLES}")
+
+    if format.lower() == "csv":
+        output = io.StringIO()
+        if table:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute(f"SELECT * FROM {table}")
+            rows = cursor.fetchall()
+            conn.close()
+            if rows:
+                fieldnames = rows[0].keys()
+                writer = csv.DictWriter(output, fieldnames=fieldnames)
+                writer.writeheader()
+                for r in rows:
+                    writer.writerow(dict(r))
+            filename = f"majormatch_{table}_export.csv"
+        else:
+            students = get_all_students_admin()
+            if students:
+                fieldnames = students[0].keys()
+                writer = csv.DictWriter(output, fieldnames=fieldnames)
+                writer.writeheader()
+                for s in students:
+                    writer.writerow(s)
+            filename = "majormatch_all_students_export.csv"
+
+        output.seek(0)
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}",
+                "Content-Type": "text/csv; charset=utf-8"
+            }
+        )
+    else:
+        if table:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute(f"SELECT * FROM {table}")
+            rows = [dict(r) for r in cursor.fetchall()]
+            conn.close()
+            return {"status": "success", "table": table, "total": len(rows), "records": rows}
+        else:
+            students = get_all_students_admin()
+            return {"status": "success", "total_students": len(students), "students": students}
+
