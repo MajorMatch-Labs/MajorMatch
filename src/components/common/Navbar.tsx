@@ -49,15 +49,15 @@ export const Navbar: React.FC = () => {
   const navLinks = isAuthenticated
     ? [
         { href: "/", label: "Trang chủ", icon: Compass },
-        { href: "/upload", label: "Tải hồ sơ & Khảo sát", icon: UploadCloud },
-        { href: "/result", label: "Khoảng cách Kỹ năng", icon: Radar },
-        { href: "/roadmap", label: "Lộ trình Tương tác", icon: GitFork },
-        { href: "/chat", label: "Trợ lý AI Streaming", icon: MessageSquare },
-        { href: "/profile", label: "Hồ sơ Cá nhân", icon: User },
+        { href: "/upload", label: "Khảo sát", icon: UploadCloud },
+        { href: "/result", label: "Kết quả", icon: Radar },
+        { href: "/roadmap", label: "Lộ trình", icon: GitFork },
+        { href: "/chat", label: "Trợ lý AI", icon: MessageSquare },
+        { href: "/profile", label: "Hồ sơ", icon: User },
       ]
     : [
         { href: "/", label: "Trang chủ", icon: Compass },
-        { href: "/upload", label: "Tải hồ sơ & Khảo sát", icon: UploadCloud },
+        { href: "/upload", label: "Khảo sát", icon: UploadCloud },
       ];
 
   const displayName = user?.name ? user.name.trim().split(" ").slice(-1)[0] : "Sinh viên";
@@ -68,7 +68,7 @@ export const Navbar: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-indigo-500/25 group-hover:scale-105 transition-transform duration-200">
+          <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center">
             <Compass className="w-5 h-5 text-white" />
           </div>
           <div className="flex flex-col">
@@ -76,7 +76,7 @@ export const Navbar: React.FC = () => {
               MajorMatch
             </span>
             <span className="text-[10px] uppercase font-semibold tracking-wider text-indigo-600 dark:text-indigo-400 -mt-1">
-              AI Skill Advisor Web 2.0
+              Định hướng học tập
             </span>
           </div>
         </Link>
@@ -90,7 +90,7 @@ export const Navbar: React.FC = () => {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium transition-all duration-150 ${
+                className={`flex min-h-11 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                   isActive
                     ? "bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm dark:bg-indigo-600/20 dark:text-indigo-300 dark:border-indigo-500/30"
                     : "text-slate-600 hover:text-slate-950 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-800/50"
@@ -175,7 +175,7 @@ export const Navbar: React.FC = () => {
             <button
               type="button"
               onClick={() => openAuthModal("login")}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-600/25 transition-all"
+              className="flex min-h-11 items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
             >
               <User className="w-3.5 h-3.5" />
               <span>Đăng nhập</span>
