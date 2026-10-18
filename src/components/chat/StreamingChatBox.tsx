@@ -170,6 +170,8 @@ export const StreamingChatBox: React.FC = () => {
       endpoint,
       {
         message: query,
+        student_id: studentId,
+        session_id: currentSessionId,
         target_major: targetMajor,
         gpa: profile?.cumulative_gpa,
         context_skills: {
@@ -318,8 +320,12 @@ export const StreamingChatBox: React.FC = () => {
                 </span>
               )}
             </h3>
-            <p className="text-[11px] text-slate-600 dark:text-slate-400">
-              Định hướng: <span className="text-indigo-600 dark:text-indigo-300 font-semibold">{targetMajor}</span> • Phiên: <span className="font-mono text-indigo-500">{currentSessionId}</span>
+            <p className="text-[11px] text-slate-600 dark:text-slate-400 flex items-center gap-1.5 flex-wrap">
+              <span>Hồ sơ: <strong className="font-mono text-indigo-600 dark:text-indigo-400">{studentId}</strong></span>
+              <span>•</span>
+              <span>Định hướng: <span className="text-slate-800 dark:text-slate-200 font-semibold">{targetMajor}</span></span>
+              <span>•</span>
+              <span>Phiên: <span className="font-mono text-indigo-500">{currentSessionId}</span></span>
             </p>
           </div>
         </div>
