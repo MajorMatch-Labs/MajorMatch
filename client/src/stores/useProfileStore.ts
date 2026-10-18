@@ -336,16 +336,28 @@ export const useProfileStore = create<ProfileState>()(
           };
         }),
 
-      resetAll: () =>
+      resetAll: () => {
+        if (typeof window !== "undefined") {
+          try {
+            localStorage.removeItem("majormatch-profile-storage");
+          } catch (_) {}
+        }
         set({
           profile: null,
           uploadedFileName: null,
           analysisResult: null,
           selectedMajor: null,
           roadmap: null,
+          roadmapsByMajor: {},
           completedItems: {},
-          dynamicReadinessScore: 64.5
-        }),
+          dynamicReadinessScore: 0,
+          isAnalyzing: false,
+          isGeneratingRoadmap: false,
+          isUploading: false,
+          riasecScores: { r: 0, i: 0, a: 0, s: 0, e: 0, c: 0 },
+          selectedCareerTags: []
+        });
+      },
 
       uploadTranscriptAction: async (file: File) => {
         set({ isUploading: true });

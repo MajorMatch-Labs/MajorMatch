@@ -15,6 +15,7 @@ import {
   rankRiasecTraits,
 } from "@/modules/ingestion/utils/riasecScoring";
 import { ApiService } from "@/services/api";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 export const RiasecSurvey: React.FC = () => {
   const {
@@ -24,8 +25,9 @@ export const RiasecSurvey: React.FC = () => {
     setRiasecScore,
     toggleCareerTag,
   } = useProfileStore();
+  const { user } = useAuthStore();
 
-  const studentId = profile?.student_id || "SV-2025001";
+  const studentId = user?.studentId || profile?.student_id || "SV-2025001";
 
   // State độc lập cho từng câu hỏi từ 1 đến 10
   const [questionAnswers, setQuestionAnswers] = useState<Record<number, number>>({
