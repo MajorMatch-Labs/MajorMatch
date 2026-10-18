@@ -622,6 +622,25 @@ export class ApiService {
       throw err;
     }
   }
+
+  /**
+   * Truy xuất toàn bộ trạng thái cá nhân hóa của sinh viên từ CSDL
+   * Endpoint: GET /api/v1/user/{student_id}/full-state
+   */
+  static async getUserFullState(studentId: string = "SV-2025001"): Promise<any | null> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/user/${encodeURIComponent(studentId)}/full-state`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(8000)
+      });
+      if (!res.ok) return null;
+      return await res.json();
+    } catch (err) {
+      console.warn("getUserFullState error:", err);
+      return null;
+    }
+  }
 }
 
 
