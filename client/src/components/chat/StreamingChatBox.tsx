@@ -14,7 +14,7 @@ import {
   Plus,
   Clock,
   PanelLeftClose,
-  PanelLeft,
+  PanelLeftOpen,
   X,
   Compass,
   Cpu,
@@ -296,87 +296,89 @@ export const StreamingChatBox: React.FC = () => {
       {/* 1. SIDEBAR PHONG CÁCH CHATGPT / GEMINI */}
       <aside
         className={`${
-          isSidebarOpen ? "w-72" : "w-0 -ml-72"
-        } transition-all duration-300 ease-in-out border-r border-slate-200 dark:border-slate-800/80 bg-slate-50/90 dark:bg-slate-950/60 flex flex-col z-20 shrink-0 overflow-hidden`}
+          isSidebarOpen ? "w-72 border-r" : "w-0 border-r-0"
+        } transition-[width] duration-300 ease-in-out border-slate-200 dark:border-slate-800/80 bg-slate-50/90 dark:bg-slate-950/60 flex flex-col z-20 shrink-0 overflow-hidden`}
       >
-        {/* Top: New Chat Button */}
-        <div className="p-3 border-b border-slate-200 dark:border-slate-800/80 space-y-2">
-          <div className="flex items-center justify-between px-1">
-            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-              <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-              <span>Studio Cố vấn AI</span>
-            </span>
+        <div className="w-72 h-full flex flex-col shrink-0">
+          {/* Top: New Chat Button */}
+          <div className="p-3 border-b border-slate-200 dark:border-slate-800/80 space-y-2">
+            <div className="flex items-center justify-between px-1">
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                <span>Studio Cố vấn AI</span>
+              </span>
+              <button
+                onClick={() => setIsSidebarOpen(false)}
+                className="lg:hidden p-1 rounded-lg text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
             <button
-              onClick={() => setIsSidebarOpen(false)}
-              className="lg:hidden p-1 rounded-lg text-slate-400 hover:text-slate-600"
+              onClick={createNewSession}
+              className="w-full py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-600 text-white text-xs font-semibold flex items-center justify-center gap-2 shadow-sm shadow-indigo-600/25 transition-all hover:scale-[1.01]"
             >
-              <X className="w-4 h-4" />
+              <Plus className="w-4 h-4" />
+              <span>Cuộc trò chuyện mới</span>
             </button>
           </div>
 
-          <button
-            onClick={createNewSession}
-            className="w-full py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-600 text-white text-xs font-semibold flex items-center justify-center gap-2 shadow-sm shadow-indigo-600/25 transition-all hover:scale-[1.01]"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Cuộc trò chuyện mới</span>
-          </button>
-        </div>
-
-        {/* Middle: Sessions List */}
-        <div className="flex-1 overflow-y-auto p-2 space-y-1">
-          <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-            Lịch sử phiên ({sessions.length})
-          </div>
-
-          {sessions.length === 0 ? (
-            <div className="p-4 text-center text-xs text-slate-400">
-              Chưa có phiên trò chuyện nào trước đó.
+          {/* Middle: Sessions List */}
+          <div className="flex-1 overflow-y-auto p-2 space-y-1">
+            <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              Lịch sử phiên ({sessions.length})
             </div>
-          ) : (
-            sessions.map((s) => {
-              const isSelected = currentSessionId === s.session_id;
-              return (
-                <button
-                  key={s.session_id}
-                  onClick={() => switchSession(s.session_id)}
-                  className={`w-full p-2.5 rounded-xl text-left transition-all flex items-start gap-2.5 ${
-                    isSelected
-                      ? "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-950 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-800/80 shadow-xs"
-                      : "text-slate-700 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800/50"
-                  }`}
-                >
-                  <MessageSquare className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${isSelected ? "text-indigo-600 dark:text-indigo-400" : "text-slate-400"}`} />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between text-[11px] font-medium">
-                      <span className="truncate">{s.last_message || s.session_id}</span>
-                      <span className="text-[9px] text-slate-400 shrink-0 ml-1 font-mono">
-                        {s.message_count} tin
-                      </span>
-                    </div>
-                    <div className="text-[9px] text-slate-400 flex items-center gap-1 font-mono mt-0.5">
-                      <Clock className="w-2.5 h-2.5" />
-                      <span>{s.updated_at ? s.updated_at.split("T")[0] : "Gần đây"}</span>
-                    </div>
-                  </div>
-                </button>
-              );
-            })
-          )}
-        </div>
 
-        {/* Bottom: User Card */}
-        <div className="p-3 border-t border-slate-200 dark:border-slate-800/80 bg-slate-100/60 dark:bg-slate-900/40 flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-600 to-cyan-500 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-xs">
-            {avatarLetter}
+            {sessions.length === 0 ? (
+              <div className="p-4 text-center text-xs text-slate-400">
+                Chưa có phiên trò chuyện nào trước đó.
+              </div>
+            ) : (
+              sessions.map((s) => {
+                const isSelected = currentSessionId === s.session_id;
+                return (
+                  <button
+                    key={s.session_id}
+                    onClick={() => switchSession(s.session_id)}
+                    className={`w-full p-2.5 rounded-xl text-left transition-all flex items-start gap-2.5 ${
+                      isSelected
+                        ? "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-950 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-800/80 shadow-xs"
+                        : "text-slate-700 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800/50"
+                    }`}
+                  >
+                    <MessageSquare className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${isSelected ? "text-indigo-600 dark:text-indigo-400" : "text-slate-400"}`} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between text-[11px] font-medium">
+                        <span className="truncate">{s.last_message || s.session_id}</span>
+                        <span className="text-[9px] text-slate-400 shrink-0 ml-1 font-mono">
+                          {s.message_count} tin
+                        </span>
+                      </div>
+                      <div className="text-[9px] text-slate-400 flex items-center gap-1 font-mono mt-0.5">
+                        <Clock className="w-2.5 h-2.5" />
+                        <span>{s.updated_at ? s.updated_at.split("T")[0] : "Gần đây"}</span>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })
+            )}
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
-              {studentName}
-            </p>
-            <p className="text-[10px] text-slate-500 font-mono">
-              MSSV: <strong className="text-indigo-600 dark:text-indigo-400">{studentId}</strong>
-            </p>
+
+          {/* Bottom: User Card */}
+          <div className="p-3 border-t border-slate-200 dark:border-slate-800/80 bg-slate-100/60 dark:bg-slate-900/40 flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-600 to-cyan-500 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-xs">
+              {avatarLetter}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                {studentName}
+              </p>
+              <p className="text-[10px] text-slate-500 font-mono">
+                MSSV: <strong className="text-indigo-600 dark:text-indigo-400">{studentId}</strong>
+              </p>
+            </div>
           </div>
         </div>
       </aside>
@@ -389,9 +391,10 @@ export const StreamingChatBox: React.FC = () => {
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
               className="p-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-              title={isSidebarOpen ? "Đóng danh sách phiên" : "Mở danh sách phiên"}
+              title={isSidebarOpen ? "Thu gọn thanh bên" : "Mở rộng thanh bên"}
+              aria-label={isSidebarOpen ? "Thu gọn thanh bên" : "Mở rộng thanh bên"}
             >
-              {isSidebarOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeft className="w-4 h-4" />}
+              {isSidebarOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeftOpen className="w-4 h-4" />}
             </button>
 
             <div className="flex items-center gap-2">
