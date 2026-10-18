@@ -20,6 +20,7 @@
 | **Tuần 5** | Architecture Patterns & API State Integration | Xây dựng Reactive Zustand Store (`useProfileStore.ts`) & Native API Client. | Xây dựng `IngestionService` Adapter, File Validation $\le 10\text{MB}$ & Offline Mock Loader. | Xây dựng `RadarTransformer` Adapter, chuyển đổi dữ liệu Recharts & Type-safe. | **Đã hoàn thành ✅** |
 | **Tuần 6** | AI Lập trình (Code Generation & Streaming) | Tích hợp SSE Stream Parser, Chat Controller và Markdown Renderer. | Chuẩn hóa RIASEC 10 câu, Magic Bytes Validation & Ingestion Tests. | Tối ưu hóa hiệu năng Recharts Radar (React.memo, delta tooltip). | **Đã hoàn thành ✅** |
 | **Tuần 7** | Lộ trình Milestone & Chuẩn hóa Kỹ năng Giai đoạn | Tích hợp hiển thị kỹ năng đầu ra cho từng môn và từng kỳ trong MilestoneTree, đồng bộ RAG Schemas. | Xây dựng `curriculumSkillMapper.ts`, chuẩn hóa mã môn sang kỹ năng và unit tests. | Thiết kế component `MilestoneSkillBadges.tsx`, highlight trực quan kỹ năng bù đắp Gap. | **Đã hoàn thành ✅** |
+| **Tuần 8** | AI trong Kiểm thử Phần mềm (Testing & Automation) | Cấu hình khung kiểm thử Vitest, viết Integration Tests cho State Store và luồng cập nhật lộ trình (`profileStore.test.ts`). | Xây dựng Unit Tests kiểm soát dung lượng file, chuẩn MIME và Magic Bytes nhị phân `%PDF-` (`fileValidation.test.ts`). | Xây dựng Unit Tests cho bộ chuyển đổi Radar (`radarTransformer.ts`), tính toán delta gap và % Job Readiness (`analytics.test.ts`). | **Đã hoàn thành ✅** |
 
 ---
 
@@ -158,6 +159,24 @@
     - Đồng bộ hóa cấu trúc Pydantic Schema và bộ sinh lộ trình dự phòng tại `backend-hpc/schemas.py` và `backend-hpc/rag_service.py`.
     - Viết bộ kiểm thử [roadmapSkills.test.ts](../../tests/unit/roadmapSkills.test.ts).
     - Lập hồ sơ minh chứng AI `docs/ai-evidence/advisor/w7-prompt-log.md`.
+
+---
+
+### TUẦN 8 - CHƯƠNG 8: AI TRONG KIỂM THỬ PHẦN MỀM (TESTING & AUTOMATION)
+* **Mục tiêu**: Vận dụng AI trong việc thiết kế ca kiểm thử tự động, xây dựng khung kiểm thử Vitest, kiểm thử tích hợp (Integration Tests) cho State Store và Unit Tests bảo vệ toàn diện các tầng xử lý dữ liệu.
+* **Đóng góp của từng thành viên**:
+  - **Long Nhật** (Nhánh `feat/longnhat-w8-vitest-and-integration-tests`):
+    - Cấu hình khung kiểm thử Vitest (`vitest.config.ts`), alias đường dẫn `@/` và script kiểm thử `npm run test` trong `package.json`.
+    - Xây dựng bộ Integration Tests toàn diện [profileStore.test.ts](../../tests/integration/profileStore.test.ts) kiểm thử trọn vẹn vòng đời Zustand store: khởi tạo mặc định, nạp hồ sơ, tính toán GPA/credits, cập nhật phân tích, toggle checkbox môn học/đồ án và tính điểm Job Readiness tức thì, khôi phục trạng thái với `resetAll`.
+    - Lập hồ sơ minh chứng AI `docs/ai-evidence/advisor/w8-prompt-log.md`.
+  - **Văn Hoàng** (Nhánh `feat/vanhoang-w8-ingestion-unit-tests`):
+    - Xây dựng bộ Unit Tests [fileValidation.test.ts](../../tests/unit/fileValidation.test.ts) kiểm thử an toàn nhị phân: định dạng dung lượng thân thiện, chặn file rỗng (0 bytes), chặn tệp sai MIME/extension, giới hạn dung lượng $\le 10\text{MB}$ và quét Magic Bytes `%PDF-` nhị phân (`0x25 0x50 0x44 0x46`).
+    - Lập hồ sơ minh chứng AI `docs/ai-evidence/ingestion/w8-prompt-log.md`.
+  - **Ánh Vy** (Nhánh `feat/anhvy-w8-analytics-tests`):
+    - Xây dựng bộ Unit Tests [analytics.test.ts](../../tests/unit/analytics.test.ts) kiểm thử bộ chuyển đổi `RadarTransformer`: ánh xạ trục Recharts, tính toán độ lệch delta năng lực, phân loại trạng thái `surplus` / `match` / `gap`, tính toán chỉ số sẵn sàng `summarizeReadiness` không lỗi chia cho 0, và phân tích ma trận kỹ năng `analyzeSkillGap`.
+    - Lập hồ sơ minh chứng AI `docs/ai-evidence/analytics/w8-prompt-log.md`.
+* **Kết quả kiểm thử tự động**:
+  - Toàn bộ $9$ tập tin kiểm thử với $51$ ca test đều đạt trạng thái **`PASSED`** $100\%$ với thời gian thực thi dưới $1$ giây.
 
 ---
 
