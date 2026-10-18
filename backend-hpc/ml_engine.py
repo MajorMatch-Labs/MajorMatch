@@ -57,7 +57,6 @@ DIMENSION: int = len(CORE_SKILLS)
 # =============================================================================
 # ÁNH XẠ MÔN HỌC ĐẠI HỌC VÀO TRỌNG SỐ KỸ NĂNG THÀNH PHẦN
 # =============================================================================
-COURSE_SKILL_MAPPING: Dict[str, Dict[str, float]] = {
     "CS101": {"Python": 0.8, "Algorithms": 0.6, "Problem Solving": 0.7, "Data Structures": 0.5},
     "CS102": {"Data Structures": 1.0, "Algorithms": 0.9, "C++": 0.8, "Problem Solving": 0.9, "Complexity Theory": 0.7},
     "MTH100": {"Calculus": 1.0, "Optimization": 0.6, "Linear Algebra": 0.8},
@@ -70,7 +69,28 @@ COURSE_SKILL_MAPPING: Dict[str, Dict[str, float]] = {
     "SE201": {"OOP": 1.0, "Design Patterns": 0.9, "Java": 0.8, "Clean Code": 0.8},
     "SE301": {"Software Architecture": 1.0, "System Design": 0.9, "Git": 0.8, "Agile/Scrum": 0.8},
     "DO301": {"Docker": 1.0, "CI/CD": 0.9, "Cloud Computing": 0.8, "Kubernetes": 0.7, "Linux": 0.8},
-    "SEC201": {"Cryptography": 1.0, "Network Security": 0.9, "Web Security": 0.8}
+    "SEC201": {"Cryptography": 1.0, "Network Security": 0.9, "Web Security": 0.8},
+
+    # Mã môn học Đại học thực tế (CNTT / Khoa học Máy tính)
+    "INT1001": {"Python": 0.9, "Algorithms": 0.7, "Problem Solving": 0.8, "Clean Code": 0.7},
+    "INT1002": {"OOP": 1.0, "Java": 0.9, "C++": 0.8, "Design Patterns": 0.7},
+    "INT2003": {"Data Structures": 1.0, "Algorithms": 1.0, "Problem Solving": 0.9, "Complexity Theory": 0.8},
+    "INT2005": {"SQL": 1.0, "Database Design": 0.9, "Data Modeling": 0.9, "PostgreSQL": 0.8},
+    "INT2010": {"Computer Networks": 1.0, "TCP/IP": 0.9, "Linux": 0.8, "Network Security": 0.7},
+    "INT3012": {"Machine Learning": 1.0, "Python": 0.9, "Scikit-learn": 0.9, "Probability & Statistics": 0.8, "Data Analysis": 0.8},
+    "INT3015": {"TypeScript": 0.9, "JavaScript": 0.9, "Web Development": 1.0, "Software Architecture": 0.8, "Git": 0.8},
+    "INT3020": {"Deep Learning": 1.0, "PyTorch": 0.9, "Computer Vision": 0.8, "NLP": 0.8, "Neural Networks": 1.0},
+    "INT3030": {"Docker": 1.0, "Kubernetes": 0.9, "CI/CD": 1.0, "Cloud Computing": 0.9, "Linux": 0.9, "AWS": 0.8},
+    "INT3040": {"Network Security": 1.0, "Cryptography": 0.9, "Penetration Testing": 0.9, "Web Security": 0.9}
+}
+
+CAREER_TAG_TO_MAJOR_MAP: Dict[str, List[str]] = {
+    "ai_engineer": ["CS_DATA_AI", "DATA_ANALYTICS"],
+    "fullstack_dev": ["SE_FULLSTACK"],
+    "devops_cloud": ["DEVOPS_CLOUD"],
+    "cyber_sec": ["CYBER_SECURITY"],
+    "mobile_dev": ["SE_FULLSTACK"],
+    "embedded_iot": ["DEVOPS_CLOUD", "CYBER_SECURITY"],
 }
 
 
@@ -354,8 +374,15 @@ def process_skill_assessment(request: CalculateMatchRequest) -> CalculateMatchRe
         # 3. Điểm phù hợp thẻ nghề nghiệp mục tiêu đã chọn
         tag_match_score = 0.5
         for tag in request.target_career_tags:
-            tag_clean = tag.upper().replace(" ", "_")
-            if tag_clean in major_id or major_id in tag_clean:
+            tag_clean = tag.lower().strip()
+            # So khớp qua từ điển chuẩn hóa trước
+            matched_majors = CAREER_TAG_TO_MAJOR_MAP.get(tag_clean, [])
+            if major_id in matched_majors:
+                tag_match_score = 1.0
+                break
+            # So khớp theo chuỗi con phụ trợ
+            tag_upper = tag.upper().replace(" ", "_")
+            if tag_upper in major_id or major_id in tag_upper:
                 tag_match_score = 1.0
                 break
 
