@@ -2,10 +2,12 @@
 
 import React, { useState } from "react";
 import { useAuthStore } from "@/stores/useAuthStore";
-import { X, Mail, Lock, User, Sparkles, GraduationCap, ArrowRight, ShieldCheck } from "lucide-react";
+import { X, Mail, Lock, User, GraduationCap, ArrowRight, ShieldCheck, AlertCircle } from "lucide-react";
 
 export const AuthModal: React.FC = () => {
-  const { isModalOpen, closeAuthModal, activeTab, openAuthModal, login, loginDemoStudent } = useAuthStore();
+  const { isModalOpen, closeAuthModal, activeTab, openAuthModal, login, register, error, clearError } = useAuthStore();
+  const [identifier, setIdentifier] = useState(""); // MSSV hoặc Email cho Login
+  const [studentId, setStudentId] = useState("");   // MSSV cho Register
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -15,11 +17,38 @@ export const AuthModal: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) return;
     setIsLoading(true);
-    await new Promise((r) => setTimeout(r, 400));
-    await login(email, password);
+
+    if (activeTab === "login") {
+      if (!identifier.trim()) {
+        setIsLoading(false);
+        return;
+      }
+      await login(identifier.trim(), password);
+    } else {
+      if (!studentId.trim() || !email.trim() || !name.trim()) {
+        setIsLoading(false);
+        return;
+      }
+      if (studentId.trim().toUpperCase() === "ADMIN" || studentId.trim().toUpperCase() === "ROOT") {
+        useAuthStore.setState({ error: "Tài khoản 'admin' là tài khoản hệ thống mặc định, không cần đăng ký. Vui lòng chuyển sang tab Đăng nhập." });
+        setIsLoading(false);
+        return;
+      }
+      await register({
+        student_id: studentId.trim(),
+        email: email.trim(),
+        full_name: name.trim(),
+        password: password,
+      });
+    }
+
     setIsLoading(false);
+  };
+
+  const switchTab = (tab: "login" | "register") => {
+    clearError();
+    openAuthModal(tab);
   };
 
   return (
@@ -40,37 +69,20 @@ export const AuthModal: React.FC = () => {
             <GraduationCap className="w-6 h-6" />
           </div>
           <h3 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-            {activeTab === "login" ? "Đăng nhập Tài khoản" : "Tạo Tài khoản Mới"}
+            {activeTab === "login" ? "Đăng nhập Tài khoản" : "Tạo Tài khoản Sinh viên"}
           </h3>
           <p className="text-xs text-slate-600 dark:text-slate-400">
-            Lưu trữ bảng điểm, theo dõi tiến độ kỹ năng và lịch sử cố vấn AI
+            {activeTab === "login"
+              ? "Truy cập hồ sơ học tập và đồng bộ dữ liệu từ CSDL MajorMatch"
+              : "Đăng ký tài khoản sinh viên chính thức để lưu trữ bảng điểm & lộ trình"}
           </p>
-        </div>
-
-        {/* Nút Đăng nhập Nhanh Bản Demo */}
-        <div className="mb-5">
-          <button
-            type="button"
-            onClick={loginDemoStudent}
-            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-600/15 dark:hover:bg-indigo-600/25 border border-indigo-200 dark:border-indigo-500/30 text-indigo-700 dark:text-indigo-300 text-xs font-semibold transition-all shadow-xs"
-          >
-            <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-            <span>Đăng nhập nhanh với Sinh viên Mẫu (K22)</span>
-          </button>
-        </div>
-
-        <div className="relative flex items-center justify-center my-4">
-          <div className="border-t border-slate-200 dark:border-slate-800 w-full" />
-          <span className="bg-white dark:bg-slate-900 px-3 text-[11px] uppercase tracking-wider text-slate-400 font-medium">
-            Hoặc
-          </span>
         </div>
 
         {/* Tab Switcher */}
         <div className="grid grid-cols-2 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700/60 mb-5">
           <button
             type="button"
-            onClick={() => openAuthModal("login")}
+            onClick={() => switchTab("login")}
             className={`py-1.5 text-xs font-semibold rounded-lg transition-all ${
               activeTab === "login"
                 ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs"
@@ -81,7 +93,7 @@ export const AuthModal: React.FC = () => {
           </button>
           <button
             type="button"
-            onClick={() => openAuthModal("register")}
+            onClick={() => switchTab("register")}
             className={`py-1.5 text-xs font-semibold rounded-lg transition-all ${
               activeTab === "register"
                 ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs"
@@ -92,53 +104,98 @@ export const AuthModal: React.FC = () => {
           </button>
         </div>
 
+        {/* Thông báo lỗi nếu có */}
+        {error && (
+          <div className="mb-4 flex items-center gap-2 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-300">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
         {/* Form nhập liệu */}
         <form onSubmit={handleSubmit} className="space-y-3.5">
-          {activeTab === "register" && (
+          {activeTab === "login" ? (
             <div>
               <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Họ và tên
+                Mã số Sinh viên (MSSV) hoặc Email
               </label>
               <div className="relative">
                 <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input
                   type="text"
                   required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Ví dụ: Trần Minh Đức"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  placeholder="Ví dụ: 23IT196 hoặc nhatdl.23it@vku.udn.vn"
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl glass-input text-xs focus:outline-none"
                 />
               </div>
             </div>
+          ) : (
+            <>
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Mã số Sinh viên (MSSV) *
+                </label>
+                <div className="relative">
+                  <GraduationCap className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    required
+                    value={studentId}
+                    onChange={(e) => setStudentId(e.target.value.toUpperCase())}
+                    placeholder="Ví dụ: 23IT196"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl glass-input text-xs focus:outline-none uppercase"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Họ và tên *
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Ví dụ: Đặng Long Nhật"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl glass-input text-xs focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Email Sinh viên / Học thuật *
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="sinhvien@vku.udn.vn"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl glass-input text-xs focus:outline-none"
+                  />
+                </div>
+              </div>
+            </>
           )}
 
           <div>
             <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Email Sinh viên / Học thuật
-            </label>
-            <div className="relative">
-              <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="sinhvien@university.edu.vn"
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl glass-input text-xs focus:outline-none"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Mật khẩu
+              Mật khẩu {activeTab === "register" ? "(Tối thiểu 6 ký tự)" : ""} *
             </label>
             <div className="relative">
               <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
                 type="password"
                 required
+                minLength={activeTab === "register" ? 6 : undefined}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
@@ -150,16 +207,22 @@ export const AuthModal: React.FC = () => {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full mt-4 flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-600/30 transition-all hover:scale-[1.01]"
+            className="w-full mt-4 flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-600/30 transition-all hover:scale-[1.01] disabled:opacity-50"
           >
-            <span>{activeTab === "login" ? "Xác nhận Đăng nhập" : "Hoàn tất Đăng ký"}</span>
+            <span>
+              {isLoading
+                ? "Đang xử lý..."
+                : activeTab === "login"
+                ? "Xác nhận Đăng nhập"
+                : "Hoàn tất Đăng ký"}
+            </span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
 
         <div className="mt-5 pt-3 border-t border-slate-200 dark:border-slate-800/80 flex items-center justify-center gap-1.5 text-[11px] text-slate-500">
           <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-          <span>Mã hóa thông tin theo tiêu chuẩn bảo mật PII</span>
+          <span>Mã hóa thông tin theo tiêu chuẩn bảo mật PII & Salted Hash</span>
         </div>
       </div>
     </div>

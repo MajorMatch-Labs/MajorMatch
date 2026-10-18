@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef } from "react";
-import { UploadCloud, CheckCircle2, AlertCircle, Loader2, FileCode2, Lock } from "lucide-react";
+import { UploadCloud, CheckCircle2, AlertCircle, Loader2, Lock } from "lucide-react";
 import { useProfileStore } from "@/stores/useProfileStore";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { IngestionService } from "@/modules/ingestion/services/ingestionService";
@@ -97,7 +97,7 @@ export const FileDropzone: React.FC = () => {
               </div>
               <span className="text-sm font-semibold text-slate-900 dark:text-white">{uploadedFileName}</span>
               <span className="text-xs text-emerald-600 dark:text-emerald-400 font-mono font-medium">
-                Bóc tách thành công: GPA {profile.cumulative_gpa ?? "N/A"} | {profile.courses?.length ?? 0} Môn học
+                Bóc tách thành công: {profile.courses?.length ? `${profile.courses.length} Môn học` : "Hồ sơ CV"}{profile.detected_skills?.length ? ` | ${profile.detected_skills.length} Kỹ năng` : ""}{profile.cumulative_gpa ? ` | GPA ${profile.cumulative_gpa}` : ""}
               </span>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 max-w-md mt-1">
                 Nhấp hoặc kéo thả tệp khác để thay thế bảng điểm
@@ -127,26 +127,7 @@ export const FileDropzone: React.FC = () => {
         </div>
       </div>
 
-      {/* Tùy chọn nạp dữ liệu Mock Demo nhanh nếu không có file PDF sẵn */}
-      {!profile && !isUploading && (
-        <div className="mt-2 text-center">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (!isAuthenticated) {
-                openAuthModal("login");
-                return;
-              }
-              IngestionService.loadOfflineDemoData();
-            }}
-            className="inline-flex items-center gap-1.5 text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 font-medium py-1 px-2.5 rounded-md hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-colors"
-          >
-            <FileCode2 className="w-3.5 h-3.5" />
-            <span>Sử dụng bảng điểm mẫu thử nghiệm (Offline Mock)</span>
-          </button>
-        </div>
-      )}
+
 
       {errorMsg && (
         <div className="mt-3 flex items-center gap-2 text-xs text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 px-3 py-2 rounded-lg">

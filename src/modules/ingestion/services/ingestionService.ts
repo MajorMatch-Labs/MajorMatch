@@ -5,7 +5,6 @@
  */
 
 import { useProfileStore } from "@/stores/useProfileStore";
-import { MOCK_TRANSCRIPT_PARSING } from "@/services/mockData";
 import {
   calculateHollandScores,
   rankRiasecTraits,
@@ -106,15 +105,5 @@ export class IngestionService {
 
     // Kích hoạt tính toán lại độ phù hợp ngành
     await store.calculateMatchAction();
-  }
-
-  /**
-   * Nạp dữ liệu mẫu Mock Data khi cần demo ngoại tuyến (Offline Demo)
-   */
-  static loadOfflineDemoData(): void {
-    const store = useProfileStore.getState();
-    const mockProfile = MOCK_TRANSCRIPT_PARSING.profile_data || MOCK_TRANSCRIPT_PARSING.profile;
-    store.setProfile(mockProfile, "Bang_Diem_Demo_VKU.pdf");
-    store.calculateMatchAction();
   }
 }

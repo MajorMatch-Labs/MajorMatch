@@ -6,6 +6,7 @@ import { useProfileStore } from "@/stores/useProfileStore";
 import { MajorCard } from "@/components/analysis/MajorCard";
 import { RadarComparison } from "@/components/analysis/RadarComparison";
 import { SkillBreakdown } from "@/components/analysis/SkillBreakdown";
+import { XaiExplanationCard } from "@/components/analysis/XaiExplanationCard";
 import { Sparkles, ArrowRight, Loader2, GitBranch, Cpu } from "lucide-react";
 
 export default function ResultPage() {
@@ -69,7 +70,7 @@ export default function ResultPage() {
     }
   };
 
-  if (isInitialSyncing || !hasHydrated || isAnalyzing || !analysisResult) {
+  if (isInitialSyncing || !hasHydrated || isAnalyzing) {
     return (
       <div className="min-h-[55vh] flex flex-col items-center justify-center p-6 text-center space-y-5">
         <div className="relative">
@@ -91,10 +92,10 @@ export default function ResultPage() {
   }
 
   const currentResult = analysisResult;
-  const recommendations = currentResult.top_matches || currentResult.top_recommendations || [];
+  const recommendations = currentResult?.top_matches || currentResult?.top_recommendations || [];
   const currentMajor = selectedMajor || recommendations[0];
 
-  if (recommendations.length === 0 || !currentMajor) {
+  if (!currentResult || recommendations.length === 0 || !currentMajor) {
     return (
       <div className="min-h-[50vh] flex flex-col items-center justify-center p-6 text-center space-y-4">
         <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-500">
@@ -179,7 +180,7 @@ export default function ResultPage() {
           </div>
 
           <RadarComparison
-            data={currentMajor?.radar_data || currentResult.radar_chart_data || []}
+            data={currentMajor?.radar_data || currentResult?.radar_chart_data || []}
             majorName={currentMajor?.major_name || "Chuyên ngành"}
           />
 
@@ -189,12 +190,19 @@ export default function ResultPage() {
         </div>
       </div>
 
+      {/* Tính năng XAI: Bóc tách minh bạch lý do đề xuất chuyên ngành cá nhân hóa */}
+      <XaiExplanationCard
+        explanation={currentMajor?.xai_explanation}
+        majorName={currentMajor?.major_name || "Chuyên ngành"}
+        matchPercentage={currentMajor?.match_percentage || currentMajor?.match_score || 0}
+      />
+
       {/* Phân rã 3 nhóm kỹ năng */}
       <div className="space-y-3">
         <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">
           Phân rã Kỹ năng của {currentMajor?.major_name}:
         </span>
-        <SkillBreakdown skillGap={currentMajor?.skill_gap || currentResult.skill_breakdown} />
+        <SkillBreakdown skillGap={currentMajor?.skill_gap || currentResult?.skill_breakdown} />
       </div>
 
       {/* CTA Button: Xem hoặc Sinh lộ trình học tập với AI */}

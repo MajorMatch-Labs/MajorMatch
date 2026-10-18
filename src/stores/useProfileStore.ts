@@ -362,8 +362,16 @@ export const useProfileStore = create<ProfileState>()(
       uploadTranscriptAction: async (file: File) => {
         set({ isUploading: true });
         try {
-          const res = await ApiService.parseTranscript(file);
+          const studentId = get().profile?.student_id || "SV-2025001";
+          const res = await ApiService.parseTranscript(file, studentId);
           const profileData = res.profile_data || res.profile;
+
+          if (profileData && studentId) {
+            profileData.student_id = studentId;
+            // Lưu vĩnh viễn hồ sơ vào SQLite trên Backend
+            await ApiService.saveProfile(studentId, profileData);
+          }
+
           set({
             profile: profileData,
             uploadedFileName: file.name,
@@ -397,18 +405,20 @@ export const useProfileStore = create<ProfileState>()(
 
           const studentId = state.profile?.student_id || "SV-2025001";
 
-          const payload: CalculateMatchRequest & { student_id?: string } = {
+          const payload: CalculateMatchRequest & { student_id?: string; detected_skills?: string[] } = {
             student_id: studentId,
             holland_scores: hollandScores,
             target_career_tags: state.selectedCareerTags.length > 0 ? state.selectedCareerTags : ["ai_engineer"],
-            courses: coursesInput
+            courses: coursesInput,
+            detected_skills: state.profile?.detected_skills || []
           };
 
           const res = await ApiService.calculateMatch(payload);
           const enrichedMatches = (res.top_matches || res.top_recommendations || []).map((m) => ({
             ...m,
             radar_data: m.radar_data || res.radar_chart_data,
-            skill_gap: m.skill_gap || res.skill_breakdown
+            skill_gap: m.skill_gap || res.skill_breakdown,
+            xai_explanation: m.xai_explanation
           }));
 
           const enrichedResult: CalculateMatchResponse = {
@@ -419,7 +429,7 @@ export const useProfileStore = create<ProfileState>()(
 
           const topMajor = enrichedMatches[0] || null;
 
-          // Lưu vĩnh viễn kết quả phân tích mới vào CSDL SQLite trên AWS EC2
+          // Lưu vĩnh viễn kết quả phân tích mới vào CSDL SQLite
           ApiService.saveAssessment(studentId, enrichedResult);
 
           set({
@@ -558,20 +568,44 @@ export const useProfileStore = create<ProfileState>()(
 
       loadAndSyncAllDataAction: async (studentId: string = "SV-2025001") => {
         try {
-          const [savedRoadmap, savedAssessment] = await Promise.all([
+          const [savedProfile, savedRoadmap, savedAssessment] = await Promise.all([
+            ApiService.getProfile(studentId),
             ApiService.getSavedRoadmap(studentId),
             ApiService.getSavedAssessment(studentId)
           ]);
 
-          let currentRoadmap = savedRoadmap || get().roadmap;
-          let currentAssessment = savedAssessment || get().analysisResult;
-          const currentCompleted = savedRoadmap?.completed_items || get().completedItems || {};
+          // 1. Phục hồi hồ sơ học tập thật từ SQLite nếu có
+          if (savedProfile && savedProfile.profile) {
+            set({
+              profile: savedProfile.profile,
+              uploadedFileName: `Học bạ_${studentId}.pdf`
+            });
+          }
+
+          let currentRoadmap = savedRoadmap;
+          let currentAssessment = savedAssessment;
+          const currentCompleted = savedRoadmap?.completed_items || {};
+
+          // Nếu sinh viên chưa có kết quả đánh giá trên hệ thống, xóa sạch mock data cũ
+          if (!currentAssessment) {
+            set({
+              analysisResult: null,
+              selectedMajor: null,
+              roadmap: currentRoadmap || null,
+              completedItems: currentCompleted,
+              dynamicReadinessScore: 0,
+              isAnalyzing: false,
+              isGeneratingRoadmap: false
+            });
+            return false;
+          }
 
           if (currentAssessment && (currentAssessment.top_matches || currentAssessment.top_recommendations)) {
             const enrichedMatches = (currentAssessment.top_matches || currentAssessment.top_recommendations || []).map((m) => ({
               ...m,
               radar_data: m.radar_data || currentAssessment?.radar_chart_data,
-              skill_gap: m.skill_gap || currentAssessment?.skill_breakdown
+              skill_gap: m.skill_gap || currentAssessment?.skill_breakdown,
+              xai_explanation: m.xai_explanation
             }));
 
             currentAssessment = {
@@ -683,7 +717,8 @@ export const useProfileStore = create<ProfileState>()(
                   mastered_skills: finalMastered,
                   developing_skills: targetMajor.skill_gap?.developing_skills || [],
                   missing_skills: finalMissing
-                }
+                },
+                xai_explanation: targetMajor.xai_explanation
               };
 
               const updatedTopMatches = (currentAssessment.top_matches || []).map((m, idx) =>
@@ -699,15 +734,15 @@ export const useProfileStore = create<ProfileState>()(
               };
             }
 
-            set((state) => ({
-              roadmap: currentRoadmap || state.roadmap,
-              analysisResult: currentAssessment || state.analysisResult,
-              selectedMajor: updatedTargetMajor || currentAssessment?.top_matches?.[0] || state.selectedMajor,
+            set({
+              roadmap: currentRoadmap || null,
+              analysisResult: currentAssessment || null,
+              selectedMajor: updatedTargetMajor || currentAssessment?.top_matches?.[0] || null,
               completedItems: currentCompleted,
               dynamicReadinessScore: syncScore,
               isAnalyzing: false,
               isGeneratingRoadmap: false
-            }));
+            });
 
             // Lưu lại kết quả đồng bộ vào CSDL
             if (currentAssessment) {
@@ -717,15 +752,15 @@ export const useProfileStore = create<ProfileState>()(
           }
 
           if (currentAssessment || currentRoadmap) {
-            set((state) => ({
-              roadmap: currentRoadmap || state.roadmap,
-              analysisResult: currentAssessment || state.analysisResult,
-              selectedMajor: currentAssessment?.top_matches?.[0] || state.selectedMajor,
+            set({
+              roadmap: currentRoadmap || null,
+              analysisResult: currentAssessment || null,
+              selectedMajor: currentAssessment?.top_matches?.[0] || null,
               completedItems: currentCompleted,
-              dynamicReadinessScore: currentRoadmap?.readiness_score || state.dynamicReadinessScore,
+              dynamicReadinessScore: currentRoadmap?.readiness_score || 0,
               isAnalyzing: false,
               isGeneratingRoadmap: false
-            }));
+            });
             return true;
           }
           return false;

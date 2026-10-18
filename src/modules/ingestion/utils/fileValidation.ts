@@ -21,7 +21,15 @@ export type FileValidationResult = ValidationSuccessResult | ValidationFailureRe
 export const FILE_VALIDATION_CONSTANTS = {
   MAX_FILE_SIZE_BYTES: 10 * 1024 * 1024, // 10 Megabytes
   ALLOWED_EXTENSIONS: ['.pdf'],
-  ALLOWED_MIME_TYPES: ['application/pdf'],
+  ALLOWED_MIME_TYPES: [
+    'application/pdf',
+    'application/x-pdf',
+    'application/acrobat',
+    'applications/vnd.pdf',
+    'text/pdf',
+    'application/octet-stream',
+    ''
+  ],
   PDF_MAGIC_BYTES: [0x25, 0x50, 0x44, 0x46], // %PDF in ASCII
 } as const;
 
@@ -58,11 +66,12 @@ export function validatePdfMimeAndExtension(file: File): FileValidationResult {
     };
   }
 
-  if (file.type && !(FILE_VALIDATION_CONSTANTS.ALLOWED_MIME_TYPES as readonly string[]).includes(file.type)) {
+  // Chấp nhận MIME type linh hoạt (Chrome/Windows có thể gắn application/x-pdf hoặc rỗng)
+  if (file.type && !(FILE_VALIDATION_CONSTANTS.ALLOWED_MIME_TYPES as readonly string[]).includes(file.type.toLowerCase())) {
     return {
       isValid: false,
       errorCode: 'INVALID_MIME_TYPE',
-      errorMessage: `MIME type '${file.type}' không hợp lệ. Vui lòng chọn tệp PDF chuẩn.`,
+      errorMessage: `Định dạng tệp '${file.type}' không hợp lệ. Vui lòng chọn tệp PDF chuẩn.`,
     };
   }
 
@@ -93,21 +102,33 @@ export function validatePdfFileSize(file: File): FileValidationResult {
 }
 
 /**
- * Kiem tra tieu de Magic Bytes '%PDF-' cua tep tin o tang nhi phan (ArrayBuffer)
+ * Kiem tra tieu de Magic Bytes '%PDF' cua tep tin trong 1024 bytes dau tien (chuan ISO 32000-1)
  */
 export async function validatePdfMagicBytes(file: File): Promise<FileValidationResult> {
   try {
-    const slice = file.slice(0, 4);
+    const sliceLength = Math.min(1024, file.size);
+    const slice = file.slice(0, sliceLength);
     const buffer = await slice.arrayBuffer();
     const bytes = new Uint8Array(buffer);
 
-    const isMatch = FILE_VALIDATION_CONSTANTS.PDF_MAGIC_BYTES.every((byte, idx) => bytes[idx] === byte);
+    let isMatch = false;
+    for (let i = 0; i <= bytes.length - 4; i++) {
+      if (
+        bytes[i] === 0x25 &&     // %
+        bytes[i + 1] === 0x50 && // P
+        bytes[i + 2] === 0x44 && // D
+        bytes[i + 3] === 0x46    // F
+      ) {
+        isMatch = true;
+        break;
+      }
+    }
 
     if (!isMatch) {
       return {
         isValid: false,
         errorCode: 'INVALID_MAGIC_BYTES',
-        errorMessage: 'Nội dung tệp không phải là tệp PDF hợp lệ (sai mã nhận dạng nhị phân %PDF-).',
+        errorMessage: 'Nội dung tệp không phải là tệp PDF hợp lệ (không tìm thấy mã nhận dạng %PDF chuẩn).',
       };
     }
 

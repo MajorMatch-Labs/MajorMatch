@@ -66,9 +66,28 @@ export interface CourseInputAssessment {
 }
 
 export interface CalculateMatchRequest {
+  student_id?: string;
   holland_scores: HollandScores;
   target_career_tags: string[];
   courses?: CourseInputAssessment[];
+  detected_skills?: string[];
+}
+
+export interface XAIFactorItem {
+  factor_name: string;
+  weight_percentage: number;
+  contribution_score: number;
+  description: string;
+  evidence: string[];
+}
+
+export interface XAIExplanation {
+  summary: string;
+  academic_factor: XAIFactorItem;
+  riasec_factor: XAIFactorItem;
+  skills_factor: XAIFactorItem;
+  key_strengths?: string[];
+  improvement_areas?: string[];
 }
 
 export interface MajorMatchRankItem {
@@ -81,6 +100,7 @@ export interface MajorMatchRankItem {
   match_score?: number;
   radar_data?: RadarAxisItem[];
   skill_gap?: SkillGapItem;
+  xai_explanation?: XAIExplanation;
 }
 
 export interface RadarAxisItem {
