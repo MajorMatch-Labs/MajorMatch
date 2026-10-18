@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Send, Bot, User, Sparkles, Loader2, Square, ArrowDown, AlertTriangle, History, Plus, Clock, MessageSquareQuote, X } from "lucide-react";
 import { useProfileStore } from "@/stores/useProfileStore";
+import { useAuthStore } from "@/stores/useAuthStore";
 import { SseStreamController } from "@/modules/advisor/services/sseStreamController";
 import { SseConnectionStatus } from "@/modules/advisor/types/sseTypes";
 import { MarkdownMessage } from "@/modules/advisor/components/MarkdownMessage";
@@ -22,8 +23,10 @@ interface ChatSession {
 
 export const StreamingChatBox: React.FC = () => {
   const { selectedMajor, profile } = useProfileStore();
-  const targetMajor = selectedMajor?.major_name || "AI & Data Science Specialist";
-  const studentId = profile?.student_id || "SV-2025001";
+  const { user } = useAuthStore();
+  const studentId = user?.studentId || profile?.student_id || "SV-2025001";
+  const studentName = user?.name || profile?.full_name || "bạn";
+  const targetMajor = selectedMajor?.major_name || "Khoa học Dữ liệu & Trí tuệ Nhân tạo";
 
   const [currentSessionId, setCurrentSessionId] = useState<string>("default");
   const [sessions, setSessions] = useState<ChatSession[]>([]);
@@ -32,7 +35,7 @@ export const StreamingChatBox: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
-      content: `Xin chào! Tôi là Trợ lý Cố vấn Học tập AI của hệ thống MajorMatch. Tôi sẵn sàng giải đáp chi tiết về chuyên ngành **${targetMajor}**, phương pháp ôn tập môn tiên quyết hoặc định hướng làm đồ án thực chiến. Bạn muốn tìm hiểu nội dung nào?`,
+      content: `Xin chào **${studentName}**! Tôi là Trợ lý Cố vấn Học tập AI của hệ thống MajorMatch. Tôi sẵn sàng giải đáp chi tiết về chuyên ngành **${targetMajor}**, phương pháp ôn tập môn tiên quyết hoặc định hướng làm đồ án thực chiến. Bạn muốn tìm hiểu nội dung nào?`,
     },
   ]);
   const [input, setInput] = useState("");
@@ -84,6 +87,13 @@ export const StreamingChatBox: React.FC = () => {
     ApiService.getChatHistory(studentId, currentSessionId).then((history) => {
       if (isMounted && history && history.length > 0) {
         setMessages(history);
+      } else if (isMounted) {
+        setMessages([
+          {
+            role: "assistant",
+            content: `Xin chào **${studentName}**! Tôi là Trợ lý Cố vấn Học tập AI của hệ thống MajorMatch. Tôi sẵn sàng giải đáp chi tiết về chuyên ngành **${targetMajor}**, phương pháp ôn tập môn tiên quyết hoặc định hướng làm đồ án thực chiến. Bạn muốn tìm hiểu nội dung nào?`,
+          },
+        ]);
       }
     });
 
@@ -92,7 +102,7 @@ export const StreamingChatBox: React.FC = () => {
       clearInterval(intervalId);
       controllerRef.current?.abort();
     };
-  }, [studentId, currentSessionId, loadSessions]);
+  }, [studentId, studentName, currentSessionId, loadSessions, targetMajor]);
 
   const switchSession = async (sid: string) => {
     setCurrentSessionId(sid);
