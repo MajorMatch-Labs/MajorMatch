@@ -15,6 +15,19 @@ import {
 const API_BASE_URL = typeof window !== "undefined" ? "" : (process.env.NEXT_PUBLIC_API_URL || "");
 
 export class ApiService {
+  private static adminHeaders(): HeadersInit {
+    const token = typeof window !== "undefined" ? localStorage.getItem("majormatch_auth_token") : null;
+    if (!token) throw new Error("Vui lòng đăng nhập bằng tài khoản quản trị.");
+    return { Authorization: `Bearer ${token}` };
+  }
+
+  private static async requireAdminResponse(res: Response): Promise<void> {
+    if (res.ok) return;
+    if (res.status === 401 || res.status === 403) {
+      throw new Error("Phiên quản trị đã hết hạn hoặc không có quyền. Vui lòng đăng nhập lại.");
+    }
+    throw new Error(`Không thể tải dữ liệu quản trị (HTTP ${res.status}). Vui lòng thử lại.`);
+  }
   /**
    * Kiểm tra tình trạng kết nối tới Backend HPC
    */
@@ -489,18 +502,42 @@ export class ApiService {
    * Endpoint: GET /api/v1/admin/stats
    */
   static async getAdminStats(): Promise<any> {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/admin/stats`, {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-        signal: AbortSignal.timeout(6000)
-      });
-      if (!res.ok) throw new Error("Fetch admin stats failed");
-      return await res.json();
-    } catch (err) {
-      console.warn("getAdminStats failed:", err);
-      return null;
-    }
+    const res = await fetch(`${API_BASE_URL}/api/v1/admin/stats`, {
+      headers: this.adminHeaders(),
+      signal: AbortSignal.timeout(8000)
+    });
+    await this.requireAdminResponse(res);
+    return res.json();
+  }
+
+  static async getAdminAudit(): Promise<any> {
+    const res = await fetch(`${API_BASE_URL}/api/v1/admin/audit?limit=30`, {
+      headers: this.adminHeaders(),
+      cache: "no-store",
+      signal: AbortSignal.timeout(8000)
+    });
+    await this.requireAdminResponse(res);
+    return res.json();
+  }
+
+  static async createAdminBackup(): Promise<any> {
+    const res = await fetch(`${API_BASE_URL}/api/v1/admin/backup`, {
+      method: "POST",
+      headers: this.adminHeaders(),
+      signal: AbortSignal.timeout(15000)
+    });
+    await this.requireAdminResponse(res);
+    return res.json();
+  }
+
+  static async getAdminSystemHealth(): Promise<any> {
+    const res = await fetch(`${API_BASE_URL}/api/v1/health`, {
+      headers: this.adminHeaders(),
+      cache: "no-store",
+      signal: AbortSignal.timeout(8000)
+    });
+    if (!res.ok) throw new Error(`Không thể kiểm tra hạ tầng (HTTP ${res.status}).`);
+    return res.json();
   }
 
   /**
@@ -513,25 +550,14 @@ export class ApiService {
     limit: number = 50,
     offset: number = 0
   ): Promise<any> {
-    try {
-      const queryParams = new URLSearchParams({
-        limit: String(limit),
-        offset: String(offset)
-      });
-      if (search && search.trim()) {
-        queryParams.set("search", search.trim());
-      }
-      const res = await fetch(`${API_BASE_URL}/api/v1/admin/table/${encodeURIComponent(tableName)}?${queryParams.toString()}`, {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-        signal: AbortSignal.timeout(8000)
-      });
-      if (!res.ok) throw new Error(`Fetch table ${tableName} failed`);
-      return await res.json();
-    } catch (err) {
-      console.warn(`getAdminTableRecords for ${tableName} failed:`, err);
-      return { status: "error", table: tableName, total: 0, records: [], columns: [] };
-    }
+    const queryParams = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+    if (search?.trim()) queryParams.set("search", search.trim());
+    const res = await fetch(`${API_BASE_URL}/api/v1/admin/table/${encodeURIComponent(tableName)}?${queryParams.toString()}`, {
+      headers: this.adminHeaders(),
+      signal: AbortSignal.timeout(8000)
+    });
+    await this.requireAdminResponse(res);
+    return res.json();
   }
 
   /**
@@ -539,17 +565,13 @@ export class ApiService {
    * Endpoint: DELETE /api/v1/admin/table/{table_name}/{record_id}
    */
   static async deleteAdminRecord(tableName: string, recordId: string): Promise<boolean> {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/admin/table/${encodeURIComponent(tableName)}/${encodeURIComponent(recordId)}`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        signal: AbortSignal.timeout(6000)
-      });
-      return res.ok;
-    } catch (err) {
-      console.error(`deleteAdminRecord for ${tableName}/${recordId} failed:`, err);
-      return false;
-    }
+    const res = await fetch(`${API_BASE_URL}/api/v1/admin/table/${encodeURIComponent(tableName)}/${encodeURIComponent(recordId)}`, {
+      method: "DELETE",
+      headers: this.adminHeaders(),
+      signal: AbortSignal.timeout(8000)
+    });
+    await this.requireAdminResponse(res);
+    return true;
   }
 
   /**
@@ -604,19 +626,13 @@ export class ApiService {
    * Endpoint: GET /api/v1/admin/students
    */
   static async getAdminStudents(): Promise<any[]> {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/admin/students`, {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-        signal: AbortSignal.timeout(8000)
-      });
-      if (!res.ok) return [];
-      const data = await res.json();
-      return data.students || [];
-    } catch (err) {
-      console.warn("getAdminStudents failed:", err);
-      return [];
-    }
+    const res = await fetch(`${API_BASE_URL}/api/v1/admin/students`, {
+      headers: this.adminHeaders(),
+      signal: AbortSignal.timeout(8000)
+    });
+    await this.requireAdminResponse(res);
+    const data = await res.json();
+    return data.students || [];
   }
 
   /**
@@ -630,8 +646,8 @@ export class ApiService {
       const url = `${API_BASE_URL}/api/v1/admin/export?${query.toString()}`;
 
       if (format === "csv") {
-        const res = await fetch(url);
-        if (!res.ok) throw new Error("Xuất dữ liệu CSV thất bại");
+        const res = await fetch(url, { headers: this.adminHeaders() });
+        await this.requireAdminResponse(res);
         const blob = await res.blob();
         const downloadUrl = window.URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -642,8 +658,8 @@ export class ApiService {
         a.remove();
         window.URL.revokeObjectURL(downloadUrl);
       } else {
-        const res = await fetch(url);
-        if (!res.ok) throw new Error("Xuất dữ liệu JSON thất bại");
+        const res = await fetch(url, { headers: this.adminHeaders() });
+        await this.requireAdminResponse(res);
         const json = await res.json();
         const blob = new Blob([JSON.stringify(json, null, 2)], { type: "application/json" });
         const downloadUrl = window.URL.createObjectURL(blob);

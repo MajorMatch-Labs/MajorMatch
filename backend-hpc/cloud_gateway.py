@@ -10,17 +10,19 @@ import sqlite3
 import json
 import time
 import hashlib
+import hmac
 import secrets
 from typing import Dict, Any, Optional, List
 
-from fastapi import FastAPI, Request, HTTPException, status, UploadFile, File, Form
+from fastapi import FastAPI, Request, HTTPException, status, UploadFile, File, Form, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 import httpx
 from pydantic import BaseModel
 
 HPC_BASE_URL = os.getenv("HPC_BASE_URL", "http://127.0.0.1:8000")
-DB_PATH = os.path.expanduser("~/data/majormatch.db")
+DB_PATH = os.getenv("MAJORMATCH_DB_PATH", os.path.expanduser("~/data/majormatch.db"))
+BACKUP_DIR = os.getenv("MAJORMATCH_BACKUP_DIR", os.path.expanduser("~/data/backups"))
 os.makedirs(os.path.dirname(os.path.abspath(DB_PATH)), exist_ok=True)
 
 app = FastAPI(
@@ -120,6 +122,16 @@ def init_db():
             updated_at TEXT NOT NULL
         );
         """)
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS admin_audit (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            actor TEXT NOT NULL,
+            action TEXT NOT NULL,
+            resource TEXT NOT NULL,
+            detail TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL
+        );
+        """)
         try:
             conn.execute("ALTER TABLE chat_history ADD COLUMN session_id TEXT DEFAULT 'default';")
         except Exception:
@@ -142,14 +154,65 @@ def init_db():
             pass
     conn.close()
 
-ADMIN_ALLOWED_TABLES = ["user_profiles", "roadmaps", "assessments", "chat_history", "riasec_surveys"]
+ADMIN_ALLOWED_TABLES = ["users", "user_profiles", "roadmaps", "assessments", "chat_history", "riasec_surveys"]
+ADMIN_DELETABLE_TABLES = ["user_profiles", "roadmaps", "assessments", "chat_history", "riasec_surveys"]
+
+
+def issue_admin_token(password_hash: str) -> str:
+    """Create an eight-hour admin session signed with the stored credential hash."""
+    expires = int(time.time()) + 8 * 60 * 60
+    nonce = secrets.token_hex(16)
+    payload = f"{expires}.{nonce}"
+    signature = hmac.new(password_hash.encode(), payload.encode(), hashlib.sha256).hexdigest()
+    return f"mm_admin_v1.{payload}.{signature}"
+
+
+def require_admin(request: Request) -> None:
+    """Reject missing, expired, or forged admin bearer tokens."""
+    unauthorized = HTTPException(status_code=401, detail="Phiên quản trị không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại.")
+    authorization = request.headers.get("authorization", "")
+    if not authorization.startswith("Bearer mm_admin_v1."):
+        raise unauthorized
+    parts = authorization.removeprefix("Bearer mm_admin_v1.").split(".")
+    if len(parts) != 3:
+        raise unauthorized
+    expires_text, nonce, signature = parts
+    if not expires_text.isdigit() or len(nonce) != 32 or len(signature) != 64:
+        raise unauthorized
+    expires = int(expires_text)
+    if expires < time.time() or expires > time.time() + 8 * 60 * 60:
+        raise unauthorized
+    conn = get_db()
+    try:
+        row = conn.execute("SELECT password_hash FROM users WHERE student_id = 'admin' AND role = 'admin'").fetchone()
+    finally:
+        conn.close()
+    if not row:
+        raise unauthorized
+    payload = f"{expires_text}.{nonce}"
+    expected = hmac.new(row["password_hash"].encode(), payload.encode(), hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(signature, expected):
+        raise unauthorized
+
+
+def record_admin_event(action: str, resource: str, detail: str = "") -> None:
+    """Persist a minimal admin action record without secrets or request payloads."""
+    conn = get_db()
+    try:
+        conn.execute(
+            "INSERT INTO admin_audit (actor, action, resource, detail, created_at) VALUES (?, ?, ?, ?, ?)",
+            ("admin", action, resource, detail[:160], time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())),
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
 # =============================================================================
 # ENDPOINT NHÓM ADMIN: QUẢN TRỊ & THAO TÁC CƠ SỞ DỮ LIỆU
 # =============================================================================
 
 @app.get("/api/v1/admin/stats")
-async def get_admin_db_stats():
+async def get_admin_db_stats(_: None = Depends(require_admin)):
     """Tổng quan dung lượng, trạng thái WAL và số lượng bản ghi của CSDL SQLite trên Cloud."""
     db_size_kb = 0
     wal_size_kb = 0
@@ -171,10 +234,12 @@ async def get_admin_db_stats():
     conn.close()
 
     # Kiểm tra thời gian backup gần nhất
-    backup_dir = os.path.expanduser("~/data/backups")
+    backup_dir = BACKUP_DIR
     latest_backup = "Chưa có bản backup"
+    backup_count = 0
     if os.path.exists(backup_dir):
         files = [os.path.join(backup_dir, f) for f in os.listdir(backup_dir) if f.endswith(".db")]
+        backup_count = len(files)
         if files:
             newest = max(files, key=os.path.getmtime)
             latest_backup = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(os.path.getmtime(newest)))
@@ -187,9 +252,52 @@ async def get_admin_db_stats():
         "wal_size_kb": wal_size_kb,
         "total_records": sum(table_counts.values()),
         "table_counts": table_counts,
+        "backup_count": backup_count,
         "latest_backup": latest_backup,
         "server_time": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
     }
+
+
+@app.get("/api/v1/admin/audit")
+async def get_admin_audit(limit: int = 30, _: None = Depends(require_admin)):
+    """Show recent administrative actions without credentials or request bodies."""
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT id, actor, action, resource, detail, created_at FROM admin_audit ORDER BY id DESC LIMIT ?",
+            (max(1, min(limit, 100)),),
+        ).fetchall()
+    finally:
+        conn.close()
+    return {"status": "success", "events": [dict(row) for row in rows]}
+
+
+@app.post("/api/v1/admin/backup")
+async def create_admin_backup(_: None = Depends(require_admin)):
+    """Write a consistent SQLite snapshot on the server; never expose the DB file over HTTP."""
+    os.makedirs(BACKUP_DIR, mode=0o700, exist_ok=True)
+    filename = f"majormatch-{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}-{secrets.token_hex(4)}.db"
+    target_path = os.path.join(BACKUP_DIR, filename)
+    temp_path = f"{target_path}.tmp"
+    source = None
+    destination = None
+    try:
+        source = sqlite3.connect(DB_PATH, timeout=15.0)
+        destination = sqlite3.connect(temp_path, timeout=15.0)
+        source.backup(destination)
+        destination.close()
+        destination = None
+        os.chmod(temp_path, 0o600)
+        os.replace(temp_path, target_path)
+    finally:
+        if destination is not None:
+            destination.close()
+        if source is not None:
+            source.close()
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+    record_admin_event("backup", "sqlite", filename)
+    return {"status": "success", "filename": filename, "size_kb": round(os.path.getsize(target_path) / 1024, 1)}
 
 
 @app.get("/api/v1/admin/table/{table_name}")
@@ -197,7 +305,8 @@ async def get_admin_table_records(
     table_name: str,
     search: Optional[str] = None,
     limit: int = 50,
-    offset: int = 0
+    offset: int = 0,
+    _: None = Depends(require_admin)
 ):
     """Truy xuất danh sách bản ghi theo bảng kèm tìm kiếm và phân trang an toàn."""
     if table_name not in ADMIN_ALLOWED_TABLES:
@@ -272,9 +381,9 @@ async def get_admin_table_records(
 
 
 @app.delete("/api/v1/admin/table/{table_name}/{record_id}")
-async def delete_admin_table_record(table_name: str, record_id: str):
+async def delete_admin_table_record(table_name: str, record_id: str, _: None = Depends(require_admin)):
     """Xóa an toàn một bản ghi khỏi bảng chỉ định theo khóa chính."""
-    if table_name not in ADMIN_ALLOWED_TABLES:
+    if table_name not in ADMIN_DELETABLE_TABLES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Bảng '{table_name}' không hợp lệ."
@@ -294,6 +403,7 @@ async def delete_admin_table_record(table_name: str, record_id: str):
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Không tìm thấy bản ghi có {pk_field}='{record_id}' trong bảng '{table_name}'."
         )
+    record_admin_event("delete", table_name, record_id)
 
     return {
         "status": "success",
@@ -421,7 +531,9 @@ async def cloud_login_user(request: Request):
 
     user_role = row["role"] if "role" in row.keys() and row["role"] else ("admin" if row["student_id"] == "admin" else "student")
 
-    token = f"mm_token_{int(time.time())}_{secrets.token_hex(16)}"
+    token = issue_admin_token(row["password_hash"]) if user_role == "admin" and row["student_id"] == "admin" else f"mm_token_{int(time.time())}_{secrets.token_hex(16)}"
+    if user_role == "admin" and row["student_id"] == "admin":
+        record_admin_event("login", "admin")
     return {
         "status": "success",
         "token": token,
@@ -2074,6 +2186,8 @@ def get_all_students_cloud():
     cursor = conn.cursor()
     cursor.execute("""
     SELECT DISTINCT student_id FROM (
+        SELECT student_id FROM users WHERE role != 'admin' OR role IS NULL
+        UNION
         SELECT student_id FROM user_profiles
         UNION
         SELECT student_id FROM assessments
@@ -2100,12 +2214,14 @@ def get_all_students_cloud():
         r = c.fetchone()
         c.execute("SELECT * FROM riasec_surveys WHERE student_id = ?", (sid,))
         s = c.fetchone()
+        c.execute("SELECT full_name, updated_at FROM users WHERE student_id = ?", (sid,))
+        u = c.fetchone()
         c.execute("SELECT COUNT(*) FROM chat_history WHERE student_id = ?", (sid,))
         ch = c.fetchone()[0]
         conn.close()
 
         top_match = "Chưa đánh giá"
-        match_score = 0.0
+        match_score = None
         if a and a["assessment_data"]:
             try:
                 ad = json.loads(a["assessment_data"])
@@ -2122,37 +2238,43 @@ def get_all_students_cloud():
 
         result.append({
             "student_id": sid,
-            "full_name": p["full_name"] if p and p["full_name"] else f"Sinh viên {sid}",
-            "cumulative_gpa": p["cumulative_gpa"] if p and p["cumulative_gpa"] else 0.0,
-            "total_credits": p["total_credits"] if p and p["total_credits"] else 0,
+            "full_name": p["full_name"] if p and p["full_name"] else u["full_name"] if u and u["full_name"] else f"Sinh viên {sid}",
+            "has_account": bool(u),
+            "has_profile": bool(p),
+            "has_assessment": bool(a),
+            "cumulative_gpa": p["cumulative_gpa"] if p else None,
+            "total_credits": p["total_credits"] if p else None,
             "top_recommended_major": top_match,
             "match_score": match_score,
-            "readiness_score": r["job_readiness_percentage"] if r else 0.0,
+            "readiness_score": r["job_readiness_percentage"] if r else None,
             "dominant_riasec": dominant,
             "has_survey": bool(s),
             "has_roadmap": bool(r),
             "chat_count": ch,
-            "updated_at": (p["updated_at"] if p else r["updated_at"] if r else a["updated_at"] if a else "")
+            "updated_at": (p["updated_at"] if p else r["updated_at"] if r else a["updated_at"] if a else u["updated_at"] if u else "")
         })
 
     return result
 
 
 @app.get("/api/v1/admin/students")
-async def get_admin_students_cloud():
+async def get_admin_students_cloud(_: None = Depends(require_admin)):
     """Lấy danh sách tổng hợp toàn bộ sinh viên kèm kết quả đánh giá trên AWS EC2."""
     students = get_all_students_cloud()
     return {"status": "success", "total": len(students), "students": students}
 
 
 @app.get("/api/v1/admin/export")
-async def export_admin_data_cloud(format: str = "json", table: Optional[str] = None):
+async def export_admin_data_cloud(format: str = "json", table: Optional[str] = None, _: None = Depends(require_admin)):
     """Xuất dữ liệu toàn hệ thống trên AWS EC2 dưới dạng JSON hoặc CSV."""
     import io
     import csv
 
     if table and table not in ADMIN_ALLOWED_TABLES:
         raise HTTPException(status_code=400, detail=f"Bảng '{table}' không hợp lệ. Cho phép: {ADMIN_ALLOWED_TABLES}")
+    if format.lower() not in {"csv", "json"}:
+        raise HTTPException(status_code=400, detail="Định dạng xuất chỉ hỗ trợ csv hoặc json.")
+    record_admin_event("export", table or "students", format.lower())
 
     if format.lower() == "csv":
         output = io.StringIO()
@@ -2163,11 +2285,11 @@ async def export_admin_data_cloud(format: str = "json", table: Optional[str] = N
             rows = cursor.fetchall()
             conn.close()
             if rows:
-                fieldnames = rows[0].keys()
+                fieldnames = [key for key in rows[0].keys() if key != "password_hash"]
                 writer = csv.DictWriter(output, fieldnames=fieldnames)
                 writer.writeheader()
                 for r in rows:
-                    writer.writerow(dict(r))
+                    writer.writerow({key: r[key] for key in fieldnames})
             filename = f"majormatch_ec2_{table}_export.csv"
         else:
             students = get_all_students_cloud()
@@ -2193,7 +2315,7 @@ async def export_admin_data_cloud(format: str = "json", table: Optional[str] = N
             conn = get_db()
             cursor = conn.cursor()
             cursor.execute(f"SELECT * FROM {table}")
-            rows = [dict(r) for r in cursor.fetchall()]
+            rows = [{key: value for key, value in dict(r).items() if key != "password_hash"} for r in cursor.fetchall()]
             conn.close()
             return {"status": "success", "table": table, "total": len(rows), "records": rows}
         else:
