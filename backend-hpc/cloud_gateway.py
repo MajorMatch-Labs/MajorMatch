@@ -9,6 +9,8 @@ import os
 import sqlite3
 import json
 import time
+import hashlib
+import secrets
 from typing import Dict, Any, Optional, List
 
 from fastapi import FastAPI, Request, HTTPException, status, UploadFile, File, Form
@@ -102,15 +104,44 @@ def init_db():
             updated_at TEXT NOT NULL
         );
         """)
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            student_id TEXT PRIMARY KEY,
+            email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            full_name TEXT NOT NULL,
+            university TEXT DEFAULT 'Trường Đại học CNTT & TT Việt - Hàn (VKU)',
+            major TEXT DEFAULT 'Khoa học Dữ liệu & Trí tuệ Nhân tạo',
+            cohort TEXT DEFAULT 'K23',
+            role TEXT DEFAULT 'student',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+        """)
         try:
             conn.execute("ALTER TABLE chat_history ADD COLUMN session_id TEXT DEFAULT 'default';")
+        except Exception:
+            pass
+        try:
+            conn.execute("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'student';")
+        except Exception:
+            pass
+        try:
+            r = conn.execute("SELECT student_id FROM users WHERE student_id = 'admin';").fetchone()
+            if not r:
+                admin_pwd = hash_password("admin123")
+                now_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+                conn.execute("""
+                INSERT INTO users (student_id, email, password_hash, full_name, university, major, cohort, role, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                """, ("admin", "admin@majormatch.vku.udn.vn", admin_pwd, "Quản trị viên Hệ thống (Site Admin)", "VKU - MajorMatch Core Team", "Quản trị Hệ thống & Đào tạo", "ADMIN", "admin", now_iso, now_iso))
         except Exception:
             pass
     conn.close()
 
 init_db()
 
-ADMIN_ALLOWED_TABLES = ["user_profiles", "roadmaps", "assessments", "chat_history", "riasec_surveys"]
+ADMIN_ALLOWED_TABLES = ["users", "user_profiles", "roadmaps", "assessments", "chat_history", "riasec_surveys"]
 
 # =============================================================================
 # ENDPOINT NHÓM ADMIN: QUẢN TRỊ & THAO TÁC CƠ SỞ DỮ LIỆU
@@ -182,7 +213,7 @@ async def get_admin_table_records(
 
     # Lấy thông tin cấu trúc cột
     cursor.execute(f"PRAGMA table_info({table_name});")
-    columns_info = [{"name": r["name"], "type": r["type"], "pk": bool(r["pk"])} for r in cursor.fetchall()]
+    columns_info = [{"name": r["name"], "type": r["type"], "pk": bool(r["pk"])} for r in cursor.fetchall() if r["name"] != "password_hash"]
 
     query = f"SELECT * FROM {table_name}"
     count_query = f"SELECT COUNT(*) FROM {table_name}"
@@ -191,7 +222,10 @@ async def get_admin_table_records(
     # Xử lý tìm kiếm an toàn nếu có từ khóa
     if search and search.strip():
         search_term = f"%{search.strip()}%"
-        if table_name == "user_profiles":
+        if table_name == "users":
+            filter_clause = " WHERE student_id LIKE ? OR email LIKE ? OR full_name LIKE ?"
+            params.extend([search_term, search_term, search_term])
+        elif table_name == "user_profiles":
             filter_clause = " WHERE student_id LIKE ? OR full_name LIKE ? OR detected_skills LIKE ?"
             params.extend([search_term, search_term, search_term])
         elif table_name == "roadmaps":
@@ -221,6 +255,9 @@ async def get_admin_table_records(
     conn.close()
 
     records = [dict(r) for r in rows]
+    if table_name == "users":
+        for rec in records:
+            rec.pop("password_hash", None)
 
     return {
         "status": "success",
@@ -262,6 +299,207 @@ async def delete_admin_table_record(table_name: str, record_id: str):
         "message": f"Đã xóa thành công bản ghi '{record_id}' khỏi bảng '{table_name}'.",
         "deleted_count": deleted
     }
+
+
+# =============================================================================
+# CÁC HÀM XÁC THỰC VÀ QUẢN TRỊ NGƯỜI DÙNG (AUTHENTICATION HELPERS)
+# =============================================================================
+
+def hash_password(password: str) -> str:
+    salt = secrets.token_hex(16)
+    hashed = hashlib.sha256((salt + password).encode("utf-8")).hexdigest()
+    return f"{salt}${hashed}"
+
+
+def verify_password(password: str, stored_hash: str) -> bool:
+    if not stored_hash or "$" not in stored_hash:
+        return False
+    salt, hashed = stored_hash.split("$", 1)
+    test_hash = hashlib.sha256((salt + password).encode("utf-8")).hexdigest()
+    return secrets.compare_digest(hashed, test_hash)
+
+
+# =============================================================================
+# ENDPOINTS NHÓM AUTH: ĐĂNG KÝ & ĐĂNG NHẬP THẬT (REAL AUTHENTICATION)
+# =============================================================================
+
+@app.post("/api/v1/auth/register", tags=["Auth"])
+async def cloud_register_user(request: Request):
+    """Đăng ký tài khoản sinh viên mới vào CSDL SQLite trên Cloud."""
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Dữ liệu JSON không hợp lệ.")
+
+    student_id = str(body.get("student_id", "")).strip()
+    email = str(body.get("email", "")).strip().lower()
+    password = str(body.get("password", "")).strip()
+    full_name = str(body.get("full_name", "")).strip()
+    university = str(body.get("university", "Trường Đại học CNTT & TT Việt - Hàn (VKU)")).strip()
+    major = str(body.get("major", "Khoa học Dữ liệu & Trí tuệ Nhân tạo")).strip()
+    cohort = str(body.get("cohort", "K23")).strip()
+
+    clean_student_id = student_id.strip()
+    clean_email = email.strip().lower()
+
+    if clean_student_id.lower() in ["admin", "root", "administrator"] or clean_email.startswith("admin@"):
+        raise HTTPException(status_code=400, detail="Không được phép đăng ký tài khoản với định danh Quản trị viên (Admin). Vui lòng sử dụng tài khoản admin được cấp sẵn.")
+
+    if not clean_student_id or not clean_email or not password or not full_name:
+        raise HTTPException(status_code=400, detail="Vui lòng điền đầy đủ Mã sinh viên, Email, Mật khẩu và Họ tên.")
+    if len(password) < 6:
+        raise HTTPException(status_code=400, detail="Mật khẩu phải có độ dài tối thiểu 6 ký tự.")
+
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT student_id, email FROM users WHERE student_id = ? OR email = ?", (clean_student_id, clean_email))
+    existing = cursor.fetchone()
+    if existing:
+        conn.close()
+        if existing["student_id"] == clean_student_id:
+            raise HTTPException(status_code=409, detail=f"Mã số sinh viên '{clean_student_id}' đã tồn tại trong hệ thống.")
+        else:
+            raise HTTPException(status_code=409, detail=f"Email '{clean_email}' đã được đăng ký.")
+
+    now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    pwd_hash = hash_password(password)
+
+    cursor.execute("""
+    INSERT INTO users (student_id, email, password_hash, full_name, university, major, cohort, role, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    """, (clean_student_id, clean_email, pwd_hash, full_name, university, major, cohort, "student", now, now))
+    conn.commit()
+    conn.close()
+
+    token = f"mm_token_{int(time.time())}_{secrets.token_hex(16)}"
+    return {
+        "status": "success",
+        "token": token,
+        "user": {
+            "student_id": clean_student_id,
+            "email": clean_email,
+            "full_name": full_name,
+            "university": university,
+            "major": major,
+            "cohort": cohort,
+            "role": "student",
+            "created_at": now
+        }
+    }
+
+
+@app.post("/api/v1/auth/login", tags=["Auth"])
+async def cloud_login_user(request: Request):
+    """Xác thực đăng nhập sinh viên bằng MSSV hoặc Email."""
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Dữ liệu JSON không hợp lệ.")
+
+    identifier = str(body.get("identifier", "")).strip().lower()
+    password = str(body.get("password", "")).strip()
+
+    if not identifier or not password:
+        raise HTTPException(status_code=400, detail="Vui lòng nhập Mã sinh viên/Email và mật khẩu.")
+
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+    SELECT student_id, email, password_hash, full_name, university, major, cohort, role, created_at
+    FROM users
+    WHERE LOWER(student_id) = ? OR LOWER(email) = ?;
+    """, (identifier, identifier))
+    row = cursor.fetchone()
+    conn.close()
+
+    if not row or not verify_password(password, row["password_hash"]):
+        raise HTTPException(status_code=401, detail="Thông tin đăng nhập không chính xác (Mã sinh viên/Email hoặc mật khẩu không đúng).")
+
+    user_role = row["role"] if "role" in row.keys() and row["role"] else ("admin" if row["student_id"] == "admin" else "student")
+
+    token = f"mm_token_{int(time.time())}_{secrets.token_hex(16)}"
+    return {
+        "status": "success",
+        "token": token,
+        "user": {
+            "student_id": row["student_id"],
+            "email": row["email"],
+            "full_name": row["full_name"],
+            "university": row["university"] or "Trường Đại học CNTT & TT Việt - Hàn (VKU)",
+            "major": row["major"] or "Khoa học Dữ liệu & Trí tuệ Nhân tạo",
+            "cohort": row["cohort"] or "K23",
+            "role": user_role,
+            "created_at": row["created_at"]
+        }
+    }
+
+
+@app.get("/api/v1/auth/me/{student_id}", tags=["Auth"])
+async def cloud_get_user_me(student_id: str):
+    """Truy xuất thông tin người dùng theo MSSV."""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+    SELECT student_id, email, full_name, university, major, cohort, role, created_at
+    FROM users
+    WHERE student_id = ?;
+    """, (student_id.strip(),))
+    row = cursor.fetchone()
+    conn.close()
+
+    if not row:
+        raise HTTPException(status_code=404, detail=f"Không tìm thấy người dùng có mã sinh viên '{student_id}'.")
+
+    d = dict(row)
+    if "role" not in d or not d["role"]:
+        d["role"] = "admin" if d["student_id"] == "admin" else "student"
+    return d
+
+
+@app.post("/api/v1/profile/{student_id}", tags=["Profile"])
+async def cloud_save_profile(student_id: str, request: Request):
+    """Lưu trữ hoặc cập nhật hồ sơ bảng điểm/CV vào CSDL SQLite trên AWS EC2."""
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Dữ liệu JSON không hợp lệ.")
+
+    full_name = str(data.get("full_name", f"Sinh viên {student_id}")).strip()
+    gpa = float(data.get("cumulative_gpa", data.get("gpa", 0.0)))
+    credits = int(data.get("total_credits", 0))
+    courses = data.get("courses", [])
+    skills = data.get("detected_skills", [])
+    riasec_scores = data.get("riasec_scores", {})
+    career_tags = data.get("career_tags", [])
+
+    conn = get_db()
+    now_str = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    with conn:
+        conn.execute("""
+        INSERT INTO user_profiles (student_id, full_name, cumulative_gpa, total_credits, courses_data, detected_skills, riasec_scores, career_tags, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(student_id) DO UPDATE SET
+            full_name = excluded.full_name,
+            cumulative_gpa = excluded.cumulative_gpa,
+            total_credits = excluded.total_credits,
+            courses_data = excluded.courses_data,
+            detected_skills = excluded.detected_skills,
+            riasec_scores = CASE WHEN excluded.riasec_scores != '{}' THEN excluded.riasec_scores ELSE user_profiles.riasec_scores END,
+            career_tags = CASE WHEN excluded.career_tags != '[]' THEN excluded.career_tags ELSE user_profiles.career_tags END,
+            updated_at = excluded.updated_at;
+        """, (
+            student_id.strip(),
+            full_name,
+            gpa,
+            credits,
+            json.dumps(courses),
+            json.dumps(skills),
+            json.dumps(riasec_scores),
+            json.dumps(career_tags),
+            now_str
+        ))
+    conn.close()
+    return {"status": "success", "student_id": student_id, "message": "Đã lưu hồ sơ sinh viên vào CSDL Cloud."}
 
 
 # =============================================================================
@@ -955,9 +1193,11 @@ def compute_skill_assessment_locally(body_data: Dict[str, Any]) -> Dict[str, Any
     tags = body_data.get("target_career_tags", ["devops_cloud"])
     courses = body_data.get("courses", [])
 
+    student_id = body_data.get("student_id", "SV-2025001")
+
     # Trích xuất kỹ năng đã có từ hồ sơ người dùng lưu trên EC2
     conn = get_db()
-    row = conn.execute("SELECT detected_skills, cumulative_gpa FROM user_profiles WHERE student_id = 'SV-2025001'").fetchone()
+    row = conn.execute("SELECT detected_skills, cumulative_gpa FROM user_profiles WHERE student_id = ?", (student_id,)).fetchone()
     conn.close()
 
     user_skills = []
@@ -967,6 +1207,9 @@ def compute_skill_assessment_locally(body_data: Dict[str, Any]) -> Dict[str, Any
         except Exception:
             user_skills = []
 
+    if not user_skills:
+        # Lấy từ body_data nếu có detected_skills
+        user_skills = body_data.get("detected_skills", [])
     if not user_skills:
         user_skills = ["Linux", "Git", "Python", "SQL", "Algorithms", "OOP"]
 
@@ -1072,6 +1315,33 @@ def compute_skill_assessment_locally(body_data: Dict[str, Any]) -> Dict[str, Any
             "readiness_ratio": ratio
         }
 
+        xai_expl = {
+            "summary": f"Ngành {m['name']} đạt độ phù hợp {base_pct}% dựa trên {len(mastered)} kỹ năng đã có trong hồ sơ và độ tương thích với định hướng nghề nghiệp.",
+            "academic_factor": {
+                "factor_name": "Điểm số & Học phần nền tảng",
+                "weight_percentage": 40.0,
+                "contribution_score": round(base_pct * 0.95, 1),
+                "description": "Mức độ đáp ứng chuẩn học phần tiên quyết của chương trình đào tạo.",
+                "evidence": [f"Học phần liên quan đến {sk}" for sk in (mastered[:2] or ["Khoa học máy tính"])]
+            },
+            "riasec_factor": {
+                "factor_name": "Thiên hướng tâm lý nghề nghiệp RIASEC",
+                "weight_percentage": 35.0,
+                "contribution_score": round(base_pct * 0.92, 1),
+                "description": "Chỉ số tương đồng đặc tính tư duy và môi trường làm việc thực tế.",
+                "evidence": ["Độ tương thích thiên hướng kỹ thuật & nghiên cứu"]
+            },
+            "skills_factor": {
+                "factor_name": "Kỹ năng bóc tách từ CV & Dự án",
+                "weight_percentage": 25.0,
+                "contribution_score": round(ratio * 100.0, 1),
+                "description": "Các công cụ, ngôn ngữ lập trình và kinh nghiệm thực chiến đã tích lũy trong hồ sơ.",
+                "evidence": [f"Kỹ năng: {sk}" for sk in mastered[:3]] if mastered else ["Đang tích lũy"]
+            },
+            "key_strengths": mastered[:4] or ["Tư duy thuật toán", "Khả năng tự học"],
+            "improvement_areas": missing[:3] or ["Kiến trúc nâng cao"]
+        }
+
         item = {
             "rank": idx + 1,
             "major_id": m["id"],
@@ -1080,8 +1350,8 @@ def compute_skill_assessment_locally(body_data: Dict[str, Any]) -> Dict[str, Any
             "match_percentage": base_pct,
             "match_score": base_pct,
             "skill_gap": sg,
-            "radar_data": radar_copy
-        }
+            "radar_data": radar_copy,
+            "xai_explanation": xai_expl
         top_matches.append(item)
 
         if idx == 0:

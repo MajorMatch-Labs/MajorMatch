@@ -29,14 +29,14 @@ GRADE_LETTER_TO_POINT: Dict[str, float] = {
 
 # TỪ ĐIỂN TỪ KHÓA KỸ NĂNG CÔNG NGHỆ NHẬN DIỆN TỰ ĐỘNG
 TECH_SKILL_KEYWORDS: List[str] = [
-    "Python", "Java", "C++", "C#", "JavaScript", "TypeScript", "Go", "Rust",
-    "Data Structures", "Algorithms", "Database", "SQL", "PostgreSQL", "MySQL",
-    "MongoDB", "Machine Learning", "Deep Learning", "Artificial Intelligence",
-    "Computer Vision", "NLP", "Data Mining", "Data Science", "Big Data",
-    "Docker", "Kubernetes", "Linux", "Git", "DevOps", "CI/CD", "AWS", "Azure",
-    "Computer Network", "Operating System", "Software Engineering", "OOP",
-    "Web Development", "React", "Next.js", "FastAPI", "Node.js", "Django",
-    "Cybersecurity", "Network Security", "Cryptography", "Distributed Systems"
+    "Python", "Java", "C++", "C#", "JavaScript", "TypeScript", "Go", "Rust", "PHP", "Kotlin", "Swift",
+    "Data Structures", "Algorithms", "Database", "SQL", "PostgreSQL", "MySQL", "SQLite",
+    "MongoDB", "Redis", "Machine Learning", "Deep Learning", "Artificial Intelligence",
+    "Computer Vision", "NLP", "Data Mining", "Data Science", "Big Data", "Pandas", "NumPy", "Scikit-learn",
+    "PyTorch", "TensorFlow", "Docker", "Kubernetes", "Linux", "Git", "DevOps", "CI/CD", "AWS", "Azure",
+    "Google Cloud", "Computer Network", "Operating System", "Software Engineering", "OOP",
+    "Web Development", "React", "Next.js", "Vue", "Angular", "FastAPI", "Node.js", "Express", "Django", "Flask", "Spring Boot",
+    "Cybersecurity", "Network Security", "Cryptography", "Distributed Systems", "Cloud Computing"
 ]
 
 # ÁNH XẠ TÊN MÔN TIÊU BIỂU SANG KỸ NĂNG TƯƠNG ỨNG
@@ -64,23 +64,35 @@ class PDFParserEngine:
 
     @staticmethod
     def extract_raw_text(file_bytes: bytes) -> str:
-        """Trích xuất text thô từ tệp nhị phân PDF với cơ chế fallback."""
+        """Trích xuất text thô từ tệp nhị phân PDF với cơ chế fallback đa tầng cho cả Chrome PDF và CV."""
         text_content: List[str] = []
 
+        # 1. Thử pdfplumber với layout=True
         try:
-            # Ưu tiên sử dụng pdfplumber để bảo toàn tọa độ bảng biểu
             with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
                 for page in pdf.pages:
-                    page_text = page.extract_text(layout=True)
-                    if page_text:
-                        text_content.append(page_text)
+                    try:
+                        page_text = page.extract_text(layout=True)
+                        if page_text and page_text.strip():
+                            text_content.append(page_text)
+                        else:
+                            raw_t = page.extract_text()
+                            if raw_t and raw_t.strip():
+                                text_content.append(raw_t)
+                    except Exception:
+                        raw_t = page.extract_text()
+                        if raw_t and raw_t.strip():
+                            text_content.append(raw_t)
         except Exception:
-            # Fallback sang pypdf nếu pdfplumber gặp lỗi phân tích trang
+            pass
+
+        # 2. Fallback sang pypdf nếu pdfplumber không trích xuất được
+        if not text_content:
             try:
                 reader = pypdf.PdfReader(io.BytesIO(file_bytes))
                 for page in reader.pages:
                     t = page.extract_text()
-                    if t:
+                    if t and t.strip():
                         text_content.append(t)
             except Exception:
                 pass

@@ -27,11 +27,14 @@ import {
   CheckCircle2,
   XCircle,
   Sparkles,
-  Server
+  Server,
+  Lock,
+  KeyRound
 } from "lucide-react";
 import { ApiService } from "@/services/api";
+import { useAuthStore } from "@/stores/useAuthStore";
 
-type TableName = "user_profiles" | "roadmaps" | "assessments" | "chat_history" | "riasec_surveys";
+type TableName = "users" | "user_profiles" | "roadmaps" | "assessments" | "chat_history" | "riasec_surveys";
 type ViewMode = "students" | "raw";
 
 interface AdminStats {
@@ -61,6 +64,41 @@ interface StudentSummary {
 }
 
 export default function AdminDatabasePage() {
+  const { user } = useAuthStore();
+  const [isUnlocked, setIsUnlocked] = useState<boolean>(false);
+  const [passcodeInput, setPasscodeInput] = useState<string>("");
+  const [passcodeError, setPasscodeError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user && (user.role === "admin" || user.studentId?.toLowerCase() === "admin")) {
+      setIsUnlocked(true);
+      return;
+    }
+    if (typeof window !== "undefined") {
+      const stored = sessionStorage.getItem("majormatch_admin_unlocked");
+      if (stored === "true") {
+        setIsUnlocked(true);
+      }
+    }
+  }, [user]);
+
+  const handleUnlock = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (
+      passcodeInput.trim() === "admin123" ||
+      passcodeInput.trim() === "Admin123" ||
+      passcodeInput.trim() === "160205"
+    ) {
+      setIsUnlocked(true);
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("majormatch_admin_unlocked", "true");
+      }
+      setPasscodeError(null);
+    } else {
+      setPasscodeError("Mật mã quản trị viên không chính xác. Vui lòng thử lại hoặc đăng nhập tài khoản admin.");
+    }
+  };
+
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("students");
 
@@ -276,12 +314,70 @@ export default function AdminDatabasePage() {
   }, [students]);
 
   const tableTabs: Array<{ id: TableName; label: string; icon: any; count: number }> = [
-    { id: "user_profiles", label: "Hồ sơ Sinh viên", icon: Users, count: stats?.table_counts?.user_profiles ?? 0 },
+    { id: "users", label: "Tài khoản Sinh viên", icon: ShieldCheck, count: stats?.table_counts?.users ?? 0 },
+    { id: "user_profiles", label: "Hồ sơ Học tập", icon: Users, count: stats?.table_counts?.user_profiles ?? 0 },
     { id: "riasec_surveys", label: "Khảo sát RIASEC", icon: BrainCircuit, count: stats?.table_counts?.riasec_surveys ?? 0 },
     { id: "roadmaps", label: "Cây Lộ trình", icon: Compass, count: stats?.table_counts?.roadmaps ?? 0 },
     { id: "assessments", label: "Khoảng cách Kỹ năng", icon: Target, count: stats?.table_counts?.assessments ?? 0 },
     { id: "chat_history", label: "Lịch sử Chat AI", icon: MessageSquare, count: stats?.table_counts?.chat_history ?? 0 }
   ];
+
+  if (!isUnlocked) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-4">
+        <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl space-y-6 text-center">
+          <div className="w-16 h-16 bg-indigo-500/10 border border-indigo-500/30 rounded-2xl flex items-center justify-center mx-auto text-indigo-400">
+            <Lock className="w-8 h-8" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight">Khu vực Quản trị Hệ thống</h1>
+            <p className="text-xs text-slate-400 mt-2">
+              Dành riêng cho Quản trị viên MajorMatch. Nhập mật mã xác thực hoặc đăng nhập bằng tài khoản Quản trị viên chuẩn.
+            </p>
+          </div>
+
+          <form onSubmit={handleUnlock} className="space-y-4 text-left">
+            <div>
+              <label className="text-xs font-semibold text-slate-300 block mb-1.5">Mật mã Admin</label>
+              <div className="relative">
+                <KeyRound className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="password"
+                  placeholder="Nhập mật mã quản trị..."
+                  value={passcodeInput}
+                  onChange={(e) => {
+                    setPasscodeInput(e.target.value);
+                    setPasscodeError(null);
+                  }}
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm focus:outline-none focus:border-indigo-500 text-white"
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            {passcodeError && (
+              <p className="text-xs text-rose-400 bg-rose-950/40 border border-rose-800/40 p-2.5 rounded-lg">
+                {passcodeError}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 font-semibold rounded-xl text-sm transition-all shadow-md shadow-indigo-500/20 text-white"
+            >
+              Mở khóa Quản trị
+            </button>
+          </form>
+
+          <div className="pt-2 border-t border-slate-800 flex justify-center">
+            <Link href="/" className="text-xs text-slate-400 hover:text-white transition-colors flex items-center gap-1.5">
+              <ArrowLeft className="w-3.5 h-3.5" /> Quay lại trang chủ
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200">

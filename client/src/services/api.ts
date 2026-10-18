@@ -11,10 +11,6 @@ import {
   RoadmapGenerationResponse,
   HealthCheckResponse
 } from "../types/api";
-import {
-  MOCK_TRANSCRIPT_PARSING,
-  MOCK_HEALTH_CHECK
-} from "./mockData";
 
 const API_BASE_URL = typeof window !== "undefined" ? "" : (process.env.NEXT_PUBLIC_API_URL || "");
 
@@ -31,9 +27,23 @@ export class ApiService {
       });
       if (!res.ok) throw new Error("Backend unhealthy");
       return await res.json();
-    } catch {
-      console.warn("Backend HPC unreached. Using Mock Health Data fallback.");
-      return MOCK_HEALTH_CHECK;
+    } catch (err) {
+      return {
+        status: "offline",
+        gateway_node: {
+          device: "Linux Edge Gateway Node",
+          os: "Ubuntu 22.04 LTS (Offline)",
+          sqlite_cache_size_kb: 0
+        },
+        private_compute_node: {
+          device: "Private HPC Compute Node",
+          gpu_status: "Offline",
+          vram_used_mb: 0,
+          vram_total_mb: 0,
+          ollama_status: "offline",
+          active_model: "offline"
+        }
+      };
     }
   }
 
@@ -41,10 +51,13 @@ export class ApiService {
    * Tải lên và bóc tách tệp PDF học bạ/CV qua endpoint chuẩn của Backend HPC
    * Endpoint: POST /api/v1/profile/upload-transcript
    */
-  static async parseTranscript(file: File): Promise<TranscriptParsingResponse> {
+  static async parseTranscript(file: File, studentId?: string): Promise<TranscriptParsingResponse> {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("document_type", "transcript");
+    if (studentId) {
+      formData.append("student_id", studentId);
+    }
 
     const res = await fetch(`${API_BASE_URL}/api/v1/profile/upload-transcript`, {
       method: "POST",
@@ -62,6 +75,43 @@ export class ApiService {
       ...data,
       profile: data.profile_data || data.profile
     };
+  }
+
+  /**
+   * Lưu hồ sơ học tập và kỹ năng vào CSDL SQLite
+   * Endpoint: POST /api/v1/profile/{student_id}
+   */
+  static async saveProfile(studentId: string, profileData: any): Promise<boolean> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/profile/${encodeURIComponent(studentId)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(profileData),
+        signal: AbortSignal.timeout(6000)
+      });
+      return res.ok;
+    } catch (err) {
+      console.warn("saveProfile failed:", err);
+      return false;
+    }
+  }
+
+  /**
+   * Lấy hồ sơ học tập và kỹ năng từ CSDL SQLite
+   * Endpoint: GET /api/v1/profile/{student_id}
+   */
+  static async getProfile(studentId: string): Promise<any | null> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/profile/${encodeURIComponent(studentId)}`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(6000)
+      });
+      if (!res.ok) return null;
+      return await res.json();
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -358,20 +408,8 @@ export class ApiService {
       }
       onComplete();
     } catch (err) {
-      console.warn("Chat stream offline. Using simulated interactive streaming typewriter.", err);
-      const missingList = skillsContext?.missing?.slice(0, 3).join(", ") || "Hệ thống phân tán, MLOps";
-      const fallbackResponse =
-        `Dựa trên định hướng chuyên ngành **${targetMajor || "AI & Data Science"}** và các kỹ năng bạn đang cần bù đắp (${missingList}), ` +
-        `bạn nên ưu tiên xây dựng đồ án thực chiến kết hợp mô hình ngôn ngữ lớn (LLM) và Vector Database (như ChromaDB). ` +
-        `Các môn học tiên quyết trong học kỳ tới sẽ là bước đệm then chốt giúp bạn nâng cao năng lực giải thuật và tối ưu hóa hệ thống. ` +
-        `Hãy bắt đầu bằng việc giải quyết các bài toán thực tế trên GitHub để làm nổi bật hồ sơ nhé!`;
-
-      const words = fallbackResponse.split(" ");
-      for (const word of words) {
-        onChunk(word + " ");
-        await new Promise((r) => setTimeout(r, 35));
-      }
-      onComplete();
+      console.error("Chat stream error (HPC/Backend offline or unreachable):", err);
+      onError(err);
     }
   }
 
@@ -638,6 +676,72 @@ export class ApiService {
       return await res.json();
     } catch (err) {
       console.warn("getUserFullState error:", err);
+      return null;
+    }
+  }
+
+  /**
+   * Đăng ký tài khoản sinh viên mới vào CSDL thật
+   * Endpoint: POST /api/v1/auth/register
+   */
+  static async register(payload: {
+    student_id: string;
+    email: string;
+    password: string;
+    full_name: string;
+    university?: string;
+    major?: string;
+    cohort?: string;
+  }): Promise<{ status: string; token: string; user: any }> {
+    const res = await fetch(`${API_BASE_URL}/api/v1/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(10000)
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: "Đăng ký tài khoản thất bại." }));
+      throw new Error(err.detail || `Lỗi đăng ký (HTTP ${res.status})`);
+    }
+
+    return await res.json();
+  }
+
+  /**
+   * Đăng nhập tài khoản sinh viên bằng MSSV hoặc Email
+   * Endpoint: POST /api/v1/auth/login
+   */
+  static async login(identifier: string, password: string): Promise<{ status: string; token: string; user: any }> {
+    const res = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identifier, password }),
+      signal: AbortSignal.timeout(10000)
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: "Thông tin đăng nhập không chính xác." }));
+      throw new Error(err.detail || `Lỗi đăng nhập (HTTP ${res.status})`);
+    }
+
+    return await res.json();
+  }
+
+  /**
+   * Truy xuất thông tin người dùng theo MSSV
+   * Endpoint: GET /api/v1/auth/me/{student_id}
+   */
+  static async getMe(studentId: string): Promise<any | null> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/auth/me/${encodeURIComponent(studentId)}`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(6000)
+      });
+      if (!res.ok) return null;
+      return await res.json();
+    } catch {
       return null;
     }
   }

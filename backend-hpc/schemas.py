@@ -68,6 +68,7 @@ class CalculateMatchRequest(BaseModel):
     holland_scores: HollandScores = Field(default_factory=HollandScores)
     target_career_tags: List[str] = Field(default_factory=list, description="Danh mục thẻ định hướng")
     courses: List[CourseInputAssessment] = Field(default_factory=list, description="Danh mục môn và điểm")
+    detected_skills: List[str] = Field(default_factory=list, description="Kỹ năng bóc tách từ CV hoặc bảng điểm")
 
 
 class RadarAxisItem(BaseModel):
@@ -86,6 +87,27 @@ class SkillBreakdown(BaseModel):
     missing_skills: List[str] = Field(default_factory=list, description="Kỹ năng còn thiếu cần bù đắp")
 
 
+class XAIFactorItem(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    factor_name: str = Field(..., description="Tên nhân tố cấu thành điểm")
+    weight_percentage: float = Field(..., description="Tỷ trọng phần trăm (%)")
+    contribution_score: float = Field(..., description="Điểm số đóng góp")
+    description: str = Field(..., description="Mô tả lý giải chi tiết")
+    evidence: List[str] = Field(default_factory=list, description="Bằng chứng từ bảng điểm/CV hoặc trắc nghiệm")
+
+
+class XAIExplanation(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    summary: str = Field(..., description="Tóm tắt lý do phù hợp cốt lõi")
+    academic_factor: XAIFactorItem
+    riasec_factor: XAIFactorItem
+    skills_factor: XAIFactorItem
+    key_strengths: List[str] = Field(default_factory=list, description="Điểm mạnh cốt lõi")
+    improvement_areas: List[str] = Field(default_factory=list, description="Kỹ năng cần bồi đắp thêm")
+
+
 class MajorMatchRankItem(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
@@ -95,6 +117,7 @@ class MajorMatchRankItem(BaseModel):
     rank: int = Field(..., ge=1, description="Thứ hạng xếp loại")
     radar_data: Optional[List[RadarAxisItem]] = None
     skill_gap: Optional[SkillBreakdown] = None
+    xai_explanation: Optional[XAIExplanation] = None
 
 
 class CalculateMatchResponse(BaseModel):
@@ -286,4 +309,48 @@ class UserFullStateResponse(BaseModel):
     roadmap: Optional[Dict[str, Any]] = None
     chat_message_count: int = 0
     updated_at: str
+
+
+# =============================================================================
+# 6. USER AUTHENTICATION SCHEMAS
+# =============================================================================
+
+class UserRegisterRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    student_id: str = Field(..., description="Mã số sinh viên", example="23IT196")
+    email: str = Field(..., description="Địa chỉ email", example="nhatdl.23it@vku.udn.vn")
+    password: str = Field(..., min_length=6, description="Mật khẩu bảo mật", example="matkhau123")
+    full_name: str = Field(..., description="Họ và tên sinh viên", example="Đặng Long Nhật")
+    university: str = Field("Trường Đại học CNTT & TT Việt - Hàn (VKU)", description="Tên trường đại học")
+    major: str = Field("Khoa học Dữ liệu & Trí tuệ Nhân tạo", description="Chuyên ngành")
+    cohort: str = Field("K23", description="Khóa học")
+
+
+class UserLoginRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    identifier: str = Field(..., description="Mã số sinh viên hoặc Email", example="23IT196")
+    password: str = Field(..., description="Mật khẩu", example="matkhau123")
+
+
+class UserPublicInfo(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    student_id: str
+    email: str
+    full_name: str
+    university: str
+    major: str
+    cohort: str
+    role: Optional[str] = "student"
+    created_at: str
+
+
+class AuthResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    status: str = "success"
+    token: str
+    user: UserPublicInfo
 

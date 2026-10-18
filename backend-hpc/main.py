@@ -31,8 +31,13 @@ from schemas import (
     RiasecSurveySaveRequest,
     RiasecSurveyResponse,
     ChatSessionItem,
-    UserFullStateResponse
+    UserFullStateResponse,
+    UserRegisterRequest,
+    UserLoginRequest,
+    AuthResponse,
+    UserPublicInfo
 )
+import secrets
 from parser import parse_transcript_document
 from ml_engine import process_skill_assessment
 from rag_service import OllamaAIService, chroma_service, OLLAMA_BASE_URL, OLLAMA_MODEL
@@ -50,6 +55,11 @@ from database import (
     get_riasec_survey,
     get_user_full_state,
     get_all_students_admin,
+    create_user,
+    authenticate_user,
+    get_user_by_id,
+    save_user_profile,
+    get_user_profile,
     get_db_connection,
     DB_PATH
 )
@@ -98,17 +108,97 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 
 
 # =============================================================================
+# ENDPOINT AUTH: ĐĂNG KÝ, ĐĂNG NHẬP VÀ XÁC THỰC NGƯỜI DÙNG THẬT (REAL AUTH)
+# =============================================================================
+
+@app.post(
+    "/api/v1/auth/register",
+    response_model=AuthResponse,
+    summary="Đăng ký tài khoản sinh viên mới vào CSDL SQLite",
+    tags=["Auth"]
+)
+async def register_user(request_body: UserRegisterRequest):
+    try:
+        user_info = create_user(
+            student_id=request_body.student_id,
+            email=request_body.email,
+            password=request_body.password,
+            full_name=request_body.full_name,
+            university=request_body.university,
+            major=request_body.major,
+            cohort=request_body.cohort
+        )
+        token = f"mm_token_{int(time.time())}_{secrets.token_hex(16)}"
+        return AuthResponse(
+            status="success",
+            token=token,
+            user=UserPublicInfo(**user_info)
+        )
+    except ValueError as ve:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(ve)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi đăng ký tài khoản: {str(e)}"
+        )
+
+
+@app.post(
+    "/api/v1/auth/login",
+    response_model=AuthResponse,
+    summary="Xác thực đăng nhập sinh viên bằng MSSV hoặc Email",
+    tags=["Auth"]
+)
+async def login_user(request_body: UserLoginRequest):
+    user_info = authenticate_user(
+        identifier=request_body.identifier,
+        password=request_body.password
+    )
+    if not user_info:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Thông tin đăng nhập không chính xác (Mã sinh viên/Email hoặc mật khẩu không đúng)."
+        )
+    token = f"mm_token_{int(time.time())}_{secrets.token_hex(16)}"
+    return AuthResponse(
+        status="success",
+        token=token,
+        user=UserPublicInfo(**user_info)
+    )
+
+
+@app.get(
+    "/api/v1/auth/me/{student_id}",
+    response_model=UserPublicInfo,
+    summary="Truy xuất thông tin tài khoản người dùng theo MSSV",
+    tags=["Auth"]
+)
+async def get_user_me(student_id: str):
+    user_info = get_user_by_id(student_id)
+    if not user_info:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Không tìm thấy người dùng có mã sinh viên '{student_id}'."
+        )
+    return UserPublicInfo(**user_info)
+
+
+# =============================================================================
 # ENDPOINT 1: TIẾP NHẬN & BÓC TÁCH BẢNG ĐIỂM PDF
 # =============================================================================
 @app.post(
     "/api/v1/profile/upload-transcript",
     response_model=TranscriptParsingResponse,
-    summary="Bóc tách tệp PDF bảng điểm và khử định danh PII",
+    summary="Bóc tách tệp PDF bảng điểm/CV và khử định danh PII",
     tags=["Profile"]
 )
 async def upload_transcript(
     file: UploadFile = File(..., description="Tệp tin PDF bảng điểm hoặc CV"),
-    document_type: str = Form("transcript", description="Loại tài liệu: transcript hoặc cv")
+    document_type: str = Form("transcript", description="Loại tài liệu: transcript hoặc cv"),
+    student_id: Optional[str] = Form(None, description="Mã số sinh viên nếu đã đăng nhập")
 ):
     # 1. Kiểm tra kích thước và định dạng tệp tin
     if not file.filename.lower().endswith(".pdf"):
@@ -124,16 +214,33 @@ async def upload_transcript(
             detail="Dung lượng tệp vượt quá giới hạn cho phép (tối đa 10MB)."
         )
 
-    # 2. Kiểm tra Magic Bytes (%PDF-1.x)
-    if not file_bytes.startswith(b"%PDF"):
+    # 2. Kiểm tra Magic Bytes (%PDF tìm kiếm trong 1024 bytes đầu theo chuẩn ISO 32000-1)
+    if b"%PDF" not in file_bytes[:1024]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Tệp tin không phải định dạng PDF hợp lệ."
+            detail="Tệp tin không phải định dạng PDF hợp lệ (không tìm thấy tiêu đề %PDF)."
         )
 
     # 3. Đẩy tác vụ bóc tách CPU-bound sang Worker Thread Pool
     try:
         response = await run_in_threadpool(parse_transcript_document, file_bytes)
+
+        # Nếu có student_id, tự động lưu vĩnh viễn hồ sơ vào CSDL
+        if student_id and response.profile_data:
+            p = response.profile_data
+            courses_dicts = [c.model_dump() for c in p.courses]
+            try:
+                save_user_profile(
+                    student_id=student_id,
+                    full_name=f"Sinh viên {student_id}",
+                    cumulative_gpa=p.cumulative_gpa,
+                    total_credits=p.total_credits,
+                    courses=courses_dicts,
+                    detected_skills=p.detected_skills
+                )
+            except Exception as e:
+                print(f"Lỗi tự động lưu user_profile: {e}")
+
         return response
     except Exception as e:
         raise HTTPException(
@@ -142,6 +249,44 @@ async def upload_transcript(
         )
     finally:
         del file_bytes
+
+
+@app.post("/api/v1/profile/{student_id}", tags=["Profile"])
+async def save_profile_endpoint(student_id: str, request: Request):
+    """Lưu trữ hoặc cập nhật thông tin bảng điểm/CV vào CSDL SQLite."""
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Dữ liệu JSON không hợp lệ.")
+
+    full_name = str(data.get("full_name", f"Sinh viên {student_id}")).strip()
+    gpa = float(data.get("cumulative_gpa", data.get("gpa", 0.0)))
+    credits = int(data.get("total_credits", 0))
+    courses = data.get("courses", [])
+    skills = data.get("detected_skills", [])
+    riasec_scores = data.get("riasec_scores", {})
+    career_tags = data.get("career_tags", [])
+
+    save_user_profile(
+        student_id=student_id,
+        full_name=full_name,
+        cumulative_gpa=gpa,
+        total_credits=credits,
+        courses=courses,
+        detected_skills=skills,
+        riasec_scores=riasec_scores,
+        career_tags=career_tags
+    )
+    return {"status": "success", "student_id": student_id, "message": "Đã lưu hồ sơ sinh viên vào CSDL."}
+
+
+@app.get("/api/v1/profile/{student_id}", tags=["Profile"])
+async def get_profile_endpoint(student_id: str):
+    """Truy xuất hồ sơ bảng điểm và kỹ năng của sinh viên theo MSSV."""
+    profile = get_user_profile(student_id)
+    if not profile:
+        raise HTTPException(status_code=404, detail=f"Chưa có hồ sơ cho sinh viên {student_id}")
+    return profile
 
 
 # =============================================================================
@@ -391,7 +536,7 @@ async def health_check():
 # ADMIN DATABASE ENDPOINTS (QUẢN TRỊ CSDL)
 # =============================================================================
 
-ADMIN_ALLOWED_TABLES = ["user_profiles", "roadmaps", "assessments", "chat_history", "riasec_surveys"]
+ADMIN_ALLOWED_TABLES = ["users", "user_profiles", "roadmaps", "assessments", "chat_history", "riasec_surveys"]
 
 @app.get("/api/v1/admin/stats", tags=["Admin"])
 async def get_admin_db_stats():
@@ -457,7 +602,7 @@ async def get_admin_table_records(
     cursor = conn.cursor()
 
     cursor.execute(f"PRAGMA table_info({table_name});")
-    columns_info = [{"name": r["name"], "type": r["type"], "pk": bool(r["pk"])} for r in cursor.fetchall()]
+    columns_info = [{"name": r["name"], "type": r["type"], "pk": bool(r["pk"])} for r in cursor.fetchall() if r["name"] != "password_hash"]
 
     query = f"SELECT * FROM {table_name}"
     count_query = f"SELECT COUNT(*) FROM {table_name}"
@@ -465,7 +610,10 @@ async def get_admin_table_records(
 
     if search and search.strip():
         search_term = f"%{search.strip()}%"
-        if table_name == "user_profiles":
+        if table_name == "users":
+            filter_clause = " WHERE student_id LIKE ? OR email LIKE ? OR full_name LIKE ?"
+            params.extend([search_term, search_term, search_term])
+        elif table_name == "user_profiles":
             filter_clause = " WHERE student_id LIKE ? OR full_name LIKE ? OR detected_skills LIKE ?"
             params.extend([search_term, search_term, search_term])
         elif table_name == "roadmaps":
@@ -494,6 +642,9 @@ async def get_admin_table_records(
     conn.close()
 
     records = [dict(r) for r in rows]
+    if table_name == "users":
+        for rec in records:
+            rec.pop("password_hash", None)
 
     return {
         "status": "success",

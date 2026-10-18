@@ -8,6 +8,8 @@ import os
 import sqlite3
 import json
 import time
+import hashlib
+import secrets
 from typing import Optional, Dict, Any, List
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "majormatch.db")
@@ -90,9 +92,55 @@ def init_db():
     );
     """)
 
+    # 6. Bảng lưu trữ tài khoản người dùng / sinh viên (Authentication)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS users (
+        student_id TEXT PRIMARY KEY,
+        email TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        full_name TEXT NOT NULL,
+        university TEXT DEFAULT 'Trường Đại học CNTT & TT Việt - Hàn (VKU)',
+        major TEXT DEFAULT 'Khoa học Dữ liệu & Trí tuệ Nhân tạo',
+        cohort TEXT DEFAULT 'K23',
+        role TEXT DEFAULT 'student',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    );
+    """)
+
     # Nâng cấp bảng chat_history nếu chưa có cột session_id
     try:
         cursor.execute("ALTER TABLE chat_history ADD COLUMN session_id TEXT DEFAULT 'default';")
+    except Exception:
+        pass
+
+    # Nâng cấp bảng users nếu chưa có cột role
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'student';")
+    except Exception:
+        pass
+
+    # Tự động khởi tạo tài khoản Admin mặc định chuẩn (admin / admin123)
+    try:
+        cursor.execute("SELECT student_id FROM users WHERE student_id = 'admin';")
+        if not cursor.fetchone():
+            admin_pwd = hash_password("admin123")
+            now_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+            cursor.execute("""
+            INSERT INTO users (student_id, email, password_hash, full_name, university, major, cohort, role, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+            """, (
+                "admin",
+                "admin@majormatch.vku.udn.vn",
+                admin_pwd,
+                "Quản trị viên Hệ thống (Site Admin)",
+                "VKU - MajorMatch Core Team",
+                "Hệ thống Quản trị Đào tạo",
+                "ADMIN",
+                "admin",
+                now_iso,
+                now_iso
+            ))
     except Exception:
         pass
 
@@ -654,5 +702,246 @@ def get_all_students_admin() -> List[Dict[str, Any]]:
         })
 
     return result
+
+
+# =============================================================================
+# CÁC HÀM XÁC THỰC VÀ QUẢN TRỊ NGƯỜI DÙNG (REAL AUTHENTICATION)
+# =============================================================================
+
+def hash_password(password: str) -> str:
+    """Băm mật khẩu an toàn với Salt ngẫu nhiên bằng SHA-256."""
+    salt = secrets.token_hex(16)
+    hashed = hashlib.sha256((salt + password).encode("utf-8")).hexdigest()
+    return f"{salt}${hashed}"
+
+
+def verify_password(password: str, stored_hash: str) -> bool:
+    """Xác thực mật khẩu đối chiếu với chuỗi hash đã lưu."""
+    if not stored_hash or "$" not in stored_hash:
+        return False
+    salt, hashed = stored_hash.split("$", 1)
+    test_hash = hashlib.sha256((salt + password).encode("utf-8")).hexdigest()
+    return secrets.compare_digest(hashed, test_hash)
+
+
+def create_user(
+    student_id: str,
+    email: str,
+    password: str,
+    full_name: str,
+    university: str = "Trường Đại học CNTT & TT Việt - Hàn (VKU)",
+    major: str = "Khoa học Dữ liệu & Trí tuệ Nhân tạo",
+    cohort: str = "K23"
+) -> Dict[str, Any]:
+    """Tạo người dùng mới trong CSDL SQLite."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    clean_student_id = student_id.strip()
+    clean_email = email.strip().lower()
+
+    # Chặn đăng ký tài khoản có định danh hoặc quyền admin
+    if clean_student_id.lower() in ["admin", "root", "administrator"] or clean_email.startswith("admin@"):
+        conn.close()
+        raise ValueError("Không được phép đăng ký tài khoản với định danh Quản trị viên (Admin). Vui lòng sử dụng tài khoản admin được cấp sẵn.")
+
+    # Kiểm tra trùng lặp MSSV hoặc Email
+    cursor.execute(
+        "SELECT student_id, email FROM users WHERE student_id = ? OR email = ?",
+        (clean_student_id, clean_email)
+    )
+    existing = cursor.fetchone()
+    if existing:
+        conn.close()
+        if existing["student_id"] == clean_student_id:
+            raise ValueError(f"Mã số sinh viên '{student_id}' đã tồn tại trong hệ thống.")
+        else:
+            raise ValueError(f"Email '{email}' đã được đăng ký.")
+
+    now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    pwd_hash = hash_password(password)
+
+    cursor.execute("""
+    INSERT INTO users (student_id, email, password_hash, full_name, university, major, cohort, role, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    """, (
+        clean_student_id,
+        clean_email,
+        pwd_hash,
+        full_name.strip(),
+        university.strip(),
+        major.strip(),
+        cohort.strip(),
+        "student",
+        now,
+        now
+    ))
+    conn.commit()
+    conn.close()
+
+    return {
+        "student_id": clean_student_id,
+        "email": clean_email,
+        "full_name": full_name.strip(),
+        "university": university.strip(),
+        "major": major.strip(),
+        "cohort": cohort.strip(),
+        "role": "student",
+        "created_at": now
+    }
+
+
+def authenticate_user(identifier: str, password: str) -> Optional[Dict[str, Any]]:
+    """Xác thực người dùng bằng MSSV hoặc Email."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    clean_id = identifier.strip().lower()
+
+    cursor.execute("""
+    SELECT student_id, email, password_hash, full_name, university, major, cohort, role, created_at
+    FROM users
+    WHERE LOWER(student_id) = ? OR LOWER(email) = ?;
+    """, (clean_id, clean_id))
+    row = cursor.fetchone()
+    conn.close()
+
+    if not row:
+        return None
+
+    if not verify_password(password, row["password_hash"]):
+        return None
+
+    user_role = row["role"] if "role" in row.keys() and row["role"] else ("admin" if row["student_id"] == "admin" else "student")
+
+    return {
+        "student_id": row["student_id"],
+        "email": row["email"],
+        "full_name": row["full_name"],
+        "university": row["university"] or "Trường Đại học CNTT & TT Việt - Hàn (VKU)",
+        "major": row["major"] or "Khoa học Dữ liệu & Trí tuệ Nhân tạo",
+        "cohort": row["cohort"] or "K23",
+        "role": user_role,
+        "created_at": row["created_at"]
+    }
+
+
+def get_user_by_id(student_id: str) -> Optional[Dict[str, Any]]:
+    """Truy xuất thông tin công khai của người dùng theo MSSV."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+    SELECT student_id, email, full_name, university, major, cohort, role, created_at
+    FROM users
+    WHERE student_id = ?;
+    """, (student_id.strip(),))
+    row = cursor.fetchone()
+    conn.close()
+
+    if not row:
+        return None
+
+    user_role = row["role"] if "role" in row.keys() and row["role"] else ("admin" if row["student_id"] == "admin" else "student")
+
+    return {
+        "student_id": row["student_id"],
+        "email": row["email"],
+        "full_name": row["full_name"],
+        "university": row["university"] or "Trường Đại học CNTT & TT Việt - Hàn (VKU)",
+        "major": row["major"] or "Khoa học Dữ liệu & Trí tuệ Nhân tạo",
+        "cohort": row["cohort"] or "K23",
+        "role": user_role,
+        "created_at": row["created_at"]
+    }
+
+
+# =============================================================================
+# CÁC THAO TÁC LƯU TRỮ HỒ SƠ BẢNG ĐIỂM (USER PROFILES PERSISTENCE)
+# =============================================================================
+
+def save_user_profile(
+    student_id: str,
+    full_name: str,
+    cumulative_gpa: float,
+    total_credits: int,
+    courses: List[Dict[str, Any]],
+    detected_skills: List[str],
+    riasec_scores: Optional[Dict[str, float]] = None,
+    career_tags: Optional[List[str]] = None
+) -> None:
+    """Lưu mới hoặc cập nhật toàn bộ thông tin hồ sơ bảng điểm/CV vào CSDL SQLite."""
+    conn = get_db_connection()
+    now_str = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    courses_json = json.dumps(courses)
+    skills_json = json.dumps(detected_skills)
+    riasec_json = json.dumps(riasec_scores or {})
+    tags_json = json.dumps(career_tags or [])
+
+    with conn:
+        conn.execute("""
+        INSERT INTO user_profiles (student_id, full_name, cumulative_gpa, total_credits, courses_data, detected_skills, riasec_scores, career_tags, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(student_id) DO UPDATE SET
+            full_name = excluded.full_name,
+            cumulative_gpa = excluded.cumulative_gpa,
+            total_credits = excluded.total_credits,
+            courses_data = excluded.courses_data,
+            detected_skills = excluded.detected_skills,
+            riasec_scores = CASE WHEN excluded.riasec_scores != '{}' THEN excluded.riasec_scores ELSE user_profiles.riasec_scores END,
+            career_tags = CASE WHEN excluded.career_tags != '[]' THEN excluded.career_tags ELSE user_profiles.career_tags END,
+            updated_at = excluded.updated_at;
+        """, (
+            student_id.strip(),
+            full_name.strip(),
+            float(cumulative_gpa),
+            int(total_credits),
+            courses_json,
+            skills_json,
+            riasec_json,
+            tags_json,
+            now_str
+        ))
+    conn.close()
+
+
+def get_user_profile(student_id: str) -> Optional[Dict[str, Any]]:
+    """Truy xuất hồ sơ bảng điểm và kỹ năng của sinh viên theo student_id."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM user_profiles WHERE student_id = ?;", (student_id.strip(),))
+    row = cursor.fetchone()
+    conn.close()
+
+    if not row:
+        return None
+
+    try:
+        courses = json.loads(row["courses_data"]) if row["courses_data"] else []
+    except Exception:
+        courses = []
+    try:
+        skills = json.loads(row["detected_skills"]) if row["detected_skills"] else []
+    except Exception:
+        skills = []
+    try:
+        r_scores = json.loads(row["riasec_scores"]) if row["riasec_scores"] else {}
+    except Exception:
+        r_scores = {}
+    try:
+        tags = json.loads(row["career_tags"]) if row["career_tags"] else []
+    except Exception:
+        tags = []
+
+    return {
+        "student_id": row["student_id"],
+        "full_name": row["full_name"],
+        "cumulative_gpa": row["cumulative_gpa"],
+        "total_credits": row["total_credits"],
+        "courses": courses,
+        "detected_skills": skills,
+        "riasec_scores": r_scores,
+        "career_tags": tags,
+        "updated_at": row["updated_at"]
+    }
+
 
 
