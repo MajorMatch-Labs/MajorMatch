@@ -63,6 +63,7 @@ export const Navbar: React.FC = () => {
     { href: "/result", label: "Khoảng cách Kỹ năng", icon: Radar },
     { href: "/roadmap", label: "Lộ trình Tương tác", icon: GitFork },
     { href: "/chat", label: "Trợ lý AI Streaming", icon: MessageSquare },
+    { href: "/profile", label: "Hồ sơ Cá nhân", icon: User },
     { href: "/admin", label: "Admin CSDL", icon: Database },
   ];
 
@@ -185,7 +186,15 @@ export const Navbar: React.FC = () => {
                       {user.major}
                     </p>
                   </div>
-                  <div className="pt-2">
+                  <div className="pt-2 space-y-1">
+                    <Link
+                      href="/profile"
+                      onClick={() => setShowProfileMenu(false)}
+                      className="w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    >
+                      <User className="w-3.5 h-3.5 text-indigo-500" />
+                      <span>Hồ sơ & Tiến trình</span>
+                    </Link>
                     <button
                       type="button"
                       onClick={() => {
