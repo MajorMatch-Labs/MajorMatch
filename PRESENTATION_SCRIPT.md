@@ -1,5 +1,17 @@
 # 🎙️ KỊCH BẢN THUYẾT TRÌNH SIÊU CHI TIẾT DỰ ÁN MAJORMATCH
-**Hệ sinh thái Định lượng Năng lực & Cá nhân hóa Lộ trình Đại học (Hybrid Cloud Multi-tier & Explainable AI)**
+**Một website giúp sinh viên tìm hướng học; AWS phục vụ người dùng, máy tại chỗ xử lý phần AI nặng.**
+
+## Hiểu MajorMatch trong 30 giây
+
+| Câu hỏi | Nói với thầy như thế này |
+|---|---|
+| Nhóm em làm gì? | Tụi em làm một website giúp sinh viên tìm hướng học phù hợp, thay vì chọn theo cảm tính. |
+| Sinh viên dùng ra sao? | Vào web, có thể tải bảng điểm/CV, làm khảo sát rồi xem gợi ý và lộ trình học. |
+| AWS làm gì? | Chạy website, tiếp nhận yêu cầu và lưu thông tin để người dùng truy cập qua Internet. |
+| Máy tính tại chỗ làm gì? | Dùng sức mạnh máy sẵn có để xử lý các tác vụ AI nặng và gửi kết quả về website. |
+| Hai nơi phối hợp ra sao? | Trình duyệt → AWS → máy tại chỗ → AWS → trình duyệt. Nếu máy tại chỗ tắt, web vẫn mở được và báo rõ tác vụ AI nào tạm chưa dùng được. |
+
+**Ví dụ để nói:** “Bạn A làm khảo sát và tải bảng điểm. MajorMatch gợi ý các hướng phù hợp, chỉ ra phần còn thiếu và đề xuất nên học gì tiếp.”
 
 ---
 
@@ -90,7 +102,7 @@ Khi máy HPC bật, từ máy cá nhân kết nối vào HPC qua mạng Tailscal
 ```powershell
 # 1. SSH vào máy tính Legion qua Tailscale
 ssh Lenovo@100.123.107.114
-# Nhập 'yes' khi hỏi fingerprint. Nhập mật khẩu: 160205
+# Nhập 'yes' khi hỏi fingerprint. Lấy mật khẩu từ người quản lý thiết bị, không ghi vào tài liệu.
 
 # 2. Khởi chạy dịch vụ Ollama quản lý mô hình Qwen 2.5
 ollama serve
@@ -109,7 +121,7 @@ Thiết bị Joy 3 giữ vai trò trạm gác cổng mạng và hiển thị lu�
 ```bash
 # 1. SSH vào Joy 3 qua mạng Tailscale
 ssh -p 8022 root@100.71.182.24
-# Nhập mật khẩu: 123456
+# Lấy mật khẩu từ người quản lý thiết bị, không ghi vào tài liệu.
 
 # 2. Đăng nhập môi trường Ubuntu proot
 proot-distro login ubuntu
