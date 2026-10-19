@@ -67,7 +67,14 @@ interface AdminAuditEvent {
 interface AdminSystemHealth {
   status: string;
   cloud_gateway?: { node?: string; db_engine?: string };
-  private_compute_node?: { status?: string; device?: string; message?: string };
+  private_compute_node?: {
+    status?: string;
+    device?: string;
+    message?: string;
+    ollama_status?: string;
+    active_model?: string;
+    gpu_status?: string;
+  };
 }
 
 interface StudentSummary {
@@ -120,6 +127,20 @@ export default function AdminDatabasePage() {
   const [viewMode, setViewMode] = useState<ViewMode>("overview");
   const [auditEvents, setAuditEvents] = useState<AdminAuditEvent[] | null>(null);
   const [systemHealth, setSystemHealth] = useState<AdminSystemHealth | null>(null);
+  const localCompute = systemHealth?.private_compute_node;
+  const localComputeOnline = localCompute?.status === "online"
+    || localCompute?.ollama_status === "online"
+    || Boolean(localCompute?.gpu_status);
+  const localComputeLabel = !systemHealth || !localCompute
+    ? "Chưa xác nhận"
+    : localComputeOnline
+      ? localCompute?.ollama_status === "online" ? "Model đang hoạt động" : "Đang kết nối"
+      : localCompute.status === "offline" ? "Ngoại tuyến" : "Chưa xác nhận";
+  const localComputeTone = localComputeOnline
+    ? "text-emerald-700 dark:text-emerald-300"
+    : localCompute?.status === "offline"
+      ? "text-rose-700 dark:text-rose-300"
+      : "text-amber-700 dark:text-amber-300";
   const [operationsError, setOperationsError] = useState<string | null>(null);
   const [creatingBackup, setCreatingBackup] = useState(false);
 
@@ -648,11 +669,13 @@ export default function AdminDatabasePage() {
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
               <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Máy tính toán local</p>
-              <p className={`mt-2 flex items-center gap-2 text-lg font-bold ${systemHealth?.private_compute_node?.status === "online" ? "text-emerald-700 dark:text-emerald-300" : "text-amber-700 dark:text-amber-300"}`}>
-                {systemHealth?.private_compute_node?.status === "online" ? <Wifi className="h-5 w-5" /> : <WifiOff className="h-5 w-5" />}
-                {systemHealth ? systemHealth.private_compute_node?.status === "online" ? "Đang kết nối" : "Ngoại tuyến" : "Chưa xác nhận"}
+              <p className={`mt-2 flex items-center gap-2 text-lg font-bold ${localComputeTone}`}>
+                {localComputeOnline ? <Wifi className="h-5 w-5" /> : <WifiOff className="h-5 w-5" />}
+                {localComputeLabel}
               </p>
-              <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">Tác vụ AI cần máy local trực tuyến</p>
+              <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
+                {localCompute?.active_model ? `Model: ${localCompute.active_model}` : "Tác vụ AI cần máy local trực tuyến"}
+              </p>
             </div>
           </div>
         )}
@@ -914,7 +937,8 @@ export default function AdminDatabasePage() {
                 <div className="flex items-center gap-2"><Activity className="h-5 w-5 text-indigo-600 dark:text-indigo-300" /><h3 className="text-base font-bold">Kết nối hybrid cloud</h3></div>
                 <dl className="mt-5 space-y-4 text-sm">
                   <div className="flex justify-between gap-3 border-b border-slate-100 pb-3 dark:border-slate-800"><dt>Gateway AWS</dt><dd className="font-semibold">{systemHealth ? "Đang phản hồi" : "Chưa xác nhận"}</dd></div>
-                  <div className="flex justify-between gap-3 border-b border-slate-100 pb-3 dark:border-slate-800"><dt>Máy tính toán local</dt><dd className="font-semibold">{systemHealth ? systemHealth.private_compute_node?.status === "online" ? "Đang kết nối" : "Ngoại tuyến" : "Chưa xác nhận"}</dd></div>
+                  <div className="flex justify-between gap-3 border-b border-slate-100 pb-3 dark:border-slate-800"><dt>Máy tính toán local</dt><dd className="font-semibold">{localComputeLabel}</dd></div>
+                  {localCompute?.active_model && <div className="flex justify-between gap-3 border-b border-slate-100 pb-3 dark:border-slate-800"><dt>Model đang chạy</dt><dd className="font-mono text-right">{localCompute.active_model}</dd></div>}
                   <div className="flex justify-between gap-3"><dt>Cơ sở dữ liệu</dt><dd className="text-right font-semibold">{stats?.engine ?? "Chưa xác nhận"}</dd></div>
                 </dl>
                 {systemHealth?.private_compute_node?.message && <p className="mt-5 rounded-lg bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">{systemHealth.private_compute_node.message}</p>}
