@@ -51,6 +51,14 @@ npm run build
 npm start
 ```
 
+### Kiểm thử giao diện trên trình duyệt (Playwright):
+```bash
+npm install
+npx playwright install chromium
+npm run test:e2e
+```
+Playwright tự chạy Next.js tại `http://127.0.0.1:3100`, kiểm tra luồng vào khảo sát và nhãn dữ liệu minh họa ở kích thước desktop 1280px, mobile 375px. Kết quả HTML nằm trong `playwright-report/`; thư mục này và ảnh/trace lỗi không được commit.
+
 ---
 
 ## 3. Kiến trúc 3 Feature Modules & Phân công Nhóm
