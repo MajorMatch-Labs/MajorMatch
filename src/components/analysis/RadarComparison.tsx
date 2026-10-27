@@ -26,7 +26,7 @@ interface RadarComparisonProps {
 
 const BaseRadarComparison: React.FC<RadarComparisonProps> = ({ data, majorName }) => {
   // Toi uu hoa memoization qua custom hook useRadarMetrics
-  const { transformedData, hasValidData } = useRadarMetrics(data);
+  const { transformedData, hasValidData, invalidAxisCount } = useRadarMetrics(data);
 
   if (!hasValidData || transformedData.length === 0) {
     return (
@@ -38,6 +38,11 @@ const BaseRadarComparison: React.FC<RadarComparisonProps> = ({ data, majorName }
 
   return (
     <div className="w-full h-[360px] flex flex-col items-center justify-center">
+      {invalidAxisCount > 0 && (
+        <p role="status" className="text-xs text-amber-600 dark:text-amber-400">
+          Có {invalidAxisCount} trục chưa đủ số liệu hợp lệ. Biểu đồ chỉ hiển thị các trục có dữ liệu.
+        </p>
+      )}
       <ResponsiveContainer width="100%" height="100%">
         <RadarChart cx="50%" cy="50%" outerRadius="75%" data={transformedData}>
           <PolarGrid
@@ -115,8 +120,10 @@ function areRadarPropsEqual(
 
   return prevProps.data.every((item, idx) => {
     const nextItem = nextProps.data[idx];
+    if (item == null || nextItem == null) return item === nextItem;
     return (
       item.axis_name === nextItem.axis_name &&
+      item.axis === nextItem.axis &&
       item.user_score === nextItem.user_score &&
       item.benchmark_score === nextItem.benchmark_score
     );

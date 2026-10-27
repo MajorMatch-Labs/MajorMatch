@@ -4,6 +4,24 @@ Hướng dẫn này cấu hình review pull request của phần `client` theo [
 
 ## 1. Kết nối và bật review
 
+### Chẩn đoán ngày 27/10/2026: tổ chức chưa hiện trong danh sách
+
+Kết nối GitHub của Codex trả về tài khoản cá nhân `NhatPrv` và một tổ chức khác, nhưng **không có `MajorMatch-Labs`**. Trong khi đó GitHub CLI đang đăng nhập `Vcoch27` và đọc được quyền admin trên `MajorMatch-Labs/majormatch-client`. Đây là hai kết nối khác nhau; `git remote` đúng và CLI có quyền không tự cấp quyền cho Codex.
+
+1. Mở GitHub từ phần cấu hình kết nối GitHub của Codex. Trong GitHub, kiểm tra **Settings → Applications → Installed GitHub Apps → ChatGPT Codex Connector → Configure**. Với tổ chức, có thể kiểm tra [MajorMatch-Labs → Settings → GitHub Apps](https://github.com/organizations/MajorMatch-Labs/settings/installations).
+2. Cài hoặc cấu hình app trên **MajorMatch-Labs**; chọn `majormatch-client` và `MajorMatch` trong danh sách repository được cấp quyền. Nếu chỉ có nút Request, chủ tổ chức cần duyệt yêu cầu. Không cần chuyển quyền sở hữu repo về tài khoản cá nhân.
+3. Quay lại Code Review → Review agent, tải lại và tìm đầy đủ `MajorMatch-Labs/majormatch-client`. Bật review trên repo nộp bài này; bật thêm `MajorMatch-Labs/MajorMatch` nếu muốn review cả hệ thống.
+4. Tạo PR vào `main`, thêm `@codex review`, rồi lưu link phản hồi thực tế. Chỉ ghi bot đã review khi thấy phản hồi; không suy ra từ việc có `AGENTS.md`.
+
+Quyền GitHub App được cấp theo tài khoản/tổ chức và từng repository: [GitHub Docs](https://docs.github.com/en/apps/using-github-apps/installing-a-github-app-from-a-third-party). Quy trình gọi review và quy tắc `AGENTS.md`: [OpenAI GitHub Code Review](https://learn.chatgpt.com/docs/third-party/github). Hướng dẫn được đối chiếu trực tiếp ngày 27/10/2026; trạng thái tài khoản có thể thay đổi sau khi bạn cấp quyền.
+
+### Phân biệt hai loại minh chứng
+
+- Review local trong phiên Codex: có thể ghi phát hiện, diff, kiểm thử và quyết định xử lý vào repo.
+- Review GitHub bằng bot: cần link PR và phản hồi thật của `chatgpt-codex-connector`. Không thay bằng nhật ký tự viết hoặc giả nhận xét của thành viên.
+
+Trong repo standalone, `client/AGENTS.md` trở thành `AGENTS.md` ở gốc nên quy tắc review vẫn được giữ khi tách subtree.
+
 Thực hiện một lần trong tài khoản Codex có quyền cấu hình repo:
 
 1. Kết nối GitHub với Codex và cấp quyền cho repository MajorMatch.

@@ -6,6 +6,14 @@
 
 import { RadarAxisItem, SkillBreakdown } from "@/types/api";
 
+/** Missing/non-finite evidence must never become a synthetic zero score. */
+function validAxes(rawAxes: RadarAxisItem[] | null | undefined): RadarAxisItem[] {
+  if (!Array.isArray(rawAxes)) return [];
+  return rawAxes.filter((axis) => axis != null
+    && Number.isFinite(axis.user_score)
+    && Number.isFinite(axis.benchmark_score));
+}
+
 export interface RechartsRadarPoint {
   axis: string;
   "Năng lực sinh viên hiện tại": number;
@@ -37,14 +45,10 @@ export class RadarTransformer {
    * Chuyển đổi dữ liệu thô từ API backend (RadarAxisItem[]) sang cấu trúc chuẩn của Recharts Radar
    */
   static transform(rawAxes: RadarAxisItem[] = []): RechartsRadarPoint[] {
-    if (!rawAxes || rawAxes.length === 0) {
-      return [];
-    }
-
-    return rawAxes.map((item) => {
+    return validAxes(rawAxes).map((item) => {
       const axisTitle = item.axis_name || item.axis || "Trục năng lực";
-      const user = Number(item.user_score?.toFixed(1)) || 0;
-      const benchmark = Number(item.benchmark_score?.toFixed(1)) || 0;
+      const user = Number(item.user_score.toFixed(1));
+      const benchmark = Number(item.benchmark_score.toFixed(1));
       const delta = Number((user - benchmark).toFixed(1));
 
       let status: "surplus" | "match" | "gap" = "match";
@@ -66,7 +70,8 @@ export class RadarTransformer {
    * Tính toán chỉ số tổng hợp về mức độ sẵn sàng nghề nghiệp từ các trục Radar
    */
   static summarizeReadiness(rawAxes: RadarAxisItem[] = []): RadarReadinessSummary {
-    if (!rawAxes || rawAxes.length === 0) {
+    const axes = validAxes(rawAxes);
+    if (axes.length === 0) {
       return {
         averageUserScore: 0,
         averageBenchmarkScore: 0,
@@ -81,9 +86,9 @@ export class RadarTransformer {
     let strongCount = 0;
     let gapCount = 0;
 
-    rawAxes.forEach((axis) => {
-      const u = axis.user_score || 0;
-      const b = axis.benchmark_score || 0;
+    axes.forEach((axis) => {
+      const u = axis.user_score;
+      const b = axis.benchmark_score;
       totalUser += u;
       totalBench += b;
 
@@ -91,8 +96,8 @@ export class RadarTransformer {
       else if (b - u > 1.0) gapCount++;
     });
 
-    const avgUser = totalUser / rawAxes.length;
-    const avgBench = totalBench / rawAxes.length;
+    const avgUser = totalUser / axes.length;
+    const avgBench = totalBench / axes.length;
     const fitPct = avgBench > 0 ? Math.min(100, Math.round((avgUser / avgBench) * 100)) : 0;
 
     return {
