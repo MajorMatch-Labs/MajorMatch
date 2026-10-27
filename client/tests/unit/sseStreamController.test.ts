@@ -16,6 +16,31 @@ function streamResponse() {
 afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
 
 describe('SSE request lifecycle', () => {
+  it('labels EOF without DONE as interrupted and never persists it as completed', async () => {
+    const stream = streamResponse();
+    const opts = options();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(stream.response));
+    stream.source.enqueue(encoder.encode('data: {"token":"partial"}\n\n'));
+    stream.source.close();
+    await new SseStreamController().startStream('/synthetic', { message: 'test' }, opts);
+    expect(opts.onToken).toHaveBeenCalledWith('partial');
+    expect(opts.onStatusChange).toHaveBeenLastCalledWith('interrupted');
+    expect(opts.onComplete).not.toHaveBeenCalled();
+  });
+
+  it('forwards an external abort while the reader is waiting', async () => {
+    const stream = streamResponse();
+    const external = new AbortController();
+    const opts = { ...options(), signal: external.signal };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(stream.response));
+    const running = new SseStreamController().startStream('/synthetic', { message: 'test' }, opts);
+    await vi.waitFor(() => expect(opts.onStatusChange).toHaveBeenCalledWith('streaming'));
+    external.abort();
+    await running;
+    expect(opts.onStatusChange).toHaveBeenLastCalledWith('interrupted');
+    expect(stream.cancel).toHaveBeenCalledTimes(1);
+    expect(opts.onComplete).not.toHaveBeenCalled();
+  });
   it('delivers split UTF-8 tokens and cancels the body after DONE', async () => {
     const stream = streamResponse();
     const opts = options();
