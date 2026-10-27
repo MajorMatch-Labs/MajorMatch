@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import { RadarAxisItem } from "@/types/api";
 import { useRadarMetrics } from "@/modules/analytics/hooks/useRadarMetrics";
+import { useReducedMotion } from "@/modules/analytics/hooks/useReducedMotion";
 import { RadarTooltip } from "@/modules/analytics/components/RadarTooltip";
 import {
   RADAR_ANIMATION_CONFIG,
@@ -27,22 +28,24 @@ interface RadarComparisonProps {
 const BaseRadarComparison: React.FC<RadarComparisonProps> = ({ data, majorName }) => {
   // Toi uu hoa memoization qua custom hook useRadarMetrics
   const { transformedData, hasValidData, invalidAxisCount } = useRadarMetrics(data);
+  const reducedMotion = useReducedMotion();
 
   if (!hasValidData || transformedData.length === 0) {
     return (
-      <div className="w-full h-[360px] flex items-center justify-center text-slate-500 text-xs italic">
+      <div role="status" className="w-full h-[360px] flex items-center justify-center text-slate-500 text-xs italic">
         Chưa có dữ liệu trục năng lực cho chuyên ngành {majorName}
       </div>
     );
   }
 
   return (
-    <div className="w-full h-[360px] flex flex-col items-center justify-center">
+    <div className="w-full space-y-3">
       {invalidAxisCount > 0 && (
         <p role="status" className="text-xs text-amber-600 dark:text-amber-400">
           Có {invalidAxisCount} trục chưa đủ số liệu hợp lệ. Biểu đồ chỉ hiển thị các trục có dữ liệu.
         </p>
       )}
+      <div className="h-[360px] w-full" aria-hidden="true">
       <ResponsiveContainer width="100%" height="100%">
         <RadarChart cx="50%" cy="50%" outerRadius="75%" data={transformedData}>
           <PolarGrid
@@ -73,7 +76,7 @@ const BaseRadarComparison: React.FC<RadarComparisonProps> = ({ data, majorName }
             strokeDasharray="4 4"
             fill={RADAR_THEME_TOKENS.BENCHMARK_SERIES.FILL_COLOR}
             fillOpacity={RADAR_THEME_TOKENS.BENCHMARK_SERIES.FILL_OPACITY}
-            isAnimationActive={RADAR_ANIMATION_CONFIG.IS_ANIMATION_ACTIVE}
+            isAnimationActive={RADAR_ANIMATION_CONFIG.IS_ANIMATION_ACTIVE && !reducedMotion}
             animationDuration={RADAR_ANIMATION_CONFIG.ANIMATION_DURATION_MS}
             animationEasing={RADAR_ANIMATION_CONFIG.ANIMATION_EASING}
           />
@@ -86,7 +89,7 @@ const BaseRadarComparison: React.FC<RadarComparisonProps> = ({ data, majorName }
             strokeWidth={RADAR_THEME_TOKENS.USER_SERIES.STROKE_WIDTH}
             fill={RADAR_THEME_TOKENS.USER_SERIES.FILL_COLOR}
             fillOpacity={RADAR_THEME_TOKENS.USER_SERIES.FILL_OPACITY}
-            isAnimationActive={RADAR_ANIMATION_CONFIG.IS_ANIMATION_ACTIVE}
+            isAnimationActive={RADAR_ANIMATION_CONFIG.IS_ANIMATION_ACTIVE && !reducedMotion}
             animationDuration={RADAR_ANIMATION_CONFIG.ANIMATION_DURATION_MS}
             animationEasing={RADAR_ANIMATION_CONFIG.ANIMATION_EASING}
           />
@@ -102,6 +105,26 @@ const BaseRadarComparison: React.FC<RadarComparisonProps> = ({ data, majorName }
           />
         </RadarChart>
       </ResponsiveContainer>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300">
+          <caption className="pb-2 text-left font-medium">So sánh năng lực — {majorName} (thang 10)</caption>
+          <thead><tr>
+            <th scope="col" className="p-2">Trục năng lực</th>
+            <th scope="col" className="p-2">Hiện tại</th>
+            <th scope="col" className="p-2">Chuẩn ngành</th>
+            <th scope="col" className="p-2">Chênh lệch</th>
+          </tr></thead>
+          <tbody>{transformedData.map((axis, index) => (
+            <tr key={`${axis.axis}-${index}`} className="border-t border-slate-200 dark:border-slate-800">
+              <th scope="row" className="p-2 font-medium">{axis.axis}</th>
+              <td className="p-2">{axis["Năng lực sinh viên hiện tại"]}</td>
+              <td className="p-2">{axis["Chuẩn ngành yêu cầu"]}</td>
+              <td className="p-2">{axis.delta > 0 ? "+" : ""}{axis.delta}</td>
+            </tr>
+          ))}</tbody>
+        </table>
+      </div>
     </div>
   );
 };
