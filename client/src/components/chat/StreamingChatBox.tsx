@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import {
   Send,
   Bot,
@@ -45,7 +45,7 @@ interface ChatSession {
 }
 
 export const StreamingChatBox: React.FC = () => {
-  const { selectedMajor, profile } = useProfileStore();
+  const { selectedMajor, profile, riasecAnswers, selectedCareerTags } = useProfileStore();
   const { user } = useAuthStore();
   const studentId = user?.studentId || profile?.student_id || "23IT196";
   const studentName = user?.name || profile?.full_name || "Đặng Long Nhật";
@@ -67,8 +67,17 @@ export const StreamingChatBox: React.FC = () => {
   const [streamStatus, setStreamStatus] = useState<SseConnectionStatus>("idle");
   const [userScrolledUp, setUserScrolledUp] = useState(false);
   const [isHpcOnline, setIsHpcOnline] = useState<boolean | null>(null);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+
+  // Include evidence as well as the visible major/session in callback ownership.
+  const contextKey = useMemo(() => JSON.stringify([studentId, currentSessionId, selectedMajor,
+    targetMajor, profile, riasecAnswers, selectedCareerTags]),
+    [studentId, currentSessionId, selectedMajor, targetMajor, profile, riasecAnswers, selectedCareerTags]);
+  const contextKeyRef = useRef(contextKey);
+  contextKeyRef.current = contextKey;
 
   const controllerRef = useRef<SseStreamController | null>(null);
+  const activeRequestRef = useRef(0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const currentAssistantTextRef = useRef<string>("");
@@ -76,20 +85,30 @@ export const StreamingChatBox: React.FC = () => {
   const isStreaming = streamStatus === "connecting" || streamStatus === "streaming";
 
   const loadSessions = useCallback(() => {
+    const requestedContext = contextKeyRef.current;
+    const requestedController = controllerRef.current;
     ApiService.getChatSessions(studentId).then((sess) => {
-      setSessions(sess || []);
+      if (contextKeyRef.current === requestedContext && controllerRef.current === requestedController) setSessions(sess || []);
     });
   }, [studentId]);
 
   // Khởi tạo controller, kiểm tra trạng thái HPC Node định kỳ & nạp lịch sử hội thoại
   useEffect(() => {
-    controllerRef.current = new SseStreamController();
+    const controller = new SseStreamController();
+    controllerRef.current = controller;
     let isMounted = true;
+    const isCurrent = () => isMounted && contextKeyRef.current === contextKey;
+    setStreamStatus("idle");
+    setIsLoadingHistory(true);
+    setInput("");
+    setSessions([]);
+    setMessages([]);
+    currentAssistantTextRef.current = "";
 
     const checkNodeStatus = () => {
       ApiService.checkHealth()
         .then((h) => {
-          if (isMounted) {
+          if (isCurrent()) {
             const pNode = h?.private_compute_node as any;
             const online =
               pNode &&
@@ -101,7 +120,7 @@ export const StreamingChatBox: React.FC = () => {
           }
         })
         .catch(() => {
-          if (isMounted) setIsHpcOnline(false);
+          if (isCurrent()) setIsHpcOnline(false);
         });
     };
 
@@ -110,9 +129,10 @@ export const StreamingChatBox: React.FC = () => {
     const intervalId = setInterval(checkNodeStatus, 15000);
 
     ApiService.getChatHistory(studentId, currentSessionId).then((history) => {
-      if (isMounted && history && history.length > 0) {
+      if (!isCurrent()) return;
+      if (history && history.length > 0) {
         setMessages(history);
-      } else if (isMounted) {
+      } else {
         setMessages([
           {
             role: "assistant",
@@ -120,28 +140,22 @@ export const StreamingChatBox: React.FC = () => {
           },
         ]);
       }
+    }).catch(() => {
+      if (isCurrent()) setStreamStatus("error");
+    }).finally(() => {
+      if (isCurrent()) setIsLoadingHistory(false);
     });
 
     return () => {
       isMounted = false;
       clearInterval(intervalId);
-      controllerRef.current?.abort();
+      controller.abort();
+      if (controllerRef.current === controller) controllerRef.current = null;
     };
-  }, [studentId, displayName, currentSessionId, loadSessions, targetMajor]);
+  }, [studentId, displayName, currentSessionId, loadSessions, targetMajor, contextKey]);
 
-  const switchSession = async (sid: string) => {
+  const switchSession = (sid: string) => {
     setCurrentSessionId(sid);
-    const hist = await ApiService.getChatHistory(studentId, sid);
-    if (hist && hist.length > 0) {
-      setMessages(hist);
-    } else {
-      setMessages([
-        {
-          role: "assistant",
-          content: `Đã chuyển sang phiên tư vấn **${sid}**. Tôi sẵn sàng giải đáp thắc mắc của bạn về chuyên ngành **${targetMajor}**!`,
-        },
-      ]);
-    }
   };
 
   const createNewSession = () => {
@@ -174,13 +188,19 @@ export const StreamingChatBox: React.FC = () => {
   };
 
   const handleStop = () => {
+    activeRequestRef.current++;
     controllerRef.current?.abort();
     setStreamStatus("interrupted");
   };
 
   const handleSend = async (textToSend?: string) => {
     const query = (textToSend || input).trim();
-    if (!query || isStreaming) return;
+    if (!query || isStreaming || isLoadingHistory) return;
+    const controller = controllerRef.current;
+    if (!controller) return;
+    const requestedContext = contextKey;
+    const requestId = ++activeRequestRef.current;
+    const isCurrent = () => activeRequestRef.current === requestId && contextKeyRef.current === requestedContext && controllerRef.current === controller;
 
     setInput("");
     setUserScrolledUp(false);
@@ -197,7 +217,7 @@ export const StreamingChatBox: React.FC = () => {
     const apiBaseUrl = typeof window !== "undefined" ? "" : (process.env.NEXT_PUBLIC_API_URL || "");
     const endpoint = `${apiBaseUrl}/api/v1/chat/stream`;
 
-    await controllerRef.current?.startStream(
+    await controller.startStream(
       endpoint,
       {
         message: query,
@@ -212,6 +232,7 @@ export const StreamingChatBox: React.FC = () => {
       },
       {
         onToken: (token) => {
+          if (!isCurrent()) return;
           currentAssistantTextRef.current += token;
           setMessages((prev) => {
             if (prev.length === 0) return prev;
@@ -226,8 +247,9 @@ export const StreamingChatBox: React.FC = () => {
             return next;
           });
         },
-        onStatusChange: (status) => setStreamStatus(status),
+        onStatusChange: (status) => { if (isCurrent()) setStreamStatus(status); },
         onComplete: () => {
+          if (!isCurrent()) return;
           setStreamStatus("completed");
           if (currentAssistantTextRef.current) {
             ApiService.saveChatMessage(studentId, "assistant", currentAssistantTextRef.current, currentSessionId);
@@ -235,6 +257,7 @@ export const StreamingChatBox: React.FC = () => {
           }
         },
         onError: (err) => {
+          if (!isCurrent()) return;
           setStreamStatus("error");
           setMessages((prev) => {
             if (prev.length === 0) return prev;
@@ -243,7 +266,7 @@ export const StreamingChatBox: React.FC = () => {
             if (next[lastIdx]?.role === "assistant" && !next[lastIdx].content) {
               next[lastIdx] = {
                 ...next[lastIdx],
-                content: `⚠️ Có lỗi kết nối tới AI Backend: ${err.message}. Đã kích hoạt phản hồi ngoại tuyến.`,
+                content: `⚠️ Có lỗi kết nối tới AI Backend: ${err.message}. Vui lòng thử lại.`,
               };
             }
             return next;
@@ -442,6 +465,9 @@ export const StreamingChatBox: React.FC = () => {
           onScroll={handleContainerScroll}
           className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 space-y-5 scroll-smooth"
         >
+          {isLoadingHistory && <p role="status" className="text-xs text-slate-500">Đang tải lịch sử trò chuyện...</p>}
+          {streamStatus === "interrupted" && <p role="status" className="text-xs text-amber-600 dark:text-amber-400">Phản hồi đã dừng hoặc kết nối kết thúc trước khi hoàn tất.</p>}
+          {streamStatus === "error" && <p role="alert" className="text-xs text-rose-600 dark:text-rose-400">Chưa nhận được phản hồi hoàn chỉnh. Vui lòng thử lại.</p>}
           {/* Welcome Screen kiểu Gemini nếu chỉ có 1 tin nhắn mặc định */}
           {messages.length <= 1 && (
             <div className="max-w-3xl mx-auto py-8 sm:py-12 space-y-8 animate-in fade-in duration-300">
@@ -518,9 +544,9 @@ export const StreamingChatBox: React.FC = () => {
                       <span className="whitespace-pre-wrap">{msg.content}</span>
                     )
                   ) : (
-                    <span className="inline-flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-medium">
+                    isStreaming ? <span className="inline-flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-medium">
                       <Loader2 className="w-3.5 h-3.5 animate-spin" /> Đang tổng hợp tri thức...
-                    </span>
+                    </span> : <span className="text-slate-500">Chưa có nội dung phản hồi.</span>
                   )}
                 </div>
 
@@ -581,7 +607,7 @@ export const StreamingChatBox: React.FC = () => {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Nhắn tin cho Cố vấn AI MajorMatch..."
-                disabled={isStreaming}
+                disabled={isStreaming || isLoadingHistory}
                 className="flex-1 bg-transparent text-xs sm:text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none py-2"
               />
 
@@ -598,7 +624,7 @@ export const StreamingChatBox: React.FC = () => {
               ) : (
                 <button
                   type="submit"
-                  disabled={!input.trim()}
+                  disabled={!input.trim() || isLoadingHistory}
                   className="p-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-30 disabled:hover:bg-indigo-600 text-white shadow-xs transition-all"
                   title="Gửi tin nhắn"
                 >
