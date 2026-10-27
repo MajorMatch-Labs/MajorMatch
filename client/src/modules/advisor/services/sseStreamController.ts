@@ -1,132 +1,123 @@
-/**
- * SSE Stream Controller with AbortSignal & Idle Timeout Guard
- * Mon hoc: Chuyen de 4 - AI Product Development (CS2028)
- * Tac gia: Long Nhat <torikun2005@gmail.com> - Tech Lead & Advisor Module
- */
-
-import {
-  StreamChatRequestPayload,
-  StreamChatHandlerOptions,
-  SseConnectionStatus,
-} from '../types/sseTypes';
+/** One isolated lifecycle per request: replacement streams cannot share buffers or timers. */
+import { StreamChatRequestPayload, StreamChatHandlerOptions, SseConnectionStatus } from '../types/sseTypes';
 import { SseLineBufferParser } from '../utils/sseParser';
 
+interface StreamSession {
+  controller: AbortController;
+  parser: SseLineBufferParser;
+  timer: ReturnType<typeof setTimeout> | null;
+  reader?: ReadableStreamDefaultReader<Uint8Array>;
+  options: StreamChatHandlerOptions;
+  terminal: boolean;
+}
+
 export class SseStreamController {
-  private abortController: AbortController | null = null;
-  private idleTimer: NodeJS.Timeout | null = null;
-  private parser: SseLineBufferParser = new SseLineBufferParser();
-  private static readonly DEFAULT_IDLE_TIMEOUT_MS = 45000; // 45 giay guard cho LLM GPU
+  private active: StreamSession | null = null;
+  private static readonly DEFAULT_IDLE_TIMEOUT_MS = 45000;
 
-  /**
-   * Khoi chay ket noi Streaming toi Backend HPC qua Server-Sent Events
-   */
-  public async startStream(
-    endpointUrl: string,
-    payload: StreamChatRequestPayload,
-    options: StreamChatHandlerOptions
-  ): Promise<void> {
-    this.abort(); // Huy ket noi cu neu dang chay
-    this.abortController = new AbortController();
-    this.parser.reset();
-
-    const signal = options.signal || this.abortController.signal;
-    const timeoutMs = options.timeoutMs || SseStreamController.DEFAULT_IDLE_TIMEOUT_MS;
-
-    options.onStatusChange?.('connecting');
-    this.resetIdleTimer(timeoutMs, options);
+  public async startStream(endpointUrl: string, payload: StreamChatRequestPayload, options: StreamChatHandlerOptions): Promise<void> {
+    this.abort();
+    const session: StreamSession = {
+      controller: new AbortController(), parser: new SseLineBufferParser(),
+      timer: null, options, terminal: false,
+    };
+    this.active = session;
+    const onExternalAbort = () => this.stop(session);
+    options.signal?.addEventListener('abort', onExternalAbort, { once: true });
+    const timeoutMs = options.timeoutMs ?? SseStreamController.DEFAULT_IDLE_TIMEOUT_MS;
 
     try {
+      options.onStatusChange?.('connecting');
+      if (options.signal?.aborted) this.stop(session);
+      if (!this.isCurrent(session)) return;
+      this.resetIdleTimer(session, timeoutMs);
       const response = await fetch(endpointUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'text/event-stream',
-        },
+        headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
         body: JSON.stringify(payload),
-        signal,
+        // External cancellation is forwarded to this controller; abort() always works.
+        signal: session.controller.signal,
       });
-
-      if (!response.ok) {
-        throw new Error(`HTTP_${response.status}: Kết nối máy chủ AI thất bại (${response.statusText})`);
+      if (!this.isCurrent(session)) {
+        await response.body?.cancel();
+        return;
       }
+      if (!response.ok) throw new Error(`HTTP_${response.status}: Kết nối máy chủ AI thất bại`);
+      if (!response.body) throw new Error('STREAM_EMPTY: Phản hồi không chứa luồng dữ liệu');
 
-      if (!response.body) {
-        throw new Error('STREAM_EMPTY: Phản hồi từ máy chủ không chứa luồng dữ liệu ReadableStream');
-      }
-
-      options.onStatusChange?.('streaming');
-      const reader = response.body.getReader();
+      session.reader = response.body.getReader();
       const decoder = new TextDecoder('utf-8');
-
-      let streamFinished = false;
-
-      while (!streamFinished) {
-        const { value, done } = await reader.read();
-
+      options.onStatusChange?.('streaming');
+      while (this.isCurrent(session)) {
+        const { value, done } = await session.reader.read();
+        if (!this.isCurrent(session)) return;
         if (done) {
-          streamFinished = true;
-          break;
+          this.finish(session, 'completed');
+          return;
         }
-
-        this.resetIdleTimer(timeoutMs, options);
-        const chunkText = decoder.decode(value, { stream: true });
-        const events = this.parser.feed(chunkText);
-
-        for (const evt of events) {
-          const payload = SseLineBufferParser.extractTokenPayload(evt);
-          if (!payload) continue;
-
-          if (payload.token) {
-            options.onToken(payload.token);
-          }
-
-          if (payload.done) {
-            streamFinished = true;
-            break;
+        this.resetIdleTimer(session, timeoutMs);
+        for (const event of session.parser.feed(decoder.decode(value, { stream: true }))) {
+          if (!this.isCurrent(session)) return;
+          const token = SseLineBufferParser.extractTokenPayload(event);
+          if (token?.error) throw new Error(token.error);
+          if (token?.token) options.onToken(token.token);
+          if (token?.done) {
+            this.finish(session, 'completed');
+            return;
           }
         }
       }
-
-      this.clearIdleTimer();
-      options.onStatusChange?.('completed');
-      options.onComplete?.();
-    } catch (error: any) {
-      this.clearIdleTimer();
-      if (error.name === 'AbortError') {
-        options.onStatusChange?.('interrupted');
-      } else {
-        options.onStatusChange?.('error');
-        options.onError?.(error instanceof Error ? error : new Error(String(error)));
+    } catch (error: unknown) {
+      if (this.isCurrent(session)) {
+        this.finish(session, session.controller.signal.aborted ? 'interrupted' : 'error',
+          error instanceof Error ? error : new Error(String(error)));
       }
     } finally {
-      this.abortController = null;
+      this.clearIdleTimer(session);
+      options.signal?.removeEventListener('abort', onExternalAbort);
+      // A [DONE] event can arrive while the HTTP body remains open.
+      if (session.reader) {
+        try { await session.reader.cancel(); } catch { /* Already aborted/errored. */ }
+        session.reader.releaseLock();
+      }
+      if (this.active === session) this.active = null;
     }
   }
 
-  /**
-   * Ngat ket noi chu dong tu phia nguoi dung
-   */
   public abort(): void {
-    this.clearIdleTimer();
-    if (this.abortController) {
-      this.abortController.abort();
-      this.abortController = null;
-    }
+    if (this.active) this.stop(this.active);
   }
 
-  private resetIdleTimer(timeoutMs: number, options: StreamChatHandlerOptions): void {
-    this.clearIdleTimer();
-    this.idleTimer = setTimeout(() => {
-      this.abort();
-      options.onStatusChange?.('error');
-      options.onError?.(new Error(`STREAM_TIMEOUT: Quá thời gian chờ phản hồi (${timeoutMs / 1000}s)`));
+  private isCurrent(session: StreamSession): boolean {
+    return this.active === session && !session.terminal;
+  }
+
+  private finish(session: StreamSession, status: SseConnectionStatus, error?: Error): void {
+    if (!this.isCurrent(session)) return;
+    session.terminal = true;
+    this.clearIdleTimer(session);
+    session.options.onStatusChange?.(status);
+    if (status === 'completed') session.options.onComplete?.();
+    if (status === 'error' && error) session.options.onError?.(error);
+  }
+
+  private stop(session: StreamSession): void {
+    this.finish(session, 'interrupted');
+    session.controller.abort();
+    void session.reader?.cancel().catch(() => undefined);
+  }
+
+  private resetIdleTimer(session: StreamSession, timeoutMs: number): void {
+    this.clearIdleTimer(session);
+    session.timer = setTimeout(() => {
+      this.finish(session, 'error', new Error(`STREAM_TIMEOUT: Quá thời gian chờ phản hồi (${timeoutMs / 1000}s)`));
+      session.controller.abort();
+      void session.reader?.cancel().catch(() => undefined);
     }, timeoutMs);
   }
 
-  private clearIdleTimer(): void {
-    if (this.idleTimer) {
-      clearTimeout(this.idleTimer);
-      this.idleTimer = null;
-    }
+  private clearIdleTimer(session: StreamSession): void {
+    if (session.timer !== null) clearTimeout(session.timer);
+    session.timer = null;
   }
 }

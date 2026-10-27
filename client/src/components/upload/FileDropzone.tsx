@@ -4,35 +4,18 @@ import React, { useState, useRef } from "react";
 import { UploadCloud, CheckCircle2, AlertCircle, Loader2, Lock } from "lucide-react";
 import { useProfileStore } from "@/stores/useProfileStore";
 import { useAuthStore } from "@/stores/useAuthStore";
-import { IngestionService } from "@/modules/ingestion/services/ingestionService";
+import { useFileUpload } from "@/modules/ingestion/hooks/useFileUpload";
 
 export const FileDropzone: React.FC = () => {
   const { profile, uploadedFileName, isUploading } = useProfileStore();
   const { isAuthenticated, openAuthModal } = useAuthStore();
   const [isDragOver, setIsDragOver] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const { handleFile, errorMsg, isPending } = useFileUpload();
+  const uploadBusy = isUploading || isPending;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFile = async (file: File) => {
-    if (!isAuthenticated) {
-      openAuthModal("login");
-      return;
-    }
-    setErrorMsg(null);
-    const validation = await IngestionService.validateTranscriptFileAdvanced(file);
-    if (!validation.isValid) {
-      setErrorMsg(validation.errorMessage || "Tệp không hợp lệ");
-      return;
-    }
-
-    try {
-      await IngestionService.uploadTranscript(file);
-    } catch (err: any) {
-      setErrorMsg(err.message || "Không thể bóc tách file. Vui lòng thử lại.");
-    }
-  };
-
   const handleClickDropzone = () => {
+    if (uploadBusy) return;
     if (!isAuthenticated) {
       openAuthModal("login");
       return;
@@ -78,16 +61,18 @@ export const FileDropzone: React.FC = () => {
           ref={fileInputRef}
           type="file"
           accept=".pdf"
+          disabled={uploadBusy}
           className="hidden"
           onChange={(e) => {
             if (e.target.files && e.target.files[0]) {
               handleFile(e.target.files[0]);
             }
+            e.target.value = "";
           }}
         />
 
         <div className="flex flex-col items-center justify-center gap-3">
-          {isUploading ? (
+          {uploadBusy ? (
             <div className="flex flex-col items-center gap-2 py-4">
               <Loader2 className="w-10 h-10 text-indigo-600 dark:text-indigo-400 animate-spin" />
               <span className="text-sm font-medium text-slate-700 dark:text-slate-300">

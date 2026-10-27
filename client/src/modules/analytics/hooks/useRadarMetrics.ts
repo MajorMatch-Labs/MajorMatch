@@ -18,6 +18,7 @@ export interface UseRadarMetricsReturn {
   readinessSummary: RadarReadinessSummary;
   skillMetrics: SkillGapMetrics;
   hasValidData: boolean;
+  invalidAxisCount: number;
 }
 
 export function useRadarMetrics(
@@ -36,14 +37,13 @@ export function useRadarMetrics(
     return RadarTransformer.analyzeSkillGap(skillGap);
   }, [skillGap]);
 
-  const hasValidData = useMemo(() => {
-    return Boolean(rawAxes && rawAxes.length > 0);
-  }, [rawAxes]);
+  const hasValidData = transformedData.length > 0;
 
   return {
     transformedData,
     readinessSummary,
     skillMetrics,
     hasValidData,
+    invalidAxisCount: Array.isArray(rawAxes) ? rawAxes.length - transformedData.length : 0,
   };
 }
