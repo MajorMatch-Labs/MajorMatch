@@ -2,6 +2,8 @@
 
 Baseline: monorepo `0154bcf`, kiểm tra ngày 27/10/2026. Mục tiêu: bàn giao client có thể truy vết từ phát hiện review → thay đổi → kiểm thử → PR → quyết định của người phụ trách.
 
+Cập nhật tiếp theo từ baseline `c18e4ce`: phần component verification của Analytics/Advisor đã được triển khai, cùng một phần E2E mock. Xem [kết quả và giới hạn](../docs/05-testing-and-rules/COMPONENT_VERIFICATION.md). Các mục bên dưới mô tả kế hoạch ban đầu; chưa coi toàn bộ chương 8 hoặc xác nhận của module owners đã hoàn tất.
+
 ## Chương 7: review và refactor
 
 | Module / người phụ trách | Gói công việc hiện tại | Commit nên tách | Người xác nhận |

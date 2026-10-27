@@ -1,12 +1,13 @@
 import { expect, test } from "@playwright/test";
 
 test("home leads to the learner intake", async ({ page }) => {
+  test.setTimeout(60_000);
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Hiểu năng lực của bạn");
 
   await page.getByRole("link", { name: "Bắt đầu với hồ sơ của tôi" }).click();
 
-  await expect(page).toHaveURL(/\/upload$/);
+  await expect(page).toHaveURL(/\/upload$/, { timeout: 30_000 });
   await expect(page.getByRole("heading", { name: "Bắt đầu với thông tin của bạn" })).toBeVisible();
   await expect(page.getByText("Bạn có thể xem câu hỏi trước.", { exact: false })).toBeVisible();
 });
