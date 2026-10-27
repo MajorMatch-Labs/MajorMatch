@@ -52,7 +52,8 @@ export class SseStreamController {
         const { value, done } = await session.reader.read();
         if (!this.isCurrent(session)) return;
         if (done) {
-          this.finish(session, 'completed');
+          // Transport EOF does not prove the model completed its response.
+          this.finish(session, 'interrupted');
           return;
         }
         this.resetIdleTimer(session, timeoutMs);

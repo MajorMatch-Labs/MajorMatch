@@ -4,3 +4,5 @@ Migration maps: van-hoang → ingestion; anh-vy → analytics; long-nhat → adv
 Future work records actor, branch, prompts, decisions and actual verification inside the module directory. Do not replace a contributor's identity with the module name in Git Author fields.
 
 Chapter 7 review/refactor supplement: [review record](W7_REFACTOR_REVIEW.md). Module records preserve historical owners while distinguishing the actual session actor from pending human and GitHub bot reviews.
+
+Follow-up component/browser verification: [Analytics](analytics/component-verification.md), [Advisor](advisor/context-verification.md), and [commands/results](../05-testing-and-rules/COMPONENT_VERIFICATION.md).
