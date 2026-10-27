@@ -5,29 +5,10 @@
  * Tuần 8 - Chương 8: AI trong Kiểm thử Phần mềm (Testing & Automation)
  */
 
-import { describe, it, expect, beforeEach, beforeAll } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { useProfileStore } from "../../src/stores/useProfileStore";
 import { MOCK_ROADMAP, MOCK_SKILL_GAP_ANALYSIS } from "../../src/services/mockData";
 import { ProfileData } from "../../src/types/api";
-
-// Cung cấp Polyfill LocalStorage cho môi trường kiểm thử Node.js của Vitest
-beforeAll(() => {
-  const storage: Record<string, string> = {};
-  global.localStorage = {
-    getItem: (key: string) => storage[key] ?? null,
-    setItem: (key: string, value: string) => {
-      storage[key] = String(value);
-    },
-    removeItem: (key: string) => {
-      delete storage[key];
-    },
-    clear: () => {
-      Object.keys(storage).forEach((k) => delete storage[k]);
-    },
-    length: 0,
-    key: () => null,
-  };
-});
 
 describe("Integration Test: useProfileStore Lifecycle and State Sync", () => {
   beforeEach(() => {
@@ -55,8 +36,8 @@ describe("Integration Test: useProfileStore Lifecycle and State Sync", () => {
       cumulative_gpa: 3.75,
       total_credits: 45,
       courses: [
-        { course_code: "IT101", course_name: "Nhập môn Lập trình", credits: 3, grade: "A" },
-        { course_code: "IT102", course_name: "Cấu trúc dữ liệu", credits: 4, grade: "B+" },
+        { course_code: "IT101", course_name: "Nhập môn Lập trình", credits: 3, grade_letter: "A", grade_point: 4 },
+        { course_code: "IT102", course_name: "Cấu trúc dữ liệu", credits: 4, grade_letter: "B+", grade_point: 3.5 },
       ],
       detected_skills: ["Python", "Algorithms", "Data Structures"],
     };
