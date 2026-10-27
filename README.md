@@ -6,6 +6,10 @@
 * **Tổ chức phát triển:** MajorMatch-Labs
 * **Framework:** Next.js 14 (App Router), TypeScript, Tailwind CSS, Recharts, Zustand.
 
+**Phạm vi bài nộp:** repository này là subtree `client/` của monorepo. Backend FastAPI và database SQLite được triển khai trong [MajorMatch/backend-hpc](https://github.com/MajorMatch-Labs/MajorMatch/tree/main/backend-hpc), không nằm trong bản nộp frontend. Xem [bằng chứng backend/database và cách kiểm chứng lưu trữ](docs/02-architecture/MONOREPO_BACKEND_EVIDENCE.md).
+
+**Chương 7–9:** [kế hoạch làm việc của nhóm](tasks/TEAM_DELIVERY_PLAN.md), [review và refactor chương 7](docs/ai-evidence/W7_REFACTOR_REVIEW.md), [cấu hình Codex Review cho tổ chức](docs/05-testing-and-rules/CODEX_GITHUB_REVIEW.md). Các minh chứng mới ghi riêng việc Codex thực hiện và phần đang chờ thành viên/PR bot xác nhận.
+
 ---
 
 ## 1. Tính năng Nổi bật (Features)
