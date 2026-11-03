@@ -1,5 +1,7 @@
 # Kế hoạch thực thi Chương 7–9
 
+**Cập nhật chương 9, 03/11/2026:** bộ tài liệu, phép đo và slide xem [delivery record](../docs/advisor/chapter-9-delivery.md). Các bảng dưới đây giữ bối cảnh kế hoạch; không biến phân công module thành xác nhận tác giả hoặc phê duyệt. Phần hạ tầng/model live và các caveat sản phẩm vẫn cần kiểm chứng/sửa riêng.
+
 Baseline: monorepo `0154bcf`, kiểm tra ngày 27/10/2026. Mục tiêu: bàn giao client có thể truy vết từ phát hiện review → thay đổi → kiểm thử → PR → quyết định của người phụ trách.
 
 Cập nhật tiếp theo từ baseline `c18e4ce`: phần component verification của Analytics/Advisor đã được triển khai, cùng một phần E2E mock. Xem [kết quả và giới hạn](../docs/05-testing-and-rules/COMPONENT_VERIFICATION.md). Các mục bên dưới mô tả kế hoạch ban đầu; chưa coi toàn bộ chương 8 hoặc xác nhận của module owners đã hoàn tất.
