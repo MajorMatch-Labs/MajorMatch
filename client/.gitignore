@@ -6,6 +6,7 @@ build/
 dist/
 playwright-report/
 test-results/
+.presentation-build/
 
 # Environment
 .env*.local

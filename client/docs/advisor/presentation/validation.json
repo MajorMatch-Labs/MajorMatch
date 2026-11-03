@@ -1,0 +1,15 @@
+{
+  "sha256": "c1d440fb1939913bc4067310356e16e59d881a03f808ed33947c1f03315f74aa",
+  "byteCount": 56664,
+  "slideCount": 11,
+  "packageIntegrity": "pass",
+  "layoutFindings": 0,
+  "layoutWarnings": 0,
+  "fontFamilies": [
+    "Segoe UI"
+  ],
+  "fontPolicyPassed": true,
+  "artifactImportPassed": true,
+  "visualReview": "All 11 slide PNGs inspected; architecture slide revised to distinguish browser, Next.js server, gateway, storage and HPC.",
+  "nativePowerPointVerified": false
+}

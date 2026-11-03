@@ -1,5 +1,7 @@
 # MajorMatch Client - Web 2.0 Interactive Frontend
 
+**Bộ nộp chương 9:** [báo cáo kỹ thuật](docs/FINAL_TECHNICAL_REPORT.md), [Ingestion](docs/ingestion-specification.md), [UI/UX và Lighthouse](docs/ui-ux-design-system.md), [slide PowerPoint](docs/advisor/presentation/majormatch-defense.pptx), [kịch bản demo](docs/advisor/demo-and-defense.md) và [trạng thái bàn giao](docs/advisor/chapter-9-delivery.md). Tài liệu phân biệt số đo local, DEMO/mock và kiểm chứng hạ tầng live.
+
 Ứng dụng giao diện người dùng đa nền tảng (Web 2.0 SPA) của hệ sinh thái **MajorMatch** phục vụ cố vấn học tập, định lượng khoảng cách kỹ năng (Skill Gap) và cá nhân hóa lộ trình đại học.
 
 * **Repository chính thức:** [https://github.com/MajorMatch-Labs/majormatch-client](https://github.com/MajorMatch-Labs/majormatch-client)
