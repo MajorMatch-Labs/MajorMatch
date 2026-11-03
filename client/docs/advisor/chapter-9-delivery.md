@@ -10,7 +10,7 @@ Ngày 03/11/2026. Mã nguồn đối chiếu: monorepo `108c6ff`; client trướ
 | Ánh Vy — Analytics | [Catalogue](../analytics/design-system-catalogue.md), [Lighthouse](../analytics/lighthouse-report.md), [QA handover](../analytics/qa-handover.md), [log chương 9](../ai-evidence/analytics/w9-prompt-log.md) | Catalogue/ảnh; phép đo và script; QA |
 | Long Nhật — Advisor/Core | [Final report](final-technical-report.md), [slide](presentation/majormatch-defense.pptx), [demo](demo-and-defense.md), [Rubric](rubric-evidence.md), [log chương 9](../ai-evidence/advisor/w9-prompt-log.md) | Báo cáo; thuyết trình; chuyển giao/kiểm tra |
 
-Actor soạn và chạy kiểm tra: Codex theo yêu cầu của người dùng. Danh tính commit dùng cấu hình Git hiện tại `Vcoch27 <142958796+Vcoch27@users.noreply.github.com>`, Author = Committer. Connector GitHub đang xác thực `NhatPrv` có quyền repo và được dùng cho thao tác PR/merge khi CLI không có phiên đăng nhập. Tên actor của các thao tác này không được luân phiên để giả lập ba tác giả. Chưa có owner review/sign-off mới được ghi nhận; phân công chuyên môn và phân vai nói không thay minh chứng đóng góp cá nhân.
+Actor soạn và chạy kiểm tra: Codex theo yêu cầu của người dùng. Danh tính commit dùng cấu hình Git hiện tại `Vcoch27 <142958796+Vcoch27@users.noreply.github.com>`, Author = Committer. GitHub connector ban đầu hiển thị `NhatPrv` nhưng API tạo PR bị từ chối 403; phiên Git credential có sẵn được kiểm tra qua GitHub API là `Vcoch27` và được dùng cho thao tác PR/merge. Tên actor của các thao tác này không được luân phiên để giả lập ba tác giả. Chưa có owner review/sign-off mới được ghi nhận; phân công chuyên môn và phân vai nói không thay minh chứng đóng góp cá nhân.
 
 ## Kiểm chứng mới trong phiên
 
